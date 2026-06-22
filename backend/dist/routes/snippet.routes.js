@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_1 = require("../middleware/auth");
+const snippet_controller_1 = require("../controllers/snippet.controller");
+const validation_1 = require("../middleware/validation");
+const router = (0, express_1.Router)();
+router.post('/', auth_1.authenticate, (0, validation_1.validateBody)(['title', 'code', 'language']), snippet_controller_1.createSnippet);
+router.get('/', auth_1.authenticate, snippet_controller_1.getSnippets);
+router.get('/:id', auth_1.authenticate, snippet_controller_1.getSnippetById);
+router.delete('/:id', auth_1.authenticate, snippet_controller_1.deleteSnippet);
+exports.default = router;

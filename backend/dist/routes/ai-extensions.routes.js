@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_1 = require("../middleware/auth");
+const ai_extensions_controller_1 = require("../controllers/ai-extensions.controller");
+const router = (0, express_1.Router)();
+router.get('/projects/:id/replay', auth_1.authenticate, ai_extensions_controller_1.getProjectReplay);
+router.get('/standup', auth_1.authenticate, ai_extensions_controller_1.generateStandup);
+router.get('/hidden-knowledge', auth_1.authenticate, ai_extensions_controller_1.getHiddenKnowledge);
+router.get('/opportunity', auth_1.authenticate, ai_extensions_controller_1.getOpportunity);
+router.get('/activities', auth_1.authenticate, ai_extensions_controller_1.getRecentActivities);
+exports.default = router;

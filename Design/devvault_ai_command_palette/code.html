@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DevVault AI | Command Palette</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary": "#003064",
+                        "surface-dim": "#10131b",
+                        "primary-fixed-dim": "#aac7ff",
+                        "inverse-on-surface": "#2d3038",
+                        "inverse-surface": "#e0e2ed",
+                        "surface-container-high": "#262a32",
+                        "text-muted": "#71717A",
+                        "on-secondary-fixed-variant": "#7200a3",
+                        "secondary-fixed-dim": "#e9b3ff",
+                        "primary": "#aac7ff",
+                        "secondary": "#e9b3ff",
+                        "warning": "#FFD60A",
+                        "surface-tint": "#aac7ff",
+                        "on-primary-container": "#002957",
+                        "on-tertiary-fixed": "#341100",
+                        "tertiary-fixed": "#ffdbcb",
+                        "on-primary-fixed": "#001b3e",
+                        "on-secondary-container": "#e5a9ff",
+                        "on-error-container": "#ffdad6",
+                        "orange": "#FF9F0A",
+                        "on-surface-variant": "#c0c6d6",
+                        "bg-primary": "#0A0A0A",
+                        "surface-variant": "#31353d",
+                        "on-tertiary": "#552000",
+                        "on-tertiary-fixed-variant": "#793100",
+                        "outline": "#8b91a0",
+                        "text-secondary": "#A1A1AA",
+                        "on-tertiary-container": "#4a1b00",
+                        "error": "#ffb4ab",
+                        "text-primary": "#FFFFFF",
+                        "primary-container": "#3e90ff",
+                        "elevated": "#252525",
+                        "outline-variant": "#414754",
+                        "card": "#1C1C1E",
+                        "surface-container-highest": "#31353d",
+                        "danger": "#FF453A",
+                        "on-surface": "#e0e2ed",
+                        "on-primary-fixed-variant": "#00468d",
+                        "inverse-primary": "#005db8",
+                        "divider": "rgba(255, 255, 255, 0.05)",
+                        "secondary-fixed": "#f6d9ff",
+                        "on-secondary": "#510074",
+                        "bg-secondary": "#111111",
+                        "primary-fixed": "#d6e3ff",
+                        "surface-container": "#1c2027",
+                        "tertiary-container": "#eb6a12",
+                        "success": "#30D158",
+                        "tertiary": "#ffb691",
+                        "surface-bright": "#363941",
+                        "on-error": "#690005",
+                        "surface-container-low": "#181c23",
+                        "border": "rgba(255, 255, 255, 0.08)",
+                        "on-secondary-fixed": "#310048",
+                        "text-disabled": "#52525B",
+                        "error-container": "#93000a",
+                        "background": "#10131b",
+                        "surface": "#161616",
+                        "tertiary-fixed-dim": "#ffb691",
+                        "on-background": "#e0e2ed",
+                        "surface-container-lowest": "#0b0e15",
+                        "secondary-container": "#7d01b1"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px",
+                        "modal": "28px"
+                    },
+                    "spacing": {
+                        "main-padding": "40px",
+                        "stack-sm": "8px",
+                        "stack-lg": "32px",
+                        "sidebar-width": "280px",
+                        "stack-md": "16px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["Inter"],
+                        "display": ["Inter"],
+                        "code-md": ["JetBrains Mono"],
+                        "headline-lg": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0A;
+            color: #FFFFFF;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        .glass-modal {
+            background: rgba(28, 28, 30, 0.7);
+            backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 40px 0 rgba(0, 0, 0, 0.5);
+        }
+        .search-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .search-item.active {
+            background: rgba(170, 199, 255, 0.1);
+            border-left: 2px solid #aac7ff;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+<!-- Background Layer (Simulated Dashboard Content) -->
+<div class="fixed inset-0 z-0 opacity-20 pointer-events-none p-main-padding">
+<div class="grid grid-cols-12 gap-gutter">
+<div class="col-span-3 h-screen bg-bg-secondary border-r border-border p-gutter"></div>
+<div class="col-span-9 space-y-stack-lg">
+<div class="h-16 w-full bg-surface-container rounded-xl"></div>
+<div class="grid grid-cols-3 gap-gutter">
+<div class="h-64 bg-card border border-border rounded-xl"></div>
+<div class="h-64 bg-card border border-border rounded-xl"></div>
+<div class="h-64 bg-card border border-border rounded-xl"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Backdrop Blur Overlay -->
+<div class="fixed inset-0 z-10 bg-black/40 backdrop-blur-[20px] transition-opacity duration-300"></div>
+<!-- Global Search Modal (Command Palette) -->
+<div class="relative z-20 w-full max-w-4xl h-[600px] flex flex-col glass-modal rounded-modal overflow-hidden animate-in fade-in zoom-in duration-200">
+<!-- Search Header -->
+<div class="flex items-center px-6 py-5 border-b border-white/5">
+<span class="material-symbols-outlined text-primary text-2xl mr-4" data-icon="search">search</span>
+<input autofocus="" class="bg-transparent border-none focus:ring-0 w-full text-headline-md font-body-md text-text-primary placeholder-text-muted outline-none" placeholder="Search your engineering brain..." type="text"/>
+<div class="flex items-center space-x-2 ml-4">
+<kbd class="px-2 py-1 rounded bg-white/5 border border-white/10 text-[10px] font-code-md text-text-muted">ESC</kbd>
+</div>
+</div>
+<!-- Main Body Area -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Sidebar: Categories -->
+<aside class="w-56 border-r border-white/5 py-6 flex flex-col">
+<nav class="flex-1 px-3 space-y-1">
+<div class="group flex items-center px-3 py-2 text-primary bg-primary/10 rounded-lg cursor-pointer">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="all_inclusive">all_inclusive</span>
+<span class="font-label-sm text-label-sm">All Results</span>
+</div>
+<div class="group flex items-center px-3 py-2 text-text-muted hover:text-text-primary hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="terminal">terminal</span>
+<span class="font-label-sm text-label-sm">Snippets</span>
+</div>
+<div class="group flex items-center px-3 py-2 text-text-muted hover:text-text-primary hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="description">description</span>
+<span class="font-label-sm text-label-sm">Files</span>
+</div>
+<div class="group flex items-center px-3 py-2 text-text-muted hover:text-text-primary hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="category">category</span>
+<span class="font-label-sm text-label-sm">Projects</span>
+</div>
+<div class="group flex items-center px-3 py-2 text-text-muted hover:text-text-primary hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+<span class="material-symbols-outlined mr-3 text-lg" data-icon="psychology">psychology</span>
+<span class="font-label-sm text-label-sm">AI Memory</span>
+</div>
+</nav>
+<!-- Sidebar Footer -->
+<div class="px-6 py-4 border-t border-white/5">
+<div class="flex items-center space-x-2 opacity-50">
+<span class="material-symbols-outlined text-sm" data-icon="info">info</span>
+<span class="text-[10px] uppercase tracking-widest font-bold">Shortcuts</span>
+</div>
+<div class="mt-4 space-y-3">
+<div class="flex justify-between items-center text-[11px] text-text-muted">
+<span>Open</span>
+<kbd class="bg-white/5 px-1 rounded">↵</kbd>
+</div>
+<div class="flex justify-between items-center text-[11px] text-text-muted">
+<span>Navigate</span>
+<kbd class="bg-white/5 px-1 rounded">↓↑</kbd>
+</div>
+</div>
+</div>
+</aside>
+<!-- Content Area: Search Results -->
+<main class="flex-1 flex flex-col overflow-hidden">
+<header class="px-6 py-3 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+<span class="text-[11px] font-bold text-text-muted uppercase tracking-widest">Matches found (42)</span>
+<span class="text-[11px] font-code-md text-primary-fixed-dim">Index: Local + Cloud</span>
+</header>
+<div class="flex-1 overflow-y-auto scrollbar-hide py-2">
+<!-- Result Item 1 (Active) -->
+<div class="search-item active flex items-center px-6 py-4 cursor-pointer">
+<div class="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center mr-4">
+<span class="material-symbols-outlined text-primary" data-icon="terminal">terminal</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center space-x-3 mb-1">
+<h3 class="font-headline-sm text-label-sm text-text-primary truncate">AuthMiddleware.ts</h3>
+<span class="px-1.5 py-0.5 rounded-sm bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-400 font-bold uppercase tracking-tighter">TypeScript</span>
+</div>
+<div class="flex items-center space-x-4">
+<span class="flex items-center text-[12px] text-text-muted">
+<span class="material-symbols-outlined text-[14px] mr-1" data-icon="folder_open">folder_open</span>
+                                    Vault-AI-Core
+                                </span>
+<span class="font-code-md text-[11px] text-text-disabled">Edited Oct 12</span>
+</div>
+</div>
+<div class="text-right">
+<div class="text-[12px] font-code-md text-success mb-1">98% Match</div>
+<div class="text-[10px] text-text-disabled uppercase font-bold tracking-widest">Similarity</div>
+</div>
+</div>
+<!-- Result Item 2 -->
+<div class="search-item flex items-center px-6 py-4 cursor-pointer transition-all">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center mr-4">
+<span class="material-symbols-outlined text-text-muted" data-icon="smart_toy">smart_toy</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center space-x-3 mb-1">
+<h3 class="font-headline-sm text-label-sm text-text-primary truncate">Vector Embedding Strategy</h3>
+<span class="px-1.5 py-0.5 rounded-sm bg-purple-500/10 border border-purple-500/20 text-[10px] text-purple-400 font-bold uppercase tracking-tighter">AI Memory</span>
+</div>
+<div class="flex items-center space-x-4">
+<span class="flex items-center text-[12px] text-text-muted">
+<span class="material-symbols-outlined text-[14px] mr-1" data-icon="history">history</span>
+                                    Retrieved from Chat #402
+                                </span>
+<span class="font-code-md text-[11px] text-text-disabled">Oct 11</span>
+</div>
+</div>
+<div class="text-right">
+<div class="text-[12px] font-code-md text-primary mb-1">94% Match</div>
+</div>
+</div>
+<!-- Result Item 3 -->
+<div class="search-item flex items-center px-6 py-4 cursor-pointer transition-all">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center mr-4">
+<span class="material-symbols-outlined text-text-muted" data-icon="javascript">javascript</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center space-x-3 mb-1">
+<h3 class="font-headline-sm text-label-sm text-text-primary truncate">setup_database.sql</h3>
+<span class="px-1.5 py-0.5 rounded-sm bg-orange/10 border border-orange/20 text-[10px] text-orange font-bold uppercase tracking-tighter">SQL</span>
+</div>
+<div class="flex items-center space-x-4">
+<span class="flex items-center text-[12px] text-text-muted">
+<span class="material-symbols-outlined text-[14px] mr-1" data-icon="inventory_2">inventory_2</span>
+                                    DevVault-Archive
+                                </span>
+<span class="font-code-md text-[11px] text-text-disabled">Sept 28</span>
+</div>
+</div>
+<div class="text-right">
+<div class="text-[12px] font-code-md text-text-muted mb-1">89% Match</div>
+</div>
+</div>
+<!-- Result Item 4 -->
+<div class="search-item flex items-center px-6 py-4 cursor-pointer transition-all">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center mr-4">
+<span class="material-symbols-outlined text-text-muted" data-icon="snippet_folder">snippet_folder</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center space-x-3 mb-1">
+<h3 class="font-headline-sm text-label-sm text-text-primary truncate">Tailwind Config Preset</h3>
+<span class="px-1.5 py-0.5 rounded-sm bg-teal-500/10 border border-teal-500/20 text-[10px] text-teal-400 font-bold uppercase tracking-tighter">Snippet</span>
+</div>
+<div class="flex items-center space-x-4">
+<span class="flex items-center text-[12px] text-text-muted">
+<span class="material-symbols-outlined text-[14px] mr-1" data-icon="star">star</span>
+                                    Starred Items
+                                </span>
+<span class="font-code-md text-[11px] text-text-disabled">Yesterday</span>
+</div>
+</div>
+<div class="text-right">
+<div class="text-[12px] font-code-md text-text-muted mb-1">82% Match</div>
+</div>
+</div>
+<!-- Result Item 5 -->
+<div class="search-item flex items-center px-6 py-4 cursor-pointer transition-all">
+<div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center mr-4">
+<span class="material-symbols-outlined text-text-muted" data-icon="description">description</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center space-x-3 mb-1">
+<h3 class="font-headline-sm text-label-sm text-text-primary truncate">README.md</h3>
+<span class="px-1.5 py-0.5 rounded-sm bg-text-muted/10 border border-text-muted/20 text-[10px] text-text-muted font-bold uppercase tracking-tighter">Documentation</span>
+</div>
+<div class="flex items-center space-x-4">
+<span class="flex items-center text-[12px] text-text-muted">
+<span class="material-symbols-outlined text-[14px] mr-1" data-icon="folder">folder</span>
+                                    Project-Genesis
+                                </span>
+<span class="font-code-md text-[11px] text-text-disabled">2 weeks ago</span>
+</div>
+</div>
+<div class="text-right">
+<div class="text-[12px] font-code-md text-text-muted mb-1">77% Match</div>
+</div>
+</div>
+</div>
+<!-- Footer Action Bar -->
+<footer class="h-12 border-t border-white/5 flex items-center justify-between px-6 bg-black/40">
+<div class="flex items-center space-x-6">
+<div class="flex items-center space-x-2">
+<kbd class="bg-white/10 px-1.5 py-0.5 rounded text-[10px] font-code-md">⌘ O</kbd>
+<span class="text-[10px] text-text-muted uppercase font-bold tracking-widest">Open in IDE</span>
+</div>
+<div class="flex items-center space-x-2">
+<kbd class="bg-white/10 px-1.5 py-0.5 rounded text-[10px] font-code-md">⌘ C</kbd>
+<span class="text-[10px] text-text-muted uppercase font-bold tracking-widest">Copy Content</span>
+</div>
+<div class="flex items-center space-x-2">
+<kbd class="bg-white/10 px-1.5 py-0.5 rounded text-[10px] font-code-md">⌘ L</kbd>
+<span class="text-[10px] text-text-muted uppercase font-bold tracking-widest">Locate in Folder</span>
+</div>
+</div>
+<div class="flex items-center text-[10px] text-primary-fixed-dim uppercase font-bold tracking-[0.2em]">
+                        Deep Search Enabled
+                    </div>
+</footer>
+</main>
+</div>
+</div>
+<!-- Micro-interaction Script -->
+<script>
+        document.addEventListener('keydown', (e) => {
+            const items = document.querySelectorAll('.search-item');
+            let activeIndex = Array.from(items).findIndex(item => item.classList.contains('active'));
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                items[activeIndex].classList.remove('active');
+                activeIndex = (activeIndex + 1) % items.length;
+                items[activeIndex].classList.add('active');
+                items[activeIndex].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                items[activeIndex].classList.remove('active');
+                activeIndex = (activeIndex - 1 + items.length) % items.length;
+                items[activeIndex].classList.add('active');
+                items[activeIndex].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'Escape') {
+                // In a real app, this would close the modal.
+                // For this demo, let's just trigger a subtle animation.
+                document.querySelector('.glass-modal').classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    document.querySelector('.glass-modal').classList.remove('scale-95', 'opacity-0');
+                }, 1000);
+            }
+        });
+
+        // Search Input Glow Effect
+        const input = document.querySelector('input');
+        input.addEventListener('focus', () => {
+            input.parentElement.classList.add('border-primary/40');
+        });
+        input.addEventListener('blur', () => {
+            input.parentElement.classList.remove('border-primary/40');
+        });
+    </script>
+</body></html>

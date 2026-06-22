@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DevVault AI - Empty State</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error-container": "#ffdad6",
+                    "warning": "#FFD60A",
+                    "on-background": "#e0e2ed",
+                    "tertiary-container": "#eb6a12",
+                    "surface": "#161616",
+                    "inverse-surface": "#e0e2ed",
+                    "primary-container": "#3e90ff",
+                    "secondary-fixed-dim": "#e9b3ff",
+                    "on-primary-fixed-variant": "#00468d",
+                    "on-tertiary-fixed": "#341100",
+                    "on-tertiary-fixed-variant": "#793100",
+                    "on-error": "#690005",
+                    "orange": "#FF9F0A",
+                    "on-primary-container": "#002957",
+                    "text-disabled": "#52525B",
+                    "elevated": "#252525",
+                    "inverse-on-surface": "#2d3038",
+                    "on-secondary-container": "#e5a9ff",
+                    "on-primary-fixed": "#001b3e",
+                    "secondary": "#e9b3ff",
+                    "surface-variant": "#31353d",
+                    "on-secondary-fixed": "#310048",
+                    "surface-tint": "#aac7ff",
+                    "tertiary": "#ffb691",
+                    "text-primary": "#FFFFFF",
+                    "tertiary-fixed": "#ffdbcb",
+                    "on-surface-variant": "#c0c6d6",
+                    "surface-container-low": "#181c23",
+                    "primary": "#aac7ff",
+                    "border": "rgba(255, 255, 255, 0.08)",
+                    "divider": "rgba(255, 255, 255, 0.05)",
+                    "bg-primary": "#0A0A0A",
+                    "text-muted": "#71717A",
+                    "on-secondary-fixed-variant": "#7200a3",
+                    "primary-fixed": "#d6e3ff",
+                    "background": "#10131b",
+                    "surface-container-lowest": "#0b0e15",
+                    "outline-variant": "#414754",
+                    "surface-container-high": "#262a32",
+                    "on-surface": "#e0e2ed",
+                    "bg-secondary": "#111111",
+                    "on-primary": "#003064",
+                    "text-secondary": "#A1A1AA",
+                    "error": "#ffb4ab",
+                    "surface-bright": "#363941",
+                    "danger": "#FF453A",
+                    "surface-container": "#1c2027",
+                    "tertiary-fixed-dim": "#ffb691",
+                    "on-tertiary": "#552000",
+                    "on-secondary": "#510074",
+                    "surface-dim": "#10131b",
+                    "success": "#30D158",
+                    "secondary-fixed": "#f6d9ff",
+                    "outline": "#8b91a0",
+                    "error-container": "#93000a",
+                    "inverse-primary": "#005db8",
+                    "secondary-container": "#7d01b1",
+                    "on-tertiary-container": "#4a1b00",
+                    "card": "#1C1C1E",
+                    "primary-fixed-dim": "#aac7ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "2xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sidebar-width": "280px",
+                    "main-padding": "40px",
+                    "stack-md": "16px",
+                    "stack-sm": "8px",
+                    "stack-lg": "32px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "display": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "code-md": ["JetBrains Mono"],
+                    "body-md": ["Inter"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "code-md": ["14px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0A;
+            color: #FFFFFF;
+            overflow: hidden;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .empty-state-gradient {
+            background: radial-gradient(circle at center, rgba(170, 199, 255, 0.05) 0%, transparent 70%);
+        }
+        .thin-line-glow {
+            filter: drop-shadow(0 0 10px rgba(170, 199, 255, 0.3));
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md antialiased">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-bg-secondary border-r border-border flex flex-col py-gutter z-50">
+<div class="px-6 mb-10">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-text-primary tracking-tight">DevVault AI</h1>
+<p class="text-[10px] uppercase tracking-widest text-text-muted font-bold">Elite Developer Suite</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<!-- Active Tab: Dashboard -->
+<a class="flex items-center gap-3 px-4 py-3 text-text-primary font-bold border-l-2 border-primary bg-elevated rounded-r-lg transition-transform duration-150 active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="folder_copy">folder_copy</span>
+<span>Projects</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span>AI Chat</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span>Code Vault</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<div class="px-4 mt-auto space-y-4">
+<button class="w-full py-3 px-4 bg-primary text-on-primary rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:brightness-110 active:scale-95">
+<span class="material-symbols-outlined">add</span>
+<span>New Project</span>
+</button>
+<div class="pt-6 border-t border-divider space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-text-muted hover:text-text-primary transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+<span class="text-label-sm font-label-sm">Profile</span>
+</a>
+<div class="px-4 py-2">
+<div class="flex justify-between items-center mb-1.5">
+<span class="text-[10px] text-text-muted uppercase font-bold tracking-wider">Storage</span>
+<span class="text-[10px] text-primary font-bold">12% used</span>
+</div>
+<div class="h-1 w-full bg-surface rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[12%]"></div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Top App Bar -->
+<header class="fixed top-0 right-0 w-[calc(100%-280px)] h-16 bg-bg-primary border-b border-border flex items-center justify-between px-main-padding z-40">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 text-text-muted">
+<span class="text-label-sm font-label-sm">Docs</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-text-primary font-semibold">Dashboard</span>
+</div>
+<div class="hidden lg:flex items-center gap-6">
+<a class="text-label-sm font-label-sm text-text-muted hover:text-text-primary transition-colors" href="#">Docs</a>
+<a class="text-label-sm font-label-sm text-text-muted hover:text-text-primary transition-colors" href="#">Support</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group hidden sm:block">
+<input class="bg-surface border border-border rounded-full px-4 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" placeholder="Search projects..." type="text"/>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-lg">search</span>
+</div>
+<div class="flex items-center gap-2 border-l border-border pl-4">
+<button class="p-2 text-text-muted hover:text-text-primary transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-text-muted hover:text-text-primary transition-colors">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<button class="ml-2 px-4 py-1.5 bg-surface text-text-primary border border-border rounded-lg text-label-sm font-label-sm hover:bg-elevated transition-all active:opacity-80">
+                    Deploy
+                </button>
+<div class="w-8 h-8 rounded-full bg-surface-variant overflow-hidden ml-2 border border-border">
+<img class="w-full h-full object-cover" data-alt="Close-up portrait of a professional software engineer with a neutral expression, soft cinematic lighting, high-end digital photography style, cool blue and dark gray tones to match the elite developer aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7E2EQK42Ihpm4sBmo0pPNUnu-8dyizquZwrl3RUecicuwTjucgK8AyxXL_SuK_Ny029W78-M-_1eRmJvn0ObF2dm3ZmVILlT2uX_zNC-3dFdjwyH2B0kBdx7cMmcpsj8XiIQ-NcXLm1G6q1tO8T6vv7nL2IpJXch3Vu2gFbhE_zhpTskp8UpF-XwSqX3SAF9yo9kGAvb33gFiPBSpsc1briLsNbbfIGNKq0q3M79-3VPPj6eFOaYHwpOZdN3qKpDrEjf3vfctPHQ"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[280px] pt-16 h-screen w-[calc(100%-280px)] overflow-y-auto bg-bg-primary relative">
+<div class="absolute inset-0 empty-state-gradient pointer-events-none"></div>
+<div class="h-full flex flex-col items-center justify-center px-main-padding pb-16">
+<!-- Asymmetric Bento-style Illustration Container -->
+<div class="relative w-full max-w-2xl aspect-[16/10] flex items-center justify-center mb- stack-lg">
+<!-- Background Decorative Elements -->
+<div class="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+<div class="w-[500px] h-[500px] border border-primary/20 rounded-full animate-[pulse_8s_infinite]"></div>
+<div class="absolute w-[300px] h-[300px] border border-primary/10 rounded-full animate-[pulse_5s_infinite]"></div>
+</div>
+<!-- Abstract Memory Node Graphic -->
+<div class="relative z-10 glass-effect rounded-2xl p-12 w-80 h-80 flex flex-col items-center justify-center group">
+<div class="relative w-32 h-32 mb-6">
+<!-- Central Node -->
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="w-16 h-16 rounded-2xl border-2 border-primary thin-line-glow rotate-45 flex items-center justify-center transition-transform group-hover:scale-110 duration-500">
+<span class="material-symbols-outlined text-primary text-3xl -rotate-45" style="font-variation-settings: 'wght' 200;">memory</span>
+</div>
+</div>
+<!-- Peripheral Nodes & Connections -->
+<div class="absolute top-0 left-0 w-4 h-4 rounded-full border border-primary/40 animate-bounce"></div>
+<div class="absolute bottom-4 right-0 w-3 h-3 rounded-full border border-primary/60"></div>
+<div class="absolute top-1/2 -right-4 w-5 h-5 rounded-lg border border-primary/30 rotate-12"></div>
+<!-- Connecting Lines (SVG for precision) -->
+<svg class="absolute inset-0 w-full h-full overflow-visible pointer-events-none" viewbox="0 0 100 100">
+<path class="text-primary/30" d="M50 20 L50 35" stroke="currentColor" stroke-dasharray="2 2" stroke-width="0.5"></path>
+<path class="text-primary/30" d="M50 65 L50 80" stroke="currentColor" stroke-dasharray="2 2" stroke-width="0.5"></path>
+<path class="text-primary/30" d="M20 50 L35 50" stroke="currentColor" stroke-dasharray="2 2" stroke-width="0.5"></path>
+<path class="text-primary/30" d="M65 50 L80 50" stroke="currentColor" stroke-dasharray="2 2" stroke-width="0.5"></path>
+</svg>
+</div>
+<!-- Micro-Interaction Data Stream -->
+<div class="flex gap-1.5 mt-2">
+<div class="w-1 h-1 bg-primary rounded-full animate-ping"></div>
+<div class="w-1 h-1 bg-primary/40 rounded-full animate-ping [animation-delay:0.2s]"></div>
+<div class="w-1 h-1 bg-primary/20 rounded-full animate-ping [animation-delay:0.4s]"></div>
+</div>
+</div>
+<!-- Floating Labels/Tags for Bento Feel -->
+<div class="absolute top-1/4 right-1/4 glass-effect px-4 py-2 rounded-full text-[10px] uppercase tracking-tighter font-bold text-primary/60 animate-[float_4s_ease-in-out_infinite]">
+                    INDEXING_ENGINE_01
+                </div>
+<div class="absolute bottom-1/4 left-1/4 glass-effect px-4 py-2 rounded-full text-[10px] uppercase tracking-tighter font-bold text-text-muted animate-[float_6s_ease-in-out_infinite]">
+                    AWAITING_SOURCE
+                </div>
+</div>
+<!-- Content -->
+<div class="text-center max-w-lg z-20">
+<h2 class="font-headline-lg text-headline-lg text-text-primary mb-3">No projects yet</h2>
+<p class="font-body-md text-body-md text-text-secondary mb-8 leading-relaxed">
+                    Upload your first project to start building your engineering memory. DevVault AI will analyze your architecture and patterns for instant recall.
+                </p>
+<div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+<button class="px-8 py-4 bg-[#0A84FF] text-white rounded-2xl font-bold text-body-md flex items-center gap-3 transition-all hover:shadow-[0_0_25px_rgba(10,132,255,0.4)] hover:scale-105 active:scale-95">
+<span class="material-symbols-outlined">add_circle</span>
+                        New Project
+                    </button>
+<button class="px-8 py-4 bg-transparent text-text-primary border border-border rounded-2xl font-semibold text-body-md hover:bg-elevated transition-all flex items-center gap-2">
+<span class="material-symbols-outlined">folder_open</span>
+                        Import Repository
+                    </button>
+</div>
+</div>
+</div>
+<!-- Decorative Footer Element -->
+<div class="absolute bottom-0 left-0 w-full p-gutter flex justify-between items-end pointer-events-none opacity-40">
+<div class="font-code-md text-[10px] text-text-muted">
+                SYSTEM_ID: DV-AI-2024-NULL<br/>
+                STATUS: IDLE_WAITING_FOR_INPUT
+            </div>
+<div class="font-code-md text-[10px] text-text-muted text-right">
+                VERSION 2.4.0-STABLE<br/>
+                LATENCY: 14MS
+            </div>
+</div>
+</main>
+<style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+<script>
+        // Simple micro-interaction for the central node
+        document.querySelector('.group').addEventListener('mousemove', (e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            const rotateX = (y - centerY) / 10;
+            const rotateY = (centerX - x) / 10;
+            
+            e.currentTarget.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+        });
+
+        document.querySelector('.group').addEventListener('mouseleave', (e) => {
+            e.currentTarget.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg)`;
+            e.currentTarget.style.transition = 'transform 0.5s ease';
+        });
+    </script>
+</body></html>

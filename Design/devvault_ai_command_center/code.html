@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DevVault AI | Ahmed's Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        :root {
+            --bg-level-0: #0A0A0A;
+            --bg-level-1: #111111;
+            --bg-level-2: #1C1C1E;
+            --bg-level-3: #252525;
+        }
+        body {
+            background-color: var(--bg-level-0);
+            color: #FFFFFF;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: rgba(28, 28, 30, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .sparkline {
+            mask-image: linear-gradient(to top, transparent, black);
+            -webkit-mask-image: linear-gradient(to top, transparent, black);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #252525;
+            border-radius: 10px;
+        }
+        .active-glow {
+            box-shadow: inset 0 0 12px rgba(170, 199, 255, 0.1);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary": "#003064",
+                      "surface-dim": "#10131b",
+                      "primary-fixed-dim": "#aac7ff",
+                      "inverse-on-surface": "#2d3038",
+                      "inverse-surface": "#e0e2ed",
+                      "surface-container-high": "#262a32",
+                      "text-muted": "#71717A",
+                      "on-secondary-fixed-variant": "#7200a3",
+                      "secondary-fixed-dim": "#e9b3ff",
+                      "primary": "#aac7ff",
+                      "secondary": "#e9b3ff",
+                      "warning": "#FFD60A",
+                      "surface-tint": "#aac7ff",
+                      "on-primary-container": "#002957",
+                      "on-tertiary-fixed": "#341100",
+                      "tertiary-fixed": "#ffdbcb",
+                      "on-primary-fixed": "#001b3e",
+                      "on-secondary-container": "#e5a9ff",
+                      "on-error-container": "#ffdad6",
+                      "orange": "#FF9F0A",
+                      "on-surface-variant": "#c0c6d6",
+                      "bg-primary": "#0A0A0A",
+                      "surface-variant": "#31353d",
+                      "on-tertiary": "#552000",
+                      "on-tertiary-fixed-variant": "#793100",
+                      "outline": "#8b91a0",
+                      "text-secondary": "#A1A1AA",
+                      "on-tertiary-container": "#4a1b00",
+                      "error": "#ffb4ab",
+                      "text-primary": "#FFFFFF",
+                      "primary-container": "#3e90ff",
+                      "elevated": "#252525",
+                      "outline-variant": "#414754",
+                      "card": "#1C1C1E",
+                      "surface-container-highest": "#31353d",
+                      "danger": "#FF453A",
+                      "on-surface": "#e0e2ed",
+                      "on-primary-fixed-variant": "#00468d",
+                      "inverse-primary": "#005db8",
+                      "divider": "rgba(255, 255, 255, 0.05)",
+                      "secondary-fixed": "#f6d9ff",
+                      "on-secondary": "#510074",
+                      "bg-secondary": "#111111",
+                      "primary-fixed": "#d6e3ff",
+                      "surface-container": "#1c2027",
+                      "tertiary-container": "#eb6a12",
+                      "success": "#30D158",
+                      "tertiary": "#ffb691",
+                      "surface-bright": "#363941",
+                      "on-error": "#690005",
+                      "surface-container-low": "#181c23",
+                      "border": "rgba(255, 255, 255, 0.08)",
+                      "on-secondary-fixed": "#310048",
+                      "text-disabled": "#52525B",
+                      "error-container": "#93000a",
+                      "background": "#10131b",
+                      "surface": "#161616",
+                      "tertiary-fixed-dim": "#ffb691",
+                      "on-background": "#e0e2ed",
+                      "surface-container-lowest": "#0b0e15",
+                      "secondary-container": "#7d01b1"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "main-padding": "40px",
+                      "stack-sm": "8px",
+                      "stack-lg": "32px",
+                      "sidebar-width": "280px",
+                      "stack-md": "16px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "label-sm": ["Inter"],
+                      "display": ["Inter"],
+                      "code-md": ["JetBrains Mono"],
+                      "headline-lg": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "body-sm": ["Inter"],
+                      "body-md": ["Inter"]
+              },
+              "fontSize": {
+                      "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "code-md": ["14px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+      </script>
+</head>
+<body class="bg-bg-primary">
+<!-- Global Shell: SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-bg-secondary border-r border-border flex flex-col py-gutter z-50">
+<div class="px-gutter mb-stack-lg">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-text-primary tracking-tight">DevVault AI</h1>
+<p class="text-xs text-text-muted">Elite Developer Suite</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1 px-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-primary font-bold border-l-2 border-primary bg-elevated active-glow" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined">folder_copy</span>
+<span class="font-body-md text-body-md">Projects</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-body-md text-body-md">AI Chat</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined">terminal</span>
+<span class="font-body-md text-body-md">Code Vault</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</nav>
+<div class="mt-auto px-4 space-y-6">
+<button class="w-full bg-primary-container text-on-primary-container py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined">add</span>
+                New Project
+            </button>
+<div class="p-4 bg-card rounded-2xl border border-border">
+<div class="flex items-center gap-3 mb-4">
+<img class="w-10 h-10 rounded-full border border-primary/20" data-alt="Professional cinematic headshot of an elite software engineer with a neutral expression, high-end studio lighting on dark background, ultra-sharp focus, premium tech aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBw2KpDpvaZtUnX1dgC92Gak1wDrmHfDJb4q_9dEsxiXFx81f-IkDo_D0c8v75mzM5wYaZ1vWmsqwcfTwjtykxjD9utMYntAij-NkxD2vBS0Bwy8izRw8TkjN5-wO8NmsX_gd7aJJqPXpDMwMrSmVYo105NIn_l0N8DIMYg9yzn_SeENJ8SbXsRh0DJNqqavuHytQXBJBlkprvO6icdwPYbHN_P3-HMKw5II0bueThUPEw3EdEn2ZHIJOvG2XNt_WFLdQ2no8Lm_lQ"/>
+<div class="overflow-hidden">
+<p class="text-sm font-bold text-text-primary truncate">Ahmed Al-Sayed</p>
+<p class="text-[10px] text-text-muted uppercase tracking-widest">Pro Member</p>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-[10px] text-text-muted mb-1 uppercase">
+<span>Vault Storage</span>
+<span>84%</span>
+</div>
+<div class="h-1.5 w-full bg-bg-primary rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[84%]"></div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Top App Bar -->
+<header class="fixed top-0 right-0 w-[calc(100%-280px)] h-16 bg-bg-primary border-b border-border flex items-center justify-between px-main-padding z-40">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 text-text-muted font-label-sm text-label-sm">
+<span>Core</span>
+<span class="material-symbols-outlined text-xs">chevron_right</span>
+<span class="text-text-primary">Dashboard</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden md:flex items-center gap-4 mr-4">
+<a class="font-label-sm text-label-sm text-text-muted hover:text-text-primary transition-colors" href="#">Docs</a>
+<a class="font-label-sm text-label-sm text-text-muted hover:text-text-primary transition-colors" href="#">Support</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-text-muted hover:text-primary transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-text-muted hover:text-primary transition-all">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="h-4 w-[1px] bg-border mx-2"></div>
+<button class="bg-primary text-on-primary px-4 py-1.5 rounded-full font-label-sm text-label-sm font-bold hover:opacity-90 active:opacity-80 transition-opacity">
+                    Deploy
+                </button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[280px] pt-16 min-h-screen">
+<div class="p-main-padding max-w-7xl mx-auto space-y-12">
+<!-- Hero Section -->
+<section class="animate-in fade-in slide-in-from-bottom-4 duration-700">
+<h1 class="font-display text-display text-text-primary mb-2">Good Morning Ahmed 👋</h1>
+<p class="font-body-lg text-body-lg text-text-secondary">Your engineering memory is growing. 24 new modules synced today.</p>
+</section>
+<!-- Central Command Bar -->
+<section class="flex justify-center">
+<div class="w-full max-w-3xl relative">
+<div class="glass-panel rounded-[20px] px-6 py-4 flex items-center gap-4 shadow-2xl">
+<span class="material-symbols-outlined text-text-muted">search</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-text-primary font-body-md placeholder:text-text-disabled" placeholder="Search your engineering brain..." type="text"/>
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-bg-primary border border-border">
+<span class="font-code-md text-[10px] text-text-muted">⌘</span>
+<span class="font-code-md text-[10px] text-text-muted">K</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Stats Grid -->
+<section class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-stack-md">
+<!-- Stat Card 1 -->
+<div class="bg-card border border-border p-5 rounded-[24px] hover:border-primary/30 transition-all group">
+<div class="flex items-center justify-between mb-4">
+<div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm">folder</span>
+</div>
+<span class="text-success text-[10px] font-bold flex items-center gap-0.5">+12%</span>
+</div>
+<div class="mb-1 text-2xl font-bold text-text-primary">42</div>
+<div class="text-xs text-text-muted uppercase tracking-wider">Projects</div>
+</div>
+<!-- Stat Card 2 -->
+<div class="bg-card border border-border p-5 rounded-[24px] hover:border-primary/30 transition-all group">
+<div class="flex items-center justify-between mb-4">
+<div class="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-sm">description</span>
+</div>
+<span class="text-success text-[10px] font-bold flex items-center gap-0.5">+4%</span>
+</div>
+<div class="mb-1 text-2xl font-bold text-text-primary">1.2k</div>
+<div class="text-xs text-text-muted uppercase tracking-wider">Files</div>
+</div>
+<!-- Stat Card 3 -->
+<div class="bg-card border border-border p-5 rounded-[24px] hover:border-primary/30 transition-all group">
+<div class="flex items-center justify-between mb-4">
+<div class="w-8 h-8 rounded-lg bg-tertiary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-sm">code_blocks</span>
+</div>
+<span class="text-success text-[10px] font-bold flex items-center gap-0.5">+28</span>
+</div>
+<div class="mb-1 text-2xl font-bold text-text-primary">856</div>
+<div class="text-xs text-text-muted uppercase tracking-wider">Snippets</div>
+</div>
+<!-- Stat Card 4 -->
+<div class="bg-card border border-border p-5 rounded-[24px] hover:border-primary/30 transition-all group">
+<div class="flex items-center justify-between mb-4">
+<div class="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-success text-sm">bug_report</span>
+</div>
+<span class="text-success text-[10px] font-bold flex items-center gap-0.5">+18%</span>
+</div>
+<div class="mb-1 text-2xl font-bold text-text-primary">3,490</div>
+<div class="text-xs text-text-muted uppercase tracking-wider">Errors Solved</div>
+</div>
+<!-- Stat Card 5 -->
+<div class="bg-card border border-border p-5 rounded-[24px] hover:border-primary/30 transition-all group">
+<div class="flex items-center justify-between mb-4">
+<div class="w-8 h-8 rounded-lg bg-orange/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-orange text-sm">account_tree</span>
+</div>
+<span class="text-text-muted text-[10px] font-bold flex items-center gap-0.5">Static</span>
+</div>
+<div class="mb-1 text-2xl font-bold text-text-primary">14</div>
+<div class="text-xs text-text-muted uppercase tracking-wider">Systems</div>
+</div>
+<!-- Stat Card 6 -->
+<div class="bg-card border border-border p-5 rounded-[24px] hover:border-primary/30 transition-all group">
+<div class="flex items-center justify-between mb-4">
+<div class="w-8 h-8 rounded-lg bg-primary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary-container text-sm">smart_toy</span>
+</div>
+<span class="text-success text-[10px] font-bold flex items-center gap-0.5">+42%</span>
+</div>
+<div class="mb-1 text-2xl font-bold text-text-primary">12k</div>
+<div class="text-xs text-text-muted uppercase tracking-wider">AI Queries</div>
+</div>
+</section>
+<!-- Layout: 60% Activity / 40% AI Insights -->
+<div class="flex flex-col lg:flex-row gap-gutter">
+<!-- Activity Timeline (60%) -->
+<section class="lg:w-[60%] space-y-stack-md">
+<div class="flex items-center justify-between mb-4">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-text-primary">Activity Timeline</h2>
+<button class="text-xs text-primary font-bold uppercase tracking-widest hover:underline">View All</button>
+</div>
+<div class="space-y-4">
+<!-- Activity Item 1 -->
+<div class="bg-card border border-border p-5 rounded-[24px] flex items-start gap-4">
+<div class="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-success">task_alt</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-body-md text-body-md text-text-primary font-semibold">Solved: Concurrent Queue Deadlock</h3>
+<span class="text-[10px] text-text-disabled uppercase">14m ago</span>
+</div>
+<p class="text-sm text-text-muted mb-3">Successfully resolved the race condition in the `DistributedLockManager` within the Core Engine.</p>
+<div class="flex gap-2">
+<span class="px-2 py-1 rounded bg-bg-primary border border-border font-code-md text-[10px] text-text-muted">#infra</span>
+<span class="px-2 py-1 rounded bg-bg-primary border border-border font-code-md text-[10px] text-text-muted">#rust</span>
+</div>
+</div>
+</div>
+<!-- Activity Item 2 -->
+<div class="bg-card border border-border p-5 rounded-[24px] flex items-start gap-4">
+<div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-primary">cloud_upload</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-body-md text-body-md text-text-primary font-semibold">Uploaded: API Documentation v2.4</h3>
+<span class="text-[10px] text-text-disabled uppercase">2h ago</span>
+</div>
+<p class="text-sm text-text-muted mb-3">New OpenAPI specification ingested for the Gateway microservice. 142 endpoints indexed.</p>
+<div class="flex gap-2">
+<span class="px-2 py-1 rounded bg-bg-primary border border-border font-code-md text-[10px] text-text-muted">#gateway</span>
+<span class="px-2 py-1 rounded bg-bg-primary border border-border font-code-md text-[10px] text-text-muted">#docs</span>
+</div>
+</div>
+</div>
+<!-- Activity Item 3 -->
+<div class="bg-card border border-border p-5 rounded-[24px] flex items-start gap-4">
+<div class="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-secondary">auto_awesome</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-1">
+<h3 class="font-body-md text-body-md text-text-primary font-semibold">AI Refactoring Suggestion</h3>
+<span class="text-[10px] text-text-disabled uppercase">5h ago</span>
+</div>
+<p class="text-sm text-text-muted">Identified 4 redundant loops in `DataAggregator.ts`. Estimated performance gain: 18%.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- AI Insights (40%) -->
+<section class="lg:w-[40%] space-y-stack-md">
+<div class="flex items-center justify-between mb-4">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-text-primary">AI Insights</h2>
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+</div>
+<div class="space-y-4">
+<!-- Insight Card 1 -->
+<div class="bg-card border border-border p-6 rounded-[24px] relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-6xl">history</span>
+</div>
+<div class="flex items-center gap-2 mb-3 text-primary">
+<span class="material-symbols-outlined text-sm">memory</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Memory Match</span>
+</div>
+<h3 class="font-body-md text-body-md text-text-primary font-bold mb-2">You solved this issue before</h3>
+<p class="text-sm text-text-muted leading-relaxed">The SSL handshake error in your current Project X matches a pattern you resolved in "Project Omega" (Oct 2023). View solution?</p>
+<button class="mt-4 text-xs font-bold text-primary flex items-center gap-1 group-hover:gap-2 transition-all">
+                                Open Solution Vault <span class="material-symbols-outlined text-xs">arrow_forward</span>
+</button>
+</div>
+<!-- Insight Card 2 -->
+<div class="bg-card border border-border p-6 rounded-[24px] border-l-4 border-l-warning">
+<div class="flex items-center gap-2 mb-3 text-warning">
+<span class="material-symbols-outlined text-sm">health_and_safety</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Project Health Warning</span>
+</div>
+<h3 class="font-body-md text-body-md text-text-primary font-bold mb-2">Low test coverage in 'Auth'</h3>
+<p class="text-sm text-text-muted leading-relaxed">Recent commits have dropped total coverage below 80%. Risk of regression in critical path is high.</p>
+<div class="mt-4 flex items-center gap-2">
+<div class="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
+<div class="h-full bg-warning w-[76%]"></div>
+</div>
+<span class="text-[10px] font-code-md text-warning">76%</span>
+</div>
+</div>
+<!-- Insight Card 3 -->
+<div class="bg-card border border-border p-6 rounded-[24px] border-l-4 border-l-danger">
+<div class="flex items-center gap-2 mb-3 text-danger">
+<span class="material-symbols-outlined text-sm">priority_high</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Critical Alert</span>
+</div>
+<h3 class="font-body-md text-body-md text-text-primary font-bold mb-2">Potential Secret Leak</h3>
+<p class="text-sm text-text-muted leading-relaxed">Detected string matching AWS_SECRET_KEY pattern in `config.local.ts`. Action required immediately.</p>
+</div>
+</div>
+</section>
+</div>
+<!-- Contextual Code Snippet View -->
+<section class="bg-bg-secondary rounded-[24px] border border-border overflow-hidden">
+<div class="px-6 py-4 border-b border-border flex items-center justify-between bg-card/30">
+<div class="flex items-center gap-4">
+<div class="flex gap-1.5">
+<div class="w-3 h-3 rounded-full bg-danger/40"></div>
+<div class="w-3 h-3 rounded-full bg-warning/40"></div>
+<div class="w-3 h-3 rounded-full bg-success/40"></div>
+</div>
+<span class="font-code-md text-xs text-text-muted">DistributedLock.rs</span>
+</div>
+<button class="text-text-muted hover:text-text-primary transition-colors">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+</div>
+<div class="p-6 font-code-md text-code-md leading-loose overflow-x-auto bg-bg-secondary">
+<pre class="text-[#D4D4D4]"><span class="text-secondary">pub async fn</span> <span class="text-primary">acquire_lock</span>(&amp;self, key: &amp;str) -&gt; Result&lt;Lock, Error&gt; {
+    <span class="text-text-muted">// Check existing vault registry</span>
+    <span class="text-secondary">let</span> registry = self.registry.lock().<span class="text-primary">await</span>;
+    
+    <span class="text-secondary">if</span> registry.contains_key(key) {
+        <span class="text-orange">return</span> <span class="text-danger">Err</span>(Error::AlreadyLocked);
+    }
+
+    <span class="text-text-muted">// Vault-specific AI optimization logic</span>
+    <span class="text-secondary">let</span> lock_id = Vault::generate_secure_token();
+    <span class="text-orange">Ok</span>(Lock::new(lock_id))
+}</pre>
+</div>
+</section>
+</div>
+</main>
+<!-- Global Floating Action -->
+<button class="fixed bottom-10 right-10 w-16 h-16 rounded-full bg-primary-container text-on-primary-container shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</button>
+<script>
+        // Simple micro-interaction for command bar
+        const searchInput = document.querySelector('input[type="text"]');
+        const commandBar = searchInput?.parentElement;
+
+        searchInput?.addEventListener('focus', () => {
+            commandBar.classList.add('ring-2', 'ring-primary/20', 'border-primary/50');
+        });
+
+        searchInput?.addEventListener('blur', () => {
+            commandBar.classList.remove('ring-2', 'ring-primary/20', 'border-primary/50');
+        });
+
+        // Keydown for Command+K
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput?.focus();
+            }
+        });
+    </script>
+</body></html>

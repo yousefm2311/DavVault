@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_1 = require("../middleware/auth");
+const ai_controller_1 = require("../controllers/ai.controller");
+const validation_1 = require("../middleware/validation");
+const security_1 = require("../middleware/security");
+const router = (0, express_1.Router)();
+router.post('/chat', auth_1.authenticate, security_1.apiLimiter, (0, validation_1.validateBody)(['message']), ai_controller_1.handleChat);
+router.post('/explain-code', auth_1.authenticate, security_1.apiLimiter, (0, validation_1.validateBody)(['code', 'fileName']), ai_controller_1.explainCodeFile);
+router.get('/sessions', auth_1.authenticate, ai_controller_1.getSessions);
+router.get('/sessions/:id', auth_1.authenticate, ai_controller_1.getSessionById);
+exports.default = router;

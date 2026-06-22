@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DevVault AI - Dashboard Loading</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error-container": "#ffdad6",
+                    "warning": "#FFD60A",
+                    "on-background": "#e0e2ed",
+                    "tertiary-container": "#eb6a12",
+                    "surface": "#161616",
+                    "inverse-surface": "#e0e2ed",
+                    "primary-container": "#3e90ff",
+                    "secondary-fixed-dim": "#e9b3ff",
+                    "on-primary-fixed-variant": "#00468d",
+                    "on-tertiary-fixed": "#341100",
+                    "on-tertiary-fixed-variant": "#793100",
+                    "on-error": "#690005",
+                    "orange": "#FF9F0A",
+                    "on-primary-container": "#002957",
+                    "text-disabled": "#52525B",
+                    "elevated": "#252525",
+                    "inverse-on-surface": "#2d3038",
+                    "on-secondary-container": "#e5a9ff",
+                    "on-primary-fixed": "#001b3e",
+                    "secondary": "#e9b3ff",
+                    "surface-variant": "#31353d",
+                    "on-secondary-fixed": "#310048",
+                    "surface-tint": "#aac7ff",
+                    "tertiary": "#ffb691",
+                    "text-primary": "#FFFFFF",
+                    "tertiary-fixed": "#ffdbcb",
+                    "on-surface-variant": "#c0c6d6",
+                    "surface-container-low": "#181c23",
+                    "primary": "#aac7ff",
+                    "border": "rgba(255, 255, 255, 0.08)",
+                    "divider": "rgba(255, 255, 255, 0.05)",
+                    "bg-primary": "#0A0A0A",
+                    "text-muted": "#71717A",
+                    "on-secondary-fixed-variant": "#7200a3",
+                    "primary-fixed": "#d6e3ff",
+                    "background": "#10131b",
+                    "surface-container-lowest": "#0b0e15",
+                    "outline-variant": "#414754",
+                    "surface-container-high": "#262a32",
+                    "on-surface": "#e0e2ed",
+                    "bg-secondary": "#111111",
+                    "on-primary": "#003064",
+                    "text-secondary": "#A1A1AA",
+                    "error": "#ffb4ab",
+                    "surface-bright": "#363941",
+                    "danger": "#FF453A",
+                    "surface-container-highest": "#31353d",
+                    "surface-container": "#1c2027",
+                    "tertiary-fixed-dim": "#ffb691",
+                    "on-tertiary": "#552000",
+                    "on-secondary": "#510074",
+                    "surface-dim": "#10131b",
+                    "success": "#30D158",
+                    "secondary-fixed": "#f6d9ff",
+                    "outline": "#8b91a0",
+                    "error-container": "#93000a",
+                    "inverse-primary": "#005db8",
+                    "secondary-container": "#7d01b1",
+                    "on-tertiary-container": "#4a1b00",
+                    "card": "#1C1C1E",
+                    "primary-fixed-dim": "#aac7ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sidebar-width": "280px",
+                    "main-padding": "40px",
+                    "stack-md": "16px",
+                    "stack-sm": "8px",
+                    "stack-lg": "32px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "display": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "code-md": ["JetBrains Mono"],
+                    "body-md": ["Inter"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "code-md": ["14px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg, #1C1C1E 25%, #252525 50%, #1C1C1E 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s linear infinite; /* Adjusted to 1.5s for smoother perception, user asked 250ms which is very fast, using high speed pulse */
+            border-radius: 4px;
+        }
+        .skeleton-fast {
+            animation-duration: 0.8s;
+        }
+        body {
+            background-color: #0A0A0A;
+            color: #FFFFFF;
+            overflow: hidden;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md">
+<!-- SideNavBar (Shared Component Identity) -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-bg-secondary border-r border-border flex flex-col py-gutter z-50">
+<div class="px-6 mb-10">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg skeleton"></div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-text-primary leading-none">DevVault AI</h1>
+<p class="text-xs text-text-muted mt-1">Elite Developer Suite</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-2">
+<!-- Active State: Dashboard -->
+<div class="text-text-primary font-bold border-l-2 border-primary bg-elevated flex items-center gap-3 px-4 py-3 rounded-r-lg">
+<span class="material-symbols-outlined text-primary">dashboard</span>
+<span>Dashboard</span>
+</div>
+<!-- Inactive States (Skeletons for Content) -->
+<div class="text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200 flex items-center gap-3 px-4 py-3">
+<span class="material-symbols-outlined">folder_copy</span>
+<span>Projects</span>
+</div>
+<div class="text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200 flex items-center gap-3 px-4 py-3">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>AI Chat</span>
+</div>
+<div class="text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200 flex items-center gap-3 px-4 py-3">
+<span class="material-symbols-outlined">terminal</span>
+<span>Code Vault</span>
+</div>
+<div class="text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200 flex items-center gap-3 px-4 py-3">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</div>
+</nav>
+<div class="px-4 mt-auto space-y-6">
+<div class="p-4 rounded-2xl bg-card border border-border">
+<div class="flex justify-between items-center mb-2">
+<div class="w-16 h-3 skeleton"></div>
+<div class="w-8 h-3 skeleton"></div>
+</div>
+<div class="w-full h-1.5 bg-bg-primary rounded-full overflow-hidden">
+<div class="w-3/4 h-full bg-primary rounded-full"></div>
+</div>
+<div class="mt-3 flex items-center gap-2">
+<div class="w-6 h-6 rounded-full skeleton"></div>
+<div class="w-24 h-3 skeleton"></div>
+</div>
+</div>
+<div class="flex items-center gap-3 px-4 py-2 opacity-50">
+<div class="w-8 h-8 rounded-full skeleton"></div>
+<div class="flex-1">
+<div class="w-20 h-3 skeleton mb-1"></div>
+<div class="w-12 h-2 skeleton"></div>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopAppBar (Shared Component Identity) -->
+<header class="fixed top-0 right-0 w-[calc(100%-280px)] h-16 bg-bg-primary border-b border-border flex items-center justify-between px-main-padding z-40">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<div class="w-4 h-4 skeleton rounded"></div>
+<div class="w-24 h-4 skeleton rounded"></div>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<!-- Search Bar (Pill Shape from Style Guidance) -->
+<div class="relative w-64 h-10 bg-card border border-border rounded-full flex items-center px-4">
+<span class="material-symbols-outlined text-text-muted text-sm mr-2">search</span>
+<div class="w-32 h-3 skeleton opacity-40"></div>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-text-muted">notifications</span>
+<span class="material-symbols-outlined text-text-muted">help_outline</span>
+<button class="bg-primary text-on-primary-container px-6 py-2 rounded-full font-label-sm text-label-sm font-bold opacity-50">
+                    Deploy
+                </button>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-[280px] mt-16 p-main-padding h-[calc(100vh-64px)] overflow-y-auto">
+<!-- Dashboard Header Skeleton -->
+<div class="mb-stack-lg">
+<div class="w-48 h-8 skeleton mb-2"></div>
+<div class="w-96 h-4 skeleton opacity-60"></div>
+</div>
+<!-- Statistics Grid (Bento Style) -->
+<div class="grid grid-cols-12 gap-gutter mb-stack-lg">
+<!-- Large Stat Card -->
+<div class="col-span-12 lg:col-span-8 bg-card border border-border rounded-[24px] p-8 h-64 relative overflow-hidden">
+<div class="flex justify-between items-start">
+<div>
+<div class="w-32 h-4 skeleton mb-4 opacity-50"></div>
+<div class="w-64 h-12 skeleton mb-2"></div>
+<div class="w-40 h-4 skeleton opacity-40"></div>
+</div>
+<div class="w-32 h-32 skeleton rounded-2xl opacity-20"></div>
+</div>
+<div class="absolute bottom-8 left-8 right-8 flex gap-4">
+<div class="flex-1 h-12 skeleton rounded-xl opacity-30"></div>
+<div class="flex-1 h-12 skeleton rounded-xl opacity-30"></div>
+<div class="flex-1 h-12 skeleton rounded-xl opacity-30"></div>
+</div>
+</div>
+<!-- Small Stat Card -->
+<div class="col-span-12 lg:col-span-4 bg-card border border-border rounded-[24px] p-8 flex flex-col justify-between">
+<div>
+<div class="w-24 h-4 skeleton mb-6 opacity-50"></div>
+<div class="w-32 h-10 skeleton"></div>
+</div>
+<div class="flex items-center gap-2 mt-4">
+<div class="w-4 h-4 rounded-full bg-success opacity-40"></div>
+<div class="w-20 h-3 skeleton opacity-40"></div>
+</div>
+<div class="w-full h-12 skeleton rounded-xl mt-6 opacity-20"></div>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Activity Timeline -->
+<div class="col-span-12 lg:col-span-7 bg-card border border-border rounded-[24px] p-8">
+<div class="flex justify-between items-center mb-8">
+<div class="w-40 h-6 skeleton"></div>
+<div class="w-20 h-4 skeleton opacity-40"></div>
+</div>
+<!-- Timeline Nodes -->
+<div class="space-y-8 relative before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-border">
+<div class="flex gap-6 relative">
+<div class="w-6 h-6 rounded-full bg-primary relative z-10 border-4 border-card"></div>
+<div class="flex-1">
+<div class="w-48 h-4 skeleton mb-2"></div>
+<div class="w-full h-20 skeleton rounded-xl opacity-20"></div>
+<div class="w-24 h-3 skeleton mt-2 opacity-40"></div>
+</div>
+</div>
+<div class="flex gap-6 relative">
+<div class="w-6 h-6 rounded-full bg-elevated relative z-10 border-4 border-card"></div>
+<div class="flex-1">
+<div class="w-32 h-4 skeleton mb-2"></div>
+<div class="w-64 h-3 skeleton opacity-40"></div>
+<div class="w-24 h-3 skeleton mt-2 opacity-40"></div>
+</div>
+</div>
+<div class="flex gap-6 relative">
+<div class="w-6 h-6 rounded-full bg-elevated relative z-10 border-4 border-card"></div>
+<div class="flex-1">
+<div class="w-56 h-4 skeleton mb-2"></div>
+<div class="w-24 h-3 skeleton mt-2 opacity-40"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Side Bento Column -->
+<div class="col-span-12 lg:col-span-5 space-y-gutter">
+<!-- Project Grid Skeleton -->
+<div class="bg-card border border-border rounded-[24px] p-6">
+<div class="w-32 h-5 skeleton mb-6"></div>
+<div class="grid grid-cols-2 gap-4">
+<div class="aspect-square bg-bg-primary rounded-2xl border border-border p-4 flex flex-col justify-between">
+<div class="w-10 h-10 rounded-lg skeleton opacity-40"></div>
+<div class="w-full h-3 skeleton opacity-60"></div>
+</div>
+<div class="aspect-square bg-bg-primary rounded-2xl border border-border p-4 flex flex-col justify-between">
+<div class="w-10 h-10 rounded-lg skeleton opacity-40"></div>
+<div class="w-full h-3 skeleton opacity-60"></div>
+</div>
+</div>
+</div>
+<!-- Quick Actions -->
+<div class="bg-card border border-border rounded-[24px] p-6">
+<div class="w-32 h-5 skeleton mb-4"></div>
+<div class="space-y-3">
+<div class="w-full h-12 skeleton rounded-xl opacity-30"></div>
+<div class="w-full h-12 skeleton rounded-xl opacity-30"></div>
+<div class="w-full h-12 skeleton rounded-xl opacity-30"></div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Button (FAB) - Contextual Suppression Check: Dashboard usually has one -->
+<div class="fixed bottom-10 right-10 flex flex-col items-end gap-4 z-50">
+<button class="w-14 h-14 bg-primary text-on-primary-container rounded-2xl shadow-xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">add</span>
+</button>
+</div>
+<!-- Micro-interaction for shimmer speed variation -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const skeletons = document.querySelectorAll('.skeleton');
+            skeletons.forEach((s, index) => {
+                // Stagger the shimmer slightly for a more organic feel
+                s.style.animationDelay = `${index * 0.05}s`;
+            });
+        });
+    </script>
+</body></html>

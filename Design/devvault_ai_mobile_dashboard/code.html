@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DevVault AI - Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#ffdad6",
+                        "warning": "#FFD60A",
+                        "on-background": "#e0e2ed",
+                        "tertiary-container": "#eb6a12",
+                        "surface": "#161616",
+                        "inverse-surface": "#e0e2ed",
+                        "primary-container": "#3e90ff",
+                        "secondary-fixed-dim": "#e9b3ff",
+                        "on-primary-fixed-variant": "#00468d",
+                        "on-tertiary-fixed": "#341100",
+                        "on-tertiary-fixed-variant": "#793100",
+                        "on-error": "#690005",
+                        "orange": "#FF9F0A",
+                        "on-primary-container": "#002957",
+                        "text-disabled": "#52525B",
+                        "elevated": "#252525",
+                        "inverse-on-surface": "#2d3038",
+                        "on-secondary-container": "#e5a9ff",
+                        "on-primary-fixed": "#001b3e",
+                        "secondary": "#e9b3ff",
+                        "surface-variant": "#31353d",
+                        "on-secondary-fixed": "#310048",
+                        "surface-tint": "#aac7ff",
+                        "tertiary": "#ffb691",
+                        "text-primary": "#FFFFFF",
+                        "tertiary-fixed": "#ffdbcb",
+                        "on-surface-variant": "#c0c6d6",
+                        "surface-container-low": "#181c23",
+                        "primary": "#aac7ff",
+                        "border": "rgba(255, 255, 255, 0.08)",
+                        "divider": "rgba(255, 255, 255, 0.05)",
+                        "bg-primary": "#0A0A0A",
+                        "text-muted": "#71717A",
+                        "on-secondary-fixed-variant": "#7200a3",
+                        "primary-fixed": "#d6e3ff",
+                        "background": "#10131b",
+                        "surface-container-lowest": "#0b0e15",
+                        "outline-variant": "#414754",
+                        "surface-container-high": "#262a32",
+                        "on-surface": "#e0e2ed",
+                        "bg-secondary": "#111111",
+                        "on-primary": "#003064",
+                        "text-secondary": "#A1A1AA",
+                        "error": "#ffb4ab",
+                        "surface-bright": "#363941",
+                        "danger": "#FF453A",
+                        "surface-container": "#1c2027",
+                        "tertiary-fixed-dim": "#ffb691",
+                        "on-tertiary": "#552000",
+                        "on-secondary": "#510074",
+                        "surface-dim": "#10131b",
+                        "success": "#30D158",
+                        "secondary-fixed": "#f6d9ff",
+                        "outline": "#8b91a0",
+                        "error-container": "#93000a",
+                        "inverse-primary": "#005db8",
+                        "secondary-container": "#7d01b1",
+                        "on-tertiary-container": "#4a1b00",
+                        "card": "#1C1C1E",
+                        "primary-fixed-dim": "#aac7ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sidebar-width": "280px",
+                        "main-padding": "20px",
+                        "stack-md": "16px",
+                        "stack-sm": "8px",
+                        "stack-lg": "32px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "code-md": ["JetBrains Mono"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "code-md": ["14px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0A;
+            color: #FFFFFF;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .nav-active-glow {
+            background: radial-gradient(circle at center, rgba(170, 199, 255, 0.15) 0%, transparent 70%);
+        }
+        .fab-shadow {
+            box-shadow: 0 0 30px rgba(62, 144, 255, 0.2);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="font-body-md text-body-md antialiased overflow-x-hidden">
+<!-- Top Navigation Header -->
+<header class="fixed top-0 left-0 right-0 z-40 bg-bg-primary/80 backdrop-blur-md h-16 flex items-center justify-between px-main-padding">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A minimalist tech logo for DevVault AI, featuring sharp geometric lines in a premium blue and white color scheme. The logo is modern, flat, and fits within a dark, sophisticated developer environment with a high-end feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKX9qmlMZJqFdn-dIilKyZjm5CZNR9jlsKeKxaUVaRVMSsaw_l1Oda0MqptW3EI1-QMqlZ6sknZIlLVlcSkFfpz91vGK0MCyiaFGxr730jG-z_UHTyJDQYG5m__P5aM9qENxOwmg6wCX-hhkTEMg99ezu93ahVp7KGSdBpNwjmP9_O26-L0PtGXUed-vYoe-xSH6gwjMA-6RKeYravCeblMPVzexukbKkauypANzAw14Kuu7TU6iky_7lWG6pxngPYOvgT9M6jTqk"/>
+</div>
+<span class="font-headline-sm text-headline-sm font-semibold text-text-primary">DevVault AI</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-text-muted hover:text-text-primary transition-opacity active:opacity-60">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full border border-border overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A close-up high-resolution profile avatar of a tech-savvy professional looking directly at the camera. The background is a clean, dark studio setting with soft cyan backlighting. The aesthetic is professional, modern, and perfectly aligned with a premium developer tool interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9zlzKjnPuK-nHcNqIcTOPMjQoZ60sEHCZvRPQhKtYesL_cn3YoPN_Y4Rm64n5mOivwaizX1ALxDrEH7_g2WpD0YGHRxbfaUxYD5qL_2ipfTabWOEVbOsmo0-Gss3HWzOuCKt9de1tlGrXAQ3cz3dM1eXcSHn16mEz8R9-WCj-mqAcT8-cJlfcV1PiaHlMO0MqUvyv4J0yJxcA2tjoaZEx4OX2fuc8NHv44au6FQRMi_JXBnfUsErwTB3Fo6c1_9rAorw3sv2cZKk"/>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="pt-20 pb-32 px-main-padding min-h-screen">
+<!-- Welcome Section -->
+<section class="mb-stack-lg">
+<p class="text-text-secondary font-label-sm text-label-sm uppercase tracking-widest mb-1">Welcome back</p>
+<h1 class="font-headline-md text-headline-md font-bold text-text-primary">Good Morning Ahmed 👋</h1>
+</section>
+<!-- Stats Bento Grid (Mobile Column) -->
+<div class="grid grid-cols-1 gap-stack-md mb-stack-lg">
+<!-- Stat Card 1 -->
+<div class="bg-card border border-border rounded-[24px] p-stack-md flex items-center justify-between">
+<div>
+<p class="text-text-muted font-label-sm text-label-sm">Active Projects</p>
+<h3 class="text-headline-md font-bold text-text-primary">12</h3>
+</div>
+<div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="folder_open">folder_open</span>
+</div>
+</div>
+<!-- Stat Card 2 -->
+<div class="bg-card border border-border rounded-[24px] p-stack-md flex items-center justify-between">
+<div>
+<p class="text-text-muted font-label-sm text-label-sm">AI Generations</p>
+<h3 class="text-headline-md font-bold text-text-primary">1,402</h3>
+</div>
+<div class="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-warning" data-icon="auto_awesome">auto_awesome</span>
+</div>
+</div>
+</div>
+<!-- System Status Canvas (Animated Background Placeholder) -->
+<div class="relative w-full h-48 rounded-[24px] overflow-hidden mb-stack-lg bg-bg-secondary border border-border p-stack-md">
+
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div class="flex justify-between items-start">
+<span class="px-3 py-1 bg-success/20 text-success rounded-full font-label-sm text-label-sm flex items-center gap-1">
+<span class="w-1.5 h-1.5 bg-success rounded-full animate-pulse"></span>
+                        System Online
+                    </span>
+<button class="bg-white/5 hover:bg-white/10 p-2 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-white text-body-sm" data-icon="more_horiz">more_horiz</span>
+</button>
+</div>
+<div>
+<h4 class="text-text-primary font-semibold mb-1">Compute Efficiency</h4>
+<p class="text-text-muted text-body-sm">Operating at 98.4% capacity with peak GPU acceleration.</p>
+</div>
+</div>
+</div>
+<!-- Recent Activity Feed -->
+<section>
+<div class="flex items-center justify-between mb-stack-md px-1">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-text-primary">Recent Activity</h2>
+<button class="text-primary font-label-sm text-label-sm">View all</button>
+</div>
+<div class="space-y-stack-md">
+<!-- Activity Item 1 -->
+<div class="bg-card border border-border rounded-[24px] p-stack-md flex gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-secondary" data-icon="terminal">terminal</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-1">
+<h4 class="text-text-primary font-medium text-body-md">Project Deployed</h4>
+<span class="text-text-muted text-[10px] uppercase">2m ago</span>
+</div>
+<p class="text-text-secondary text-body-sm mb-2">Omni-Channel API v2.0 successfully pushed to production.</p>
+<code class="block bg-bg-primary border border-border/50 rounded-lg p-3 font-code-md text-code-md text-primary text-xs truncate">
+                            $ git push production main
+                        </code>
+</div>
+</div>
+<!-- Activity Item 2 -->
+<div class="bg-card border border-border rounded-[24px] p-stack-md flex gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary" data-icon="chat">chat</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-1">
+<h4 class="text-text-primary font-medium text-body-md">AI Suggestion</h4>
+<span class="text-text-muted text-[10px] uppercase">15m ago</span>
+</div>
+<p class="text-text-secondary text-body-sm">Optimization found for <span class="text-primary font-mono">auth-handler.ts</span>.</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Button (Command Palette Search) -->
+<button class="fixed bottom-24 right-main-padding w-14 h-14 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center fab-shadow active:scale-95 transition-transform z-50" id="fab">
+<span class="material-symbols-outlined text-3xl" data-icon="search">search</span>
+</button>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 z-40 bg-bg-secondary/95 backdrop-blur-xl h-20 flex items-center justify-around px-gutter border-t border-border/10">
+<!-- Dashboard (Active) -->
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="relative py-1 px-4 rounded-full nav-active-glow">
+<span class="material-symbols-outlined text-text-primary" data-icon="dashboard" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></div>
+</div>
+<span class="font-label-sm text-[10px] text-text-primary font-bold">Dashboard</span>
+</a>
+<!-- Projects -->
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="py-1 px-4 rounded-full transition-colors group-active:bg-white/5">
+<span class="material-symbols-outlined text-text-muted group-hover:text-text-primary transition-colors" data-icon="folder_copy">folder_copy</span>
+</div>
+<span class="font-label-sm text-[10px] text-text-muted group-hover:text-text-primary transition-colors">Projects</span>
+</a>
+<!-- AI Chat -->
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="py-1 px-4 rounded-full transition-colors group-active:bg-white/5">
+<span class="material-symbols-outlined text-text-muted group-hover:text-text-primary transition-colors" data-icon="smart_toy">smart_toy</span>
+</div>
+<span class="font-label-sm text-[10px] text-text-muted group-hover:text-text-primary transition-colors">AI Chat</span>
+</a>
+<!-- Settings -->
+<a class="flex flex-col items-center gap-1 group" href="#">
+<div class="py-1 px-4 rounded-full transition-colors group-active:bg-white/5">
+<span class="material-symbols-outlined text-text-muted group-hover:text-text-primary transition-colors" data-icon="settings">settings</span>
+</div>
+<span class="font-label-sm text-[10px] text-text-muted group-hover:text-text-primary transition-colors">Settings</span>
+</a>
+</nav>
+<!-- Command Palette Modal (Hidden by default) -->
+<div class="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4" id="command-palette">
+<div class="bg-elevated w-full max-w-md rounded-[24px] border border-border overflow-hidden shadow-2xl">
+<div class="p-4 border-b border-border flex items-center gap-3">
+<span class="material-symbols-outlined text-text-muted" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-text-primary placeholder:text-text-muted w-full font-body-md" placeholder="Type a command or search..." type="text"/>
+</div>
+<div class="max-h-64 overflow-y-auto custom-scrollbar p-2">
+<div class="px-3 py-2 text-[10px] uppercase text-text-muted font-bold tracking-widest">Suggestions</div>
+<button class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-text-primary text-left transition-colors">
+<span class="material-symbols-outlined text-primary" data-icon="add_circle">add_circle</span>
+<span>Create New Project</span>
+</button>
+<button class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-text-primary text-left transition-colors">
+<span class="material-symbols-outlined text-secondary" data-icon="deployed_code">deployed_code</span>
+<span>Review Recent Deploys</span>
+</button>
+<button class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-text-primary text-left transition-colors">
+<span class="material-symbols-outlined text-warning" data-icon="bolt">bolt</span>
+<span>Optimize GPU Performance</span>
+</button>
+</div>
+<div class="p-3 bg-bg-primary text-center">
+<button class="text-text-muted text-label-sm font-medium hover:text-text-primary" onclick="togglePalette()">Close Palette</button>
+</div>
+</div>
+</div>
+<script>
+        const fab = document.getElementById('fab');
+        const palette = document.getElementById('command-palette');
+
+        function togglePalette() {
+            palette.classList.toggle('hidden');
+            if(!palette.classList.contains('hidden')) {
+                palette.querySelector('input').focus();
+            }
+        }
+
+        fab.addEventListener('click', togglePalette);
+
+        // Close on overlay click
+        palette.addEventListener('click', (e) => {
+            if (e.target === palette) togglePalette();
+        });
+
+        // Add some micro-interactions
+        const cards = document.querySelectorAll('.bg-card');
+        cards.forEach(card => {
+            card.addEventListener('touchstart', () => {
+                card.classList.add('scale-[0.98]', 'bg-white/[0.02]');
+            });
+            card.addEventListener('touchend', () => {
+                card.classList.remove('scale-[0.98]', 'bg-white/[0.02]');
+            });
+        });
+    </script>
+</body></html>

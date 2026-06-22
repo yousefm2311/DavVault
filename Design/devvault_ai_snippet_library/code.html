@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DevVault AI | Snippet Library</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0A0A0A;
+            color: #FFFFFF;
+            overflow: hidden;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .snippet-card-gradient {
+            background: linear-gradient(135deg, rgba(28, 28, 30, 1) 0%, rgba(20, 20, 22, 1) 100%);
+        }
+        .code-shadow {
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0A0A0A;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #252525;
+            border-radius: 10px;
+        }
+        .glass-header {
+            backdrop-filter: blur(12px);
+            background: rgba(10, 10, 10, 0.8);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#aac7ff",
+                        "bg-primary": "#0A0A0A",
+                        "bg-secondary": "#111111",
+                        "card": "#1C1C1E",
+                        "elevated": "#252525",
+                        "text-primary": "#FFFFFF",
+                        "text-secondary": "#A1A1AA",
+                        "text-muted": "#71717A",
+                        "border": "rgba(255, 255, 255, 0.08)",
+                        "accent-blue": "#0A84FF"
+                    },
+                    "borderRadius": {
+                        "card": "24px",
+                        "input": "16px",
+                        "pill": "20px"
+                    },
+                    "spacing": {
+                        "sidebar-width": "280px",
+                        "main-padding": "40px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "code-md": ["JetBrains Mono"]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="flex h-screen w-full">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-bg-secondary border-r border-border flex flex-col py-gutter z-50">
+<div class="px-6 mb-10 flex items-center gap-3">
+<div class="w-8 h-8 bg-accent-blue rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[20px]" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-text-primary leading-tight">DevVault AI</h1>
+<p class="text-[10px] uppercase tracking-widest text-text-muted font-bold">Elite Developer Suite</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-primary font-bold border-l-2 border-accent-blue bg-elevated transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">folder_copy</span>
+<span class="font-body-md text-body-md">Projects</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">smart_toy</span>
+<span class="font-body-md text-body-md">AI Chat</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">terminal</span>
+<span class="font-body-md text-body-md">Code Vault</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</nav>
+<div class="px-4 mt-auto space-y-4">
+<button class="w-full py-4 bg-accent-blue hover:bg-blue-600 text-white rounded-card font-bold transition-transform active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+<span class="material-symbols-outlined">add</span>
+                New Project
+            </button>
+<div class="p-4 bg-elevated rounded-card border border-border">
+<div class="flex items-center gap-3 mb-3">
+<img class="w-10 h-10 rounded-full border border-border object-cover" data-alt="A hyper-realistic close-up portrait of a professional software engineer with a focused expression, wearing modern glasses, illuminated by the soft cyan and purple glow of multiple high-end monitors in a dark, premium studio environment. The aesthetic is clean, cinematic, and technologically advanced, fitting a high-performance developer tool interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHUgjNp7GFEmze-6MhLy9GhNxRvIs-Gea3zfu16jYgOfo0D_E4V51QcVd6IfV1mRwbdQHHqU2j1hRu_rExgLLK4uEWx6pKUNbsMYkHMyfTNPHtxxFO9FKeREADEXv3qqcvrsh6o9BffA1dFL_kv9h8aE_M6nb_wcq5NXN7-UlGuvUZIOF2Ff3N7R8SHpowvhvsbM0PAD2dVxOgsXvcDmtiMd7-u0UJIlS5cDiqkCYQKRoCN6GpZAQvtG0lSiB6KNOs8qAGoPXAFSU"/>
+<div class="overflow-hidden">
+<p class="text-sm font-bold truncate">Alex Chen</p>
+<p class="text-xs text-text-muted truncate">Pro Plan</p>
+</div>
+</div>
+<div class="space-y-1">
+<div class="flex justify-between text-[10px] text-text-muted uppercase font-bold">
+<span>Storage</span>
+<span>85%</span>
+</div>
+<div class="w-full bg-bg-primary h-1.5 rounded-full overflow-hidden">
+<div class="bg-accent-blue h-full w-[85%] rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[280px] w-[calc(100%-280px)] h-full flex flex-col overflow-hidden">
+<!-- TopAppBar -->
+<header class="h-16 flex items-center justify-between px-main-padding border-b border-border bg-bg-primary sticky top-0 z-40">
+<div class="flex items-center gap-4">
+<span class="text-text-muted font-medium">Projects</span>
+<span class="material-symbols-outlined text-text-muted text-sm">chevron_right</span>
+<span class="text-text-primary font-bold">Snippet Library</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4">
+<a class="text-text-muted hover:text-text-primary text-[12px] font-medium transition-colors" href="#">Docs</a>
+<a class="text-text-muted hover:text-text-primary text-[12px] font-medium transition-colors" href="#">Support</a>
+</div>
+<div class="h-4 w-px bg-border"></div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-text-muted hover:text-text-primary transition-opacity">notifications</button>
+<button class="material-symbols-outlined text-text-muted hover:text-text-primary transition-opacity">help_outline</button>
+<button class="px-5 py-1.5 bg-accent-blue text-white rounded-full text-[12px] font-bold hover:opacity-90 active:scale-95 transition-all">Deploy</button>
+</div>
+</div>
+</header>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto custom-scrollbar bg-bg-primary">
+<div class="p-main-padding max-w-7xl mx-auto w-full">
+<!-- Search & Filters -->
+<div class="mb-12 space-y-6">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div class="max-w-2xl w-full">
+<h2 class="text-4xl font-bold mb-6 tracking-tight">Snippet Library</h2>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-5 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-accent-blue transition-colors">search</span>
+<input class="w-full bg-card border border-border rounded-pill py-4 pl-14 pr-6 text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/30 focus:border-accent-blue transition-all" placeholder="Search snippets by name, language or tag..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border text-xs font-bold hover:bg-elevated transition-colors">
+<span class="material-symbols-outlined text-sm">tune</span>
+                                Sort: Recent
+                            </button>
+</div>
+</div>
+<div class="flex flex-wrap gap-2">
+<button class="px-5 py-2 rounded-full bg-accent-blue text-white text-xs font-bold transition-all shadow-lg shadow-blue-900/20">All Snippets</button>
+<button class="px-5 py-2 rounded-full bg-card border border-border text-text-muted hover:text-text-primary hover:border-text-muted text-xs font-bold transition-all">Authentication</button>
+<button class="px-5 py-2 rounded-full bg-card border border-border text-text-muted hover:text-text-primary hover:border-text-muted text-xs font-bold transition-all">MongoDB</button>
+<button class="px-5 py-2 rounded-full bg-card border border-border text-text-muted hover:text-text-primary hover:border-text-muted text-xs font-bold transition-all">JWT</button>
+<button class="px-5 py-2 rounded-full bg-card border border-border text-text-muted hover:text-text-primary hover:border-text-muted text-xs font-bold transition-all">Supabase</button>
+<button class="px-5 py-2 rounded-full bg-card border border-border text-text-muted hover:text-text-primary hover:border-text-muted text-xs font-bold transition-all">Payments</button>
+</div>
+</div>
+<!-- Snippet Grid -->
+<div class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-8">
+<!-- Card 1 -->
+<div class="snippet-card-gradient border border-border rounded-card p-6 flex flex-col group hover:border-accent-blue/50 transition-all duration-300 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-bold text-lg leading-tight group-hover:text-accent-blue transition-colors">JWT Middleware Auth</h3>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="material-symbols-outlined text-[14px] text-text-muted">analytics</span>
+<span class="text-xs text-text-muted font-medium">1.2k uses</span>
+</div>
+</div>
+<span class="px-3 py-1 rounded-md bg-accent-blue/10 text-accent-blue text-[10px] font-bold uppercase tracking-wider">TypeScript</span>
+</div>
+<!-- Code Preview -->
+<div class="bg-[#0D0D0D] rounded-xl p-4 font-code-md text-code-md text-sm border border-white/5 code-shadow relative overflow-hidden mb-6">
+<pre class="text-blue-300"><span class="text-purple-400">export const</span> <span class="text-yellow-200">authenticate</span> = (req, res, next) =&gt; {
+  <span class="text-purple-400">const</span> token = req.headers[<span class="text-green-300">'authorization'</span>];
+  <span class="text-purple-400">if</span> (!token) <span class="text-purple-400">return</span> res.status(<span class="text-orange-300">401</span>).send();
+  jwt.verify(token, process.env.SECRET, (err, user) =&gt; {
+    <span class="text-text-muted">// ... logic here</span></pre>
+</div>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex gap-2">
+<span class="text-[10px] font-bold text-text-muted">#auth</span>
+<span class="text-[10px] font-bold text-text-muted">#backend</span>
+<span class="text-[10px] font-bold text-text-muted">#security</span>
+</div>
+<button class="w-10 h-10 rounded-full bg-accent-blue text-white flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all shadow-lg active:scale-90" title="Quick Copy">
+<span class="material-symbols-outlined text-[20px]">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="snippet-card-gradient border border-border rounded-card p-6 flex flex-col group hover:border-accent-blue/50 transition-all duration-300 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-bold text-lg leading-tight group-hover:text-accent-blue transition-colors">Stripe Payment Intent</h3>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="material-symbols-outlined text-[14px] text-text-muted">analytics</span>
+<span class="text-xs text-text-muted font-medium">856 uses</span>
+</div>
+</div>
+<span class="px-3 py-1 rounded-md bg-accent-blue/10 text-accent-blue text-[10px] font-bold uppercase tracking-wider">JavaScript</span>
+</div>
+<div class="bg-[#0D0D0D] rounded-xl p-4 font-code-md text-code-md text-sm border border-white/5 code-shadow relative overflow-hidden mb-6">
+<pre class="text-blue-300"><span class="text-purple-400">const</span> intent = <span class="text-purple-400">await</span> stripe.paymentIntents.create({
+  amount: <span class="text-orange-300">2000</span>,
+  currency: <span class="text-green-300">'usd'</span>,
+  payment_method_types: [<span class="text-green-300">'card'</span>],
+  metadata: { integration_check: <span class="text-green-300">'accept_a_payment'</span> },
+});</pre>
+</div>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex gap-2">
+<span class="text-[10px] font-bold text-text-muted">#payments</span>
+<span class="text-[10px] font-bold text-text-muted">#stripe</span>
+</div>
+<button class="w-10 h-10 rounded-full bg-accent-blue text-white flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all shadow-lg active:scale-90" title="Quick Copy">
+<span class="material-symbols-outlined text-[20px]">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="snippet-card-gradient border border-border rounded-card p-6 flex flex-col group hover:border-accent-blue/50 transition-all duration-300 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-bold text-lg leading-tight group-hover:text-accent-blue transition-colors">MongoDB Connection</h3>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="material-symbols-outlined text-[14px] text-text-muted">analytics</span>
+<span class="text-xs text-text-muted font-medium">2.4k uses</span>
+</div>
+</div>
+<span class="px-3 py-1 rounded-md bg-accent-blue/10 text-accent-blue text-[10px] font-bold uppercase tracking-wider">Node.js</span>
+</div>
+<div class="bg-[#0D0D0D] rounded-xl p-4 font-code-md text-code-md text-sm border border-white/5 code-shadow relative overflow-hidden mb-6">
+<pre class="text-blue-300"><span class="text-purple-400">async function</span> <span class="text-yellow-200">connectDB</span>() {
+  <span class="text-purple-400">try</span> {
+    <span class="text-purple-400">await</span> mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: <span class="text-purple-400">true</span>,
+      useUnifiedTopology: <span class="text-purple-400">true</span>
+    });
+  } <span class="text-purple-400">catch</span> (err) { ... }</pre>
+</div>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex gap-2">
+<span class="text-[10px] font-bold text-text-muted">#database</span>
+<span class="text-[10px] font-bold text-text-muted">#mongodb</span>
+</div>
+<button class="w-10 h-10 rounded-full bg-accent-blue text-white flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all shadow-lg active:scale-90" title="Quick Copy">
+<span class="material-symbols-outlined text-[20px]">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="snippet-card-gradient border border-border rounded-card p-6 flex flex-col group hover:border-accent-blue/50 transition-all duration-300 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-bold text-lg leading-tight group-hover:text-accent-blue transition-colors">Supabase Auth Hook</h3>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="material-symbols-outlined text-[14px] text-text-muted">analytics</span>
+<span class="text-xs text-text-muted font-medium">512 uses</span>
+</div>
+</div>
+<span class="px-3 py-1 rounded-md bg-accent-blue/10 text-accent-blue text-[10px] font-bold uppercase tracking-wider">React</span>
+</div>
+<div class="bg-[#0D0D0D] rounded-xl p-4 font-code-md text-code-md text-sm border border-white/5 code-shadow relative overflow-hidden mb-6">
+<pre class="text-blue-300"><span class="text-purple-400">const</span> { user, error } = <span class="text-purple-400">await</span> supabase.auth.signIn({
+  email: <span class="text-green-300">'example@email.com'</span>,
+  password: <span class="text-green-300">'mypassword'</span>,
+});
+<span class="text-purple-400">if</span> (user) router.push(<span class="text-green-300">'/dashboard'</span>);</pre>
+</div>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex gap-2">
+<span class="text-[10px] font-bold text-text-muted">#supabase</span>
+<span class="text-[10px] font-bold text-text-muted">#auth</span>
+</div>
+<button class="w-10 h-10 rounded-full bg-accent-blue text-white flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all shadow-lg active:scale-90" title="Quick Copy">
+<span class="material-symbols-outlined text-[20px]">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Card 5 -->
+<div class="snippet-card-gradient border border-border rounded-card p-6 flex flex-col group hover:border-accent-blue/50 transition-all duration-300 relative overflow-hidden">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-bold text-lg leading-tight group-hover:text-accent-blue transition-colors">Custom Flutter Hook</h3>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="material-symbols-outlined text-[14px] text-text-muted">analytics</span>
+<span class="text-xs text-text-muted font-medium">104 uses</span>
+</div>
+</div>
+<span class="px-3 py-1 rounded-md bg-accent-blue/10 text-accent-blue text-[10px] font-bold uppercase tracking-wider">Dart</span>
+</div>
+<div class="bg-[#0D0D0D] rounded-xl p-4 font-code-md text-code-md text-sm border border-white/5 code-shadow relative overflow-hidden mb-6">
+<pre class="text-blue-300"><span class="text-purple-400">class</span> <span class="text-yellow-200">useDebounce</span> <span class="text-purple-400">extends</span> Hook {
+  <span class="text-purple-400">final</span> dynamic value;
+  <span class="text-purple-400">final</span> Duration delay;
+  <span class="text-yellow-200">useDebounce</span>({<span class="text-purple-400">this</span>.value, <span class="text-purple-400">this</span>.delay});
+}</pre>
+</div>
+<div class="flex items-center justify-between mt-auto">
+<div class="flex gap-2">
+<span class="text-[10px] font-bold text-text-muted">#flutter</span>
+<span class="text-[10px] font-bold text-text-muted">#hooks</span>
+</div>
+<button class="w-10 h-10 rounded-full bg-accent-blue text-white flex items-center justify-center opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all shadow-lg active:scale-90" title="Quick Copy">
+<span class="material-symbols-outlined text-[20px]">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Add New Snippet Card -->
+<button class="border-2 border-dashed border-border rounded-card p-6 flex flex-col items-center justify-center group hover:bg-card hover:border-accent-blue/50 transition-all duration-300 space-y-4">
+<div class="w-14 h-14 rounded-full bg-elevated border border-border flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-text-muted group-hover:text-accent-blue">add</span>
+</div>
+<div class="text-center">
+<p class="font-bold text-text-primary">Create New Snippet</p>
+<p class="text-xs text-text-muted mt-1">Add to your private collection</p>
+</div>
+</button>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Micro-interaction: Smooth hover effect for cards
+        const cards = document.querySelectorAll('.snippet-card-gradient');
+        cards.forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+                
+                // Subtle tilt effect
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const rotateX = (y - centerY) / 20;
+                const rotateY = (centerX - x) / 20;
+                
+                card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+            });
+            
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg)`;
+            });
+        });
+
+        // Copy feedback simulation
+        const copyBtns = document.querySelectorAll('[title="Quick Copy"]');
+        copyBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const icon = btn.querySelector('.material-symbols-outlined');
+                const originalText = icon.innerText;
+                icon.innerText = 'check';
+                btn.classList.replace('bg-accent-blue', 'bg-success');
+                
+                setTimeout(() => {
+                    icon.innerText = originalText;
+                    btn.classList.replace('bg-success', 'bg-accent-blue');
+                }, 1500);
+            });
+        });
+    </script>
+</body></html>

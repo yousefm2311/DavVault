@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Error Vault | DevVault AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#31353d",
+                    "success": "#30D158",
+                    "warning": "#FFD60A",
+                    "text-disabled": "#52525B",
+                    "inverse-primary": "#005db8",
+                    "surface-container-low": "#181c23",
+                    "surface-container-high": "#262a32",
+                    "primary-container": "#3e90ff",
+                    "text-secondary": "#A1A1AA",
+                    "tertiary": "#ffb691",
+                    "on-tertiary": "#552000",
+                    "on-secondary-container": "#e5a9ff",
+                    "surface-dim": "#10131b",
+                    "primary": "#aac7ff",
+                    "on-primary-fixed": "#001b3e",
+                    "on-primary-fixed-variant": "#00468d",
+                    "card": "#1C1C1E",
+                    "primary-fixed-dim": "#aac7ff",
+                    "on-secondary": "#510074",
+                    "tertiary-fixed-dim": "#ffb691",
+                    "on-secondary-fixed-variant": "#7200a3",
+                    "primary-fixed": "#d6e3ff",
+                    "surface": "#161616",
+                    "danger": "#FF453A",
+                    "surface-variant": "#31353d",
+                    "secondary-fixed": "#f6d9ff",
+                    "inverse-on-surface": "#2d3038",
+                    "orange": "#FF9F0A",
+                    "bg-primary": "#0A0A0A",
+                    "background": "#10131b",
+                    "on-tertiary-fixed-variant": "#793100",
+                    "on-surface-variant": "#c0c6d6",
+                    "on-tertiary-container": "#4a1b00",
+                    "on-secondary-fixed": "#310048",
+                    "secondary-container": "#7d01b1",
+                    "error-container": "#93000a",
+                    "surface-tint": "#aac7ff",
+                    "text-primary": "#FFFFFF",
+                    "secondary-fixed-dim": "#e9b3ff",
+                    "tertiary-container": "#eb6a12",
+                    "on-error-container": "#ffdad6",
+                    "on-error": "#690005",
+                    "surface-container-lowest": "#0b0e15",
+                    "on-background": "#e0e2ed",
+                    "bg-secondary": "#111111",
+                    "outline-variant": "#414754",
+                    "on-primary-container": "#002957",
+                    "elevated": "#252525",
+                    "inverse-surface": "#e0e2ed",
+                    "surface-bright": "#363941",
+                    "on-surface": "#e0e2ed",
+                    "tertiary-fixed": "#ffdbcb",
+                    "divider": "rgba(255, 255, 255, 0.05)",
+                    "surface-container": "#1c2027",
+                    "border": "rgba(255, 255, 255, 0.08)",
+                    "on-primary": "#003064",
+                    "on-tertiary-fixed": "#341100",
+                    "text-muted": "#71717A",
+                    "error": "#ffb4ab",
+                    "secondary": "#e9b3ff",
+                    "outline": "#8b91a0"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-lg": "32px",
+                    "stack-sm": "8px",
+                    "main-padding": "40px",
+                    "sidebar-width": "280px",
+                    "gutter": "24px",
+                    "stack-md": "16px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Inter"],
+                    "body-md": ["Inter"],
+                    "code-md": ["JetBrains Mono"],
+                    "display": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "code-md": ["14px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                    "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+      body { background-color: #0A0A0A; color: #FFFFFF; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+      .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+      .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+      .glow-blue { box-shadow: 0 0 20px rgba(62, 144, 255, 0.15); border: 1px solid rgba(62, 144, 255, 0.3); }
+      .sidebar-indicator { width: 2px; height: 100%; position: absolute; left: 0; background-color: #aac7ff; box-shadow: 0 0 8px #aac7ff; }
+      .error-card { transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), background-color 0.2s ease; }
+      .error-card:hover { transform: translateY(-2px); background-color: #252525; }
+    </style>
+</head>
+<body class="flex min-h-screen">
+<!-- Side Navigation Bar -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-bg-secondary border-r border-border flex flex-col py-gutter z-50">
+<div class="px-6 mb-10 flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-fixed text-[20px]" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-text-primary leading-none">DevVault AI</h1>
+<p class="font-label-sm text-label-sm text-text-muted">Elite Developer Suite</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="group flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="group flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">folder_copy</span>
+<span class="font-body-md text-body-md">Projects</span>
+</a>
+<a class="group flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">smart_toy</span>
+<span class="font-body-md text-body-md">AI Chat</span>
+</a>
+<a class="group relative flex items-center gap-3 px-4 py-3 rounded-xl text-text-primary font-bold bg-elevated transition-all duration-200" href="#">
+<div class="sidebar-indicator"></div>
+<span class="material-symbols-outlined">terminal</span>
+<span class="font-body-md text-body-md">Code Vault</span>
+</a>
+<a class="group flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-all duration-200" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</nav>
+<div class="px-4 mt-auto space-y-4">
+<button class="w-full py-3 bg-primary text-on-primary-fixed font-bold rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined">add</span>
+<span>New Project</span>
+</button>
+<div class="p-4 bg-elevated rounded-2xl border border-border">
+<div class="flex items-center gap-3 mb-3">
+<img class="w-10 h-10 rounded-full object-cover" data-alt="A professional studio portrait of a high-end software engineer with clean, sharp features, wearing a black turtleneck against a dark charcoal minimalist background, cinematic lighting, 8k resolution, premium dark aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA1iW_Qe5KCJJTgPraxo8Jg8s4MLbCX5h_hsen21UVCnH5pmAU7AlQYiiKwWZozoDLChSYVIcMvRknsIB9BUgXaUh9IyQddPxWDqfCdO3o7IrodnkPKv4Qpocp5NH5_O4UAcSI_JVF-BEaVlmbeANFlJ6qEOJPV1Yxj6YiGDtav2IbGbTNnwSf8mXX1UROmVD6HyEXZXOCh8nY1EoX-j1fIm-cmQBBExhVr9dxoP6JFKewLYnPRK0EAvOqfZU6y150EQmqnqUzRsDw"/>
+<div class="overflow-hidden">
+<p class="font-body-sm text-body-sm text-text-primary font-semibold truncate">Alex Chen</p>
+<p class="font-label-sm text-label-sm text-text-muted truncate">Pro Developer</p>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-[10px] font-bold uppercase tracking-wider text-text-muted">
+<span>Storage</span>
+<span>82%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[82%]"></div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-[280px] flex-1 flex flex-col min-h-screen">
+<!-- Top App Bar -->
+<header class="h-16 flex items-center justify-between px-main-padding bg-bg-primary border-b border-border sticky top-0 z-40">
+<div class="flex items-center gap-4">
+<span class="font-headline-sm text-headline-sm font-semibold text-text-primary">Error Vault</span>
+<div class="h-4 w-[1px] bg-border"></div>
+<nav class="flex gap-4">
+<a class="font-label-sm text-label-sm text-text-primary border-b-2 border-primary pb-1" href="#">Logs</a>
+<a class="font-label-sm text-label-sm text-text-muted hover:text-text-primary transition-colors" href="#">Analytics</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[20px]">search</span>
+<input class="w-full bg-surface border-border rounded-full pl-10 pr-4 py-1.5 text-body-sm font-body-sm focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="Search stack traces..." type="text"/>
+</div>
+<div class="flex items-center gap-3">
+<button class="material-symbols-outlined text-text-muted hover:text-text-primary transition-colors">notifications</button>
+<button class="material-symbols-outlined text-text-muted hover:text-text-primary transition-colors">help_outline</button>
+<button class="bg-primary-container/20 text-primary-container px-4 py-1.5 rounded-full font-label-sm text-label-sm hover:bg-primary-container/30 transition-all border border-primary-container/30">Deploy</button>
+</div>
+</div>
+</header>
+<div class="p-main-padding space-y-stack-lg custom-scrollbar">
+<!-- Overview Stats Grid -->
+<section class="grid grid-cols-4 gap-gutter">
+<div class="bg-card p-gutter rounded-[24px] border border-border flex flex-col gap-2 relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[64px]">emergency</span>
+</div>
+<span class="font-label-sm text-label-sm text-text-muted uppercase tracking-widest">Critical Errors</span>
+<span class="font-display text-display text-danger">12</span>
+<div class="flex items-center gap-1 text-success text-body-sm font-body-sm">
+<span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+<span>4% vs yesterday</span>
+</div>
+</div>
+<div class="bg-card p-gutter rounded-[24px] border border-border flex flex-col gap-2 relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[64px]">warning</span>
+</div>
+<span class="font-label-sm text-label-sm text-text-muted uppercase tracking-widest">Warnings</span>
+<span class="font-display text-display text-warning">48</span>
+<div class="flex items-center gap-1 text-danger text-body-sm font-body-sm">
+<span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+<span>12% surge</span>
+</div>
+</div>
+<div class="bg-card p-gutter rounded-[24px] border border-border flex flex-col gap-2 relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[64px]">check_circle</span>
+</div>
+<span class="font-label-sm text-label-sm text-text-muted uppercase tracking-widest">Resolved</span>
+<span class="font-display text-display text-success">312</span>
+<div class="flex items-center gap-1 text-text-muted text-body-sm font-body-sm">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span>Last 24h</span>
+</div>
+</div>
+<div class="bg-card p-gutter rounded-[24px] border border-border flex flex-col gap-2 relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[64px]">bolt</span>
+</div>
+<span class="font-label-sm text-label-sm text-text-muted uppercase tracking-widest">AI Fix Rate</span>
+<span class="font-display text-display text-primary">94%</span>
+<div class="flex items-center gap-1 text-primary text-body-sm font-body-sm">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span>Autonomous recovery active</span>
+</div>
+</div>
+</section>
+<!-- Filter Tabs -->
+<div class="flex items-center justify-between">
+<div class="flex gap-2 p-1 bg-bg-secondary rounded-2xl border border-border w-fit">
+<button class="px-6 py-2 bg-elevated text-text-primary rounded-xl font-body-sm text-body-sm border border-border/50">All Logs</button>
+<button class="px-6 py-2 text-text-muted hover:text-text-primary transition-colors font-body-sm text-body-sm">Critical Only</button>
+<button class="px-6 py-2 text-text-muted hover:text-text-primary transition-colors font-body-sm text-body-sm">Warnings</button>
+<button class="px-6 py-2 text-text-muted hover:text-text-primary transition-colors font-body-sm text-body-sm">Production</button>
+</div>
+<div class="flex gap-4">
+<button class="flex items-center gap-2 px-4 py-2 border border-border rounded-xl text-text-muted hover:text-text-primary transition-all">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+<span class="font-body-sm">Filters</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 border border-border rounded-xl text-text-muted hover:text-text-primary transition-all">
+<span class="material-symbols-outlined text-[20px]">download</span>
+<span class="font-body-sm">Export</span>
+</button>
+</div>
+</div>
+<!-- Error Feed -->
+<div class="space-y-6">
+<!-- Error Card 1: Critical -->
+<article class="error-card bg-card rounded-[24px] border border-border overflow-hidden relative flex flex-col group">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-danger"></div>
+<div class="p-gutter flex flex-col gap-stack-md">
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<div class="flex items-center gap-3">
+<h2 class="font-headline-md text-headline-md font-bold text-text-primary">ECONNREFUSED: Connection lost</h2>
+<span class="px-3 py-1 bg-danger/10 text-danger text-[10px] font-bold uppercase tracking-widest rounded-full border border-danger/20">Critical</span>
+</div>
+<div class="flex items-center gap-4 text-text-muted font-body-sm text-body-sm">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span>2 minutes ago</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">terminal</span>
+<span class="text-primary-container font-medium">Core-Engine-V3</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">dns</span>
+<span>Prod-Cluster-Delta</span>
+</div>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="p-2 hover:bg-elevated rounded-full text-text-muted hover:text-text-primary transition-colors">
+<span class="material-symbols-outlined">share</span>
+</button>
+<button class="p-2 hover:bg-elevated rounded-full text-text-muted hover:text-text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Raw Error Message -->
+<div class="bg-bg-secondary p-4 rounded-xl border border-border">
+<code class="font-code-md text-code-md text-danger/90 block">
+                                Error: connect ECONNREFUSED 127.0.0.1:5432<br/>
+                                    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1494:16)<br/>
+                                    at .../src/db/connector.ts:42:11
+                            </code>
+</div>
+<!-- Root Cause Analysis -->
+<div class="space-y-2">
+<h3 class="font-label-sm text-label-sm text-text-muted uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">psychology</span> Root Cause Analysis
+                            </h3>
+<p class="font-body-md text-body-md text-text-secondary leading-relaxed">
+                                The database instance at <code class="bg-surface-container-highest px-1.5 rounded text-text-primary">127.0.0.1:5432</code> stopped responding. Logs indicate a memory spike in the Postgres container caused by an unoptimized recursive query in the reporting module, leading to a kernel OOM kill.
+                            </p>
+</div>
+<!-- AI Generated Solution -->
+<div class="glow-blue bg-primary-container/5 p-gutter rounded-2xl space-y-3 relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-[32px] text-primary" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<h3 class="font-label-sm text-label-sm text-primary uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">bolt</span> DevVault AI Recommended Solution
+                            </h3>
+<div class="flex flex-col gap-4">
+<p class="font-body-md text-body-md text-text-primary">
+                                    I suggest implementing a statement timeout and scaling the memory limit for the DB container. I have prepared a hotfix for the recursive query:
+                                </p>
+<div class="bg-bg-secondary p-4 rounded-lg border border-border/50">
+<code class="font-code-md text-code-md text-primary/80">
+                                        // Recommended Query Fix<br/>
+                                        WITH RECURSIVE subordinates AS (<br/>
+                                          SELECT id, manager_id FROM users WHERE id = :startId<br/>
+                                          UNION ALL<br/>
+                                          SELECT u.id, u.manager_id FROM users u<br/>
+                                          INNER JOIN subordinates s ON s.id = u.manager_id<br/>
+                                          WHERE iteration_count &lt; 10 // Added safety guard<br/>
+                                        )
+                                    </code>
+</div>
+<div class="flex gap-3">
+<button class="bg-primary px-6 py-2 text-on-primary-fixed font-bold rounded-xl active:scale-95 transition-transform">Apply Hotfix Now</button>
+<button class="px-6 py-2 border border-primary/30 text-primary rounded-xl hover:bg-primary/10 transition-colors">Open in IDE</button>
+</div>
+</div>
+</div>
+</div>
+</article>
+<!-- Error Card 2: Warning -->
+<article class="error-card bg-card rounded-[24px] border border-border overflow-hidden relative flex flex-col">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-warning"></div>
+<div class="p-gutter flex flex-col gap-stack-md">
+<div class="flex items-start justify-between">
+<div class="space-y-1">
+<div class="flex items-center gap-3">
+<h2 class="font-headline-md text-headline-md font-bold text-text-primary">Slow API Response: /auth/validate</h2>
+<span class="px-3 py-1 bg-warning/10 text-warning text-[10px] font-bold uppercase tracking-widest rounded-full border border-warning/20">Warning</span>
+</div>
+<div class="flex items-center gap-4 text-text-muted font-body-sm text-body-sm">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span>15 minutes ago</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">terminal</span>
+<span class="text-primary-container font-medium">Identity-Svc</span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-bg-secondary p-4 rounded-xl border border-border">
+<code class="font-code-md text-code-md text-warning/90">
+                                Warning: Request to /auth/validate took 4250ms (Limit: 500ms)
+                            </code>
+</div>
+<div class="space-y-2">
+<h3 class="font-label-sm text-label-sm text-text-muted uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">psychology</span> Root Cause Analysis
+                            </h3>
+<p class="font-body-md text-body-md text-text-secondary leading-relaxed">
+                                Latency spike detected during JWT validation. External KMS provider is reporting increased latency in the <code class="bg-surface-container-highest px-1.5 rounded text-text-primary">us-east-1</code> region.
+                            </p>
+</div>
+<div class="flex items-center justify-between p-4 bg-bg-secondary/50 rounded-xl border border-border/40">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="text-body-sm text-text-secondary">AI has prepared a local cache fallback strategy.</span>
+</div>
+<button class="text-primary font-bold text-body-sm hover:underline">Review Solution</button>
+</div>
+</div>
+</article>
+<!-- Error Card 3: Resolved -->
+<article class="error-card bg-card rounded-[24px] border border-border overflow-hidden relative flex flex-col opacity-60 hover:opacity-100 transition-opacity">
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-success"></div>
+<div class="p-gutter flex flex-col gap-stack-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<h2 class="font-body-lg text-body-lg font-bold text-text-primary">Redis Connection Timeout</h2>
+<span class="px-2 py-0.5 bg-success/10 text-success text-[9px] font-bold uppercase tracking-widest rounded-full border border-success/20">Resolved</span>
+</div>
+<span class="text-text-muted text-body-sm">1 hour ago</span>
+</div>
+<p class="text-text-secondary text-body-sm italic">Auto-resolved by Vault Watchdog Agent #042</p>
+</div>
+</article>
+</div>
+</div>
+</main>
+<script>
+        // Smooth hover and interaction micro-animations
+        document.querySelectorAll('.error-card').forEach(card => {
+            card.addEventListener('mousedown', () => {
+                card.style.transform = 'scale(0.99)';
+            });
+            card.addEventListener('mouseup', () => {
+                card.style.transform = 'translateY(-2px) scale(1)';
+            });
+        });
+
+        // Search bar focus effect
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('w-80');
+            searchInput.parentElement.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('w-80');
+        });
+    </script>
+</body></html>

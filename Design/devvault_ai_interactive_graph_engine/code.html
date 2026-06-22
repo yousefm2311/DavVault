@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Interactive Graph View | DevVault AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#ffdbcb",
+                        "on-primary-fixed": "#001b3e",
+                        "orange": "#FF9F0A",
+                        "on-surface-variant": "#c0c6d6",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-container": "#e5a9ff",
+                        "on-tertiary-fixed-variant": "#793100",
+                        "outline": "#8b91a0",
+                        "bg-primary": "#0A0A0A",
+                        "surface-variant": "#31353d",
+                        "on-tertiary": "#552000",
+                        "on-tertiary-container": "#4a1b00",
+                        "text-secondary": "#A1A1AA",
+                        "inverse-surface": "#e0e2ed",
+                        "on-primary": "#003064",
+                        "surface-dim": "#10131b",
+                        "primary-fixed-dim": "#aac7ff",
+                        "inverse-on-surface": "#2d3038",
+                        "on-secondary-fixed-variant": "#7200a3",
+                        "text-muted": "#71717A",
+                        "surface-container-high": "#262a32",
+                        "primary": "#aac7ff",
+                        "secondary-fixed-dim": "#e9b3ff",
+                        "warning": "#FFD60A",
+                        "on-tertiary-fixed": "#341100",
+                        "surface-tint": "#aac7ff",
+                        "on-primary-container": "#002957",
+                        "secondary": "#e9b3ff",
+                        "surface-bright": "#363941",
+                        "on-error": "#690005",
+                        "surface-container-low": "#181c23",
+                        "success": "#30D158",
+                        "tertiary": "#ffb691",
+                        "border": "rgba(255, 255, 255, 0.08)",
+                        "text-disabled": "#52525B",
+                        "error-container": "#93000a",
+                        "on-secondary-fixed": "#310048",
+                        "tertiary-fixed-dim": "#ffb691",
+                        "surface-container-lowest": "#0b0e15",
+                        "secondary-container": "#7d01b1",
+                        "on-background": "#e0e2ed",
+                        "surface": "#161616",
+                        "background": "#10131b",
+                        "outline-variant": "#414754",
+                        "error": "#ffb4ab",
+                        "primary-container": "#3e90ff",
+                        "elevated": "#252525",
+                        "text-primary": "#FFFFFF",
+                        "on-surface": "#e0e2ed",
+                        "on-primary-fixed-variant": "#00468d",
+                        "inverse-primary": "#005db8",
+                        "divider": "rgba(255, 255, 255, 0.05)",
+                        "surface-container-highest": "#31353d",
+                        "danger": "#FF453A",
+                        "secondary-fixed": "#f6d9ff",
+                        "card": "#1C1C1E",
+                        "bg-secondary": "#111111",
+                        "on-secondary": "#510074",
+                        "tertiary-container": "#eb6a12",
+                        "primary-fixed": "#d6e3ff",
+                        "surface-container": "#1c2027"
+                    },
+                    "spacing": {
+                        "stack-sm": "8px",
+                        "stack-lg": "32px",
+                        "sidebar-width": "280px",
+                        "stack-md": "16px",
+                        "main-padding": "40px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Inter"],
+                        "code-md": ["JetBrains Mono"],
+                        "display": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0A;
+            color: #FFFFFF;
+            overflow: hidden;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .neo-brutalist-node {
+            background: #1C1C1E;
+            border: 2px solid #aac7ff;
+            box-shadow: 4px 4px 0px #3e90ff;
+        }
+        .pulse-connection {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; stroke-width: 2px; }
+            50% { opacity: 0.3; stroke-width: 1px; }
+        }
+        .glass-overlay {
+            background: rgba(10, 10, 10, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md">
+<!-- Global Background Shader -->
+<!-- STITCH_SHADER_START:ANIMATION_9 class="fixed inset-0 w-full h-full z-0 pointer-events-none opacity-40" -->
+<div class="fixed inset-0 w-full h-full z-0 pointer-events-none opacity-40" style="display:block;">
+<canvas id="shader-canvas-ANIMATION_9" style="display:block;width:100%;height:100%"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas-ANIMATION_9');
+
+  // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+  // This fires on initial layout and whenever the element is resized.
+  function syncSize() {
+    const w = canvas.clientWidth  || 1280;
+    const h = canvas.clientHeight || 720;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width  = w;
+      canvas.height = h;
+    }
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(syncSize).observe(canvas);
+  }
+  syncSize();
+
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+  const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+  const fs = `precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    
+    // Create a very subtle tech grid dot pattern
+    vec2 gridUv = fract(gl_FragCoord.xy / 32.0); // 32px grid
+    float dot = smoothstep(0.08, 0.0, length(gridUv - 0.5));
+    
+    // Background color #0A0A0A
+    vec3 backgroundColor = vec3(0.039, 0.039, 0.039);
+    // Dot color with low opacity
+    vec3 dotColor = vec3(0.04, 0.51, 1.0) * 0.3; // Blue accent tint
+    
+    // Subtle ambient gradient pulse
+    float pulse = sin(u_time * 0.5) * 0.5 + 0.5;
+    vec3 gradient = vec3(0.04, 0.51, 1.0) * 0.05 * pulse * (1.0 - length(uv - 0.5));
+    
+    vec3 finalColor = mix(backgroundColor, dotColor, dot) + gradient;
+    
+    gl_FragColor = vec4(finalColor, 1.0);
+}`;
+  function cs(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uRes = gl.getUniformLocation(prog, 'u_resolution');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+  // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+  // Shaders that need normalized coords should use: u_mouse / u_resolution.
+  let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+  window.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      const nx = (event.clientX - rect.left) / rect.width;
+      const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+      mouse.x = nx * canvas.width;
+      mouse.y = ny * canvas.height;
+    }
+  });
+
+  function render(t) {
+    if (typeof ResizeObserver === 'undefined') syncSize();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    if (uTime) gl.uniform1f(uTime, t * 0.001);
+    if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+    if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(render);
+  }
+  render(0);
+})();
+</script>
+</div>
+<!-- STITCH_SHADER_END:ANIMATION_9 -->
+<!-- Side Navigation Shell (from JSON Guidance) -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-bg-secondary border-r border-border flex flex-col py-gutter z-30">
+<div class="px-6 mb-10">
+<h1 class="font-headline-md text-headline-md font-bold text-text-primary">DevVault AI</h1>
+<p class="font-body-sm text-text-muted">Elite Developer Suite</p>
+</div>
+<nav class="flex-1 px-4 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-text-primary font-bold border-l-2 border-primary bg-elevated" href="#">
+<span class="material-symbols-outlined">folder_copy</span>
+                Projects
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+                AI Chat
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">terminal</span>
+                Code Vault
+            </a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+</nav>
+<div class="px-4 mt-auto space-y-4">
+<button class="w-full bg-primary-container text-on-primary-container font-semibold py-3 rounded-xl hover:opacity-90 transition-opacity">
+                New Project
+            </button>
+<div class="pt-6 border-t border-border">
+<div class="flex items-center gap-3 px-4 py-2 text-text-muted hover:text-text-primary transition-all cursor-pointer group">
+<span class="material-symbols-outlined">account_circle</span>
+<span class="text-label-sm font-label-sm">Profile</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-2 text-text-muted hover:text-text-primary transition-all cursor-pointer group">
+<span class="material-symbols-outlined">cloud_queue</span>
+<div class="flex-1">
+<div class="flex justify-between items-center mb-1">
+<span class="text-label-sm font-label-sm uppercase tracking-tighter">Storage</span>
+<span class="text-[10px]">82%</span>
+</div>
+<div class="h-1 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[82%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[280px] w-[calc(100%-280px)] h-screen relative overflow-hidden">
+<!-- Top Overlay Bar (Breadcrumbs) -->
+<header class="absolute top-0 left-0 right-0 h-16 flex items-center justify-between px-main-padding z-20 glass-overlay border-b border-border">
+<div class="flex items-center gap-4">
+<nav class="flex items-center gap-2 text-label-sm font-label-sm">
+<span class="text-text-muted">Systems</span>
+<span class="material-symbols-outlined text-[16px] text-text-muted">chevron_right</span>
+<span class="text-text-muted">Core Engine</span>
+<span class="material-symbols-outlined text-[16px] text-text-muted">chevron_right</span>
+<span class="text-text-primary font-bold">Dependency Graph</span>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 bg-surface px-3 py-1.5 rounded-full border border-border">
+<span class="w-2 h-2 rounded-full bg-success"></span>
+<span class="text-label-sm font-label-sm text-text-muted">Live Sync Active</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-text-muted hover:text-text-primary cursor-pointer">notifications</span>
+<span class="material-symbols-outlined text-text-muted hover:text-text-primary cursor-pointer">help_outline</span>
+<button class="bg-primary px-4 py-1.5 rounded-lg text-on-primary-fixed font-semibold text-label-sm hover:opacity-90 transition-opacity">
+                        Deploy
+                    </button>
+</div>
+</div>
+</header>
+<!-- Main Interactive Visualization -->
+<div class="absolute inset-0 z-10 flex items-center justify-center">
+<!-- STITCH_THREEJS_START:ANIMATION_10 class="w-full h-full" -->
+<div class="w-full h-full" style="display:block;">
+<script src="https://ajax.googleapis.com/ajax/libs/threejs/r125/three.min.js"></script>
+<div id="threejs-container-ANIMATION_10" style="width:100%;height:100%"></div>
+<script>
+(function() {
+  const container = document.getElementById('threejs-container-ANIMATION_10');
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  const container = document.getElementById('graph-container');
+const width = container.clientWidth || window.innerWidth;
+const height = container.clientHeight || window.innerHeight;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+camera.position.z = 400;
+
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+renderer.setSize(width, height);
+renderer.setPixelRatio(window.devicePixelRatio);
+container.appendChild(renderer.domElement);
+
+// Node Data
+const nodes = [
+    { id: 'Auth', label: 'AuthService', type: 'Service', size: 12, pos: [-100, 80, 0], color: 0x0A84FF },
+    { id: 'DB', label: 'PostgreSQL', type: 'Database', size: 18, pos: [0, -100, 0], color: 0xBF5AF2 },
+    { id: 'API', label: 'UserGateway', type: 'Controller', size: 14, pos: [120, 40, 0], color: 0x30D158 },
+    { id: 'Model', label: 'UserModel', type: 'Model', size: 10, pos: [-40, 20, 0], color: 0xFFD60A },
+    { id: 'Payment', label: 'StripeIntegration', type: 'Service', size: 16, pos: [80, -60, 0], color: 0xFF9F0A }
+];
+
+const links = [
+    { from: 'Auth', to: 'Model' },
+    { from: 'API', to: 'Auth' },
+    { from: 'API', to: 'Payment' },
+    { from: 'Payment', to: 'DB' },
+    { from: 'Model', to: 'DB' }
+];
+
+const nodeGroup = new THREE.Group();
+const linkGroup = new THREE.Group();
+scene.add(nodeGroup);
+scene.add(linkGroup);
+
+// Create Nodes (Neo-brutalist tech style)
+nodes.forEach(node => {
+    const geo = new THREE.BoxGeometry(node.size * 2, node.size * 2, 4);
+    const mat = new THREE.MeshPhongMaterial({ 
+        color: node.color,
+        emissive: node.color,
+        emissiveIntensity: 0.3,
+        shininess: 100
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(...node.pos);
+    mesh.userData = { id: node.id, label: node.label };
+    nodeGroup.add(mesh);
+});
+
+// Create Animated Links
+const lineMaterial = new THREE.LineBasicMaterial({ 
+    color: 0x0A84FF,
+    transparent: true,
+    opacity: 0.3
+});
+
+links.forEach(link => {
+    const fromNode = nodes.find(n => n.id === link.from);
+    const toNode = nodes.find(n => n.id === link.to);
+    
+    const points = [
+        new THREE.Vector3(...fromNode.pos),
+        new THREE.Vector3(...toNode.pos)
+    ];
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    const line = new THREE.Line(geo, lineMaterial.clone());
+    linkGroup.add(line);
+});
+
+// Lights
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambientLight);
+const pointLight = new THREE.PointLight(0x0A84FF, 1, 500);
+pointLight.position.set(0, 0, 100);
+scene.add(pointLight);
+
+// Animation Loop
+const animate = () => {
+    requestAnimationFrame(animate);
+    
+    nodeGroup.children.forEach((node, i) => {
+        node.rotation.y += 0.01;
+        node.position.y += Math.sin(Date.now() * 0.001 + i) * 0.1;
+    });
+
+    linkGroup.children.forEach((line, i) => {
+        line.material.opacity = 0.2 + Math.sin(Date.now() * 0.002 + i) * 0.1;
+    });
+
+    renderer.render(scene, camera);
+};
+
+window.addEventListener('resize', () => {
+    const w = container.clientWidth || window.innerWidth;
+    const h = container.clientHeight || window.innerHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+});
+
+animate();
+})();
+</script>
+</div>
+<!-- STITCH_THREEJS_END:ANIMATION_10 -->
+</div>
+<!-- Floating UI Components: Neo-Brutalist Node Legend (Minimal) -->
+<div class="absolute top-24 left-10 z-20 space-y-4">
+<div class="p-6 neo-brutalist-node w-64">
+<h3 class="font-headline-sm text-[18px] mb-2">Graph Explorer</h3>
+<p class="text-body-sm text-text-secondary mb-4">Visualizing 1,240 node connections across the Core Architecture.</p>
+<div class="space-y-2">
+<div class="flex items-center gap-3">
+<span class="w-3 h-3 bg-primary border border-white"></span>
+<span class="text-label-sm font-label-sm uppercase">Active Service</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="w-3 h-3 bg-secondary border border-white"></span>
+<span class="text-label-sm font-label-sm uppercase">Data Stream</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="w-3 h-3 bg-danger border border-white"></span>
+<span class="text-label-sm font-label-sm uppercase">Latency Spike</span>
+</div>
+</div>
+</div>
+<!-- Deep Link Indicator -->
+<div class="flex items-center gap-3 px-4 py-3 bg-elevated border border-border rounded-xl shadow-2xl animate-bounce">
+<span class="material-symbols-outlined text-primary">link</span>
+<span class="text-body-sm font-medium">Deep Link: Click nodes to view code</span>
+</div>
+</div>
+<!-- Floating Corner Dock (Bottom Right) -->
+<div class="absolute bottom-10 right-10 z-20 flex flex-col gap-2">
+<div class="bg-surface/80 backdrop-blur-md border border-border rounded-2xl p-2 flex flex-col gap-1 shadow-2xl">
+<button class="p-3 hover:bg-elevated rounded-xl transition-colors text-text-muted hover:text-text-primary" title="Zoom In">
+<span class="material-symbols-outlined">zoom_in</span>
+</button>
+<button class="p-3 hover:bg-elevated rounded-xl transition-colors text-text-muted hover:text-text-primary" title="Zoom Out">
+<span class="material-symbols-outlined">zoom_out</span>
+</button>
+<div class="h-px bg-border mx-2"></div>
+<button class="p-3 hover:bg-elevated rounded-xl transition-colors text-text-muted hover:text-text-primary" title="Pan Mode">
+<span class="material-symbols-outlined">pan_tool</span>
+</button>
+<button class="p-3 hover:bg-elevated rounded-xl transition-colors text-text-muted hover:text-text-primary" title="Mini Map">
+<span class="material-symbols-outlined">map</span>
+</button>
+<button class="p-3 hover:bg-elevated rounded-xl transition-colors text-text-muted hover:text-text-primary" title="Reset View">
+<span class="material-symbols-outlined">restart_alt</span>
+</button>
+</div>
+</div>
+<!-- HUD: Performance Monitor (Bottom Left) -->
+<div class="absolute bottom-10 left-10 z-20 pointer-events-none">
+<div class="font-code-md text-code-md text-primary opacity-60">
+<div>&gt; FPS: 120</div>
+<div>&gt; LATENCY: 14ms</div>
+<div>&gt; RENDER_ENGINE: WEBGL_2.0</div>
+</div>
+</div>
+</main>
+<!-- Micro-interactions Script -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(btn => {
+                btn.addEventListener('mousedown', () => {
+                    btn.classList.add('scale-[0.98]');
+                });
+                btn.addEventListener('mouseup', () => {
+                    btn.classList.remove('scale-[0.98]');
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.classList.remove('scale-[0.98]');
+                });
+            });
+
+            // Simulate node interaction
+            window.addEventListener('click', (e) => {
+                if (e.target.closest('main')) {
+                    // Logic for threejs click event could go here
+                }
+            });
+        });
+    </script>
+</body></html>

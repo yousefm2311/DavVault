@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Team Brain | DevVault AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0A0A0A;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1C1C1E;
+            border-radius: 10px;
+        }
+        .glow-accent {
+            box-shadow: 0 0 40px -10px rgba(170, 199, 255, 0.15);
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(.33); opacity: 1; }
+            80%, 100% { opacity: 0; }
+        }
+        .pulse-dot::before {
+            content: '';
+            position: absolute;
+            left: -8px; top: -8px; width: 24px; height: 24px;
+            background-color: #30D158;
+            border-radius: 50%;
+            animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#aac7ff",
+                        "bg-primary": "#0A0A0A",
+                        "bg-secondary": "#111111",
+                        "card": "#1C1C1E",
+                        "border": "rgba(255, 255, 255, 0.08)",
+                        "text-primary": "#FFFFFF",
+                        "text-muted": "#71717A",
+                        "text-secondary": "#A1A1AA",
+                        "elevated": "#252525",
+                        "success": "#30D158"
+                    },
+                    "spacing": {
+                        "sidebar-width": "280px",
+                        "main-padding": "40px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "display": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-md": ["Inter"],
+                        "code-md": ["JetBrains Mono"]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-bg-primary text-text-primary font-body-md overflow-hidden">
+<!-- Side Navigation Bar (Shared Component: SideNavBar) -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-bg-secondary border-r border-border flex flex-col py-gutter z-50">
+<div class="px-6 mb-10 flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container">terminal</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-text-primary leading-none">DevVault AI</h1>
+<p class="text-label-sm text-text-muted mt-1 uppercase tracking-widest text-[10px]">Elite Developer Suite</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<!-- Active: Dashboard -->
+<a class="flex items-center gap-3 px-4 py-3 text-text-primary font-bold border-l-2 border-primary bg-elevated transition-transform duration-150 active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">folder_copy</span>
+<span>Projects</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>AI Chat</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">terminal</span>
+<span>Code Vault</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<div class="px-4 mt-auto space-y-6">
+<button class="w-full py-3 bg-primary text-on-primary font-bold rounded-xl flex items-center justify-center gap-2 transition-all hover:opacity-90">
+<span class="material-symbols-outlined">add</span>
+<span>New Project</span>
+</button>
+<div class="p-4 bg-card border border-border rounded-2xl">
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs text-text-muted font-medium uppercase">Storage</span>
+<span class="text-xs text-primary">84%</span>
+</div>
+<div class="w-full bg-bg-primary h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[84%]"></div>
+</div>
+<div class="mt-4 flex items-center gap-3">
+<img class="w-8 h-8 rounded-full border border-border" data-alt="A professional studio portrait of a senior software engineer with short dark hair and modern glasses. The lighting is soft and directional against a deep charcoal background, matching the premium dark UI aesthetic. High-quality bokeh and a professional corporate yet technical look." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAx4zjOkB0-ROpjfnz-KSn1c-0MdvOQQ_nkOYP3A4mtwP64LMynzGryWlpgN3pUHXwmDypSq42giHH2fFDkZWXNUvTwX_Hb95EXK89nMKyTdBR9aWBcqH06P0-5k5tlMNsorTo5dK1AUVeydD4GvIM8UD11GSLaB4HVtjXbXIeGc_Il_xMW3Vk3g-K2fI06NobV1JhLII2I_aZuuWFCycIQkfMvFi7p9u9nDRrUl9Yq_tL1O2KET1YOBk-KlFgwkngaHRgjLZqkk-w"/>
+<div class="flex-1">
+<p class="text-sm font-bold truncate">Alex Chen</p>
+<p class="text-[10px] text-text-muted">Pro Member</p>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Top App Bar (Shared Component: TopAppBar) -->
+<header class="fixed top-0 right-0 w-[calc(100%-280px)] h-16 bg-bg-primary border-b border-border flex items-center justify-between px-main-padding z-40">
+<div class="flex items-center gap-8">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-text-primary">Workspace Dashboard</h2>
+<nav class="hidden md:flex gap-6">
+<a class="font-label-sm text-label-sm text-text-primary border-b-2 border-primary pb-1" href="#">Team Brain</a>
+<a class="font-label-sm text-label-sm text-text-muted hover:text-text-primary transition-colors" href="#">Docs</a>
+<a class="font-label-sm text-label-sm text-text-muted hover:text-text-primary transition-colors" href="#">Support</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-sm">search</span>
+<input class="bg-card border-none rounded-full py-2 pl-10 pr-4 text-sm w-64 focus:ring-1 focus:ring-primary" placeholder="Search resources..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-text-muted hover:text-primary transition-opacity">notifications</button>
+<button class="material-symbols-outlined text-text-muted hover:text-primary transition-opacity">help_outline</button>
+<button class="bg-primary text-on-primary-container px-4 py-1.5 rounded-full text-xs font-bold hover:opacity-90 transition-opacity">Deploy</button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[280px] mt-16 p-main-padding h-[calc(100vh-64px)] overflow-y-auto bg-bg-primary">
+<!-- Header Section: Active Members -->
+<section class="mb-10">
+<div class="flex items-center justify-between mb-6">
+<h3 class="text-xl font-bold tracking-tight">Collaborative Intelligence</h3>
+<div class="flex items-center gap-2 px-3 py-1 bg-success/10 border border-success/20 rounded-full">
+<span class="w-2 h-2 bg-success rounded-full"></span>
+<span class="text-xs text-success font-medium">8 Syncing Now</span>
+</div>
+</div>
+<div class="flex flex-wrap gap-4">
+<!-- Member Card -->
+<div class="bg-card border border-border p-3 rounded-2xl flex items-center gap-4 w-60 group hover:border-primary/40 transition-all duration-300">
+<div class="relative">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="Close up portrait of a young female developer with blue-tinted hair wearing headphones. She is looking intently at a screen, reflected in her glasses. The lighting is moody with neon highlights, fitting an elite technical environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8KohVMJ6yubDVhPgNdU0NdLwwpj2GzbT1ZBQTmm1RPho5Dghi2afPmxuF2LrfoGHiZHjXxMrzMd9p18HT9tS4AP-1F09VB_0nvYPpjcHs5ybMY1jE_K8j4g1iVonfU81ZnoPMqi4Y0NxtseuhzUt_dPO5GBViI5kAIY3VlJf-HrFLeKAtgdMknRsQjn_DCZA9shgf4VWe4VkAH4mUuIynvlu8Su2zCY7pF1-Mj5JMV6UPmKS6F3L0r4b_k_0vzLQn_tGDpeRZCSI"/>
+<div class="absolute bottom-0 right-0 w-3 h-3 bg-success border-2 border-card rounded-full pulse-dot"></div>
+</div>
+<div class="flex-1">
+<p class="font-bold text-sm">Sarah Jenkins</p>
+<p class="text-xs text-text-muted">Working on Architecture</p>
+</div>
+</div>
+<div class="bg-card border border-border p-3 rounded-2xl flex items-center gap-4 w-60 group hover:border-primary/40 transition-all duration-300">
+<div class="relative">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="A middle-aged man with a neatly trimmed beard and professional attire. He is working in a high-tech lab environment with soft ambient lighting. The aesthetic is clean, professional, and sophisticated, reflecting a corporate developer tool." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBNTAuqLzSUN95Q-1jnPELRlY83z-XtCTkGrmyjmJ9WWEtJEuzaxtAGlOqMCQG8UwKrml9qIkOMHbf1WYy1EgmQJi_7o3nHS6LkMKY-3jzVmk330Yf64D_aEkOScBU3ufTq989WqX_RLYzSTmTfgBKYS7FTcEXu-3w1O0vY5ldALdE18YX7yj3pivekvR2ueXgaV_fkeezI5HhtlFYorl5s6JH2l96Om9mLeb9sIvzsZULepMtkNSfEI36Hue2F8nS4cMtNKs0L-Q"/>
+<div class="absolute bottom-0 right-0 w-3 h-3 bg-success border-2 border-card rounded-full pulse-dot"></div>
+</div>
+<div class="flex-1">
+<p class="font-bold text-sm">Marcus Vane</p>
+<p class="text-xs text-text-muted">Querying Brain Memory</p>
+</div>
+</div>
+<div class="bg-card border border-border p-3 rounded-2xl flex items-center gap-4 w-60 group hover:border-primary/40 transition-all duration-300">
+<div class="relative">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="Young energetic developer of Asian descent smiling. Studio lighting with sharp focus. Dark clothing against a deep grey wall. Professional, friendly, and highly capable persona for an elite tech workspace." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWy9C_J55fFz4DwjREvhD9R8b1Hm9af0i_j99BuemcW5STTL2nBbQMq-SSYTHA15w1h6ywuMsl2fj5l6edqWAev-ntIWqEJitymaeQf4RsoQBmalCO3PFfGwMDwE6jwFSFGZPPYtwcVEbZhe1t-SuXf4fTozt0J4SFn67LfDZ77mnTliBIv_cayJTAtXLDuBXyXq-_QOl-Kh-ixAr0HH6lokHx58ue7yHFhfZjyi6NxXjkYjD6BRCDaBTohyfzby2O0DQwG7jmIYg"/>
+<div class="absolute bottom-0 right-0 w-3 h-3 bg-success border-2 border-card rounded-full pulse-dot"></div>
+</div>
+<div class="flex-1">
+<p class="font-bold text-sm">Kevin Liang</p>
+<p class="text-xs text-text-muted">Analyzing PR #1042</p>
+</div>
+</div>
+<div class="bg-card border border-border p-3 rounded-2xl flex items-center justify-center gap-2 w-48 border-dashed group hover:border-primary/40 transition-all duration-300 cursor-pointer">
+<span class="material-symbols-outlined text-text-muted group-hover:text-primary">person_add</span>
+<span class="text-sm font-medium text-text-muted group-hover:text-text-primary">Invite Team</span>
+</div>
+</div>
+</section>
+<!-- Main Dashboard Grid -->
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Bento Box 1: Company Memory Growth -->
+<div class="col-span-12 lg:col-span-8 bg-card border border-border rounded-[24px] p-8 flex flex-col relative overflow-hidden">
+<div class="flex items-start justify-between mb-8">
+<div>
+<h4 class="text-sm font-medium text-text-muted uppercase tracking-wider mb-1">Company Memory</h4>
+<p class="text-4xl font-bold">12.4k <span class="text-lg font-normal text-success">+12%</span></p>
+<p class="text-xs text-text-muted mt-2">Cumulative neural nodes indexed this month</p>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1 rounded-lg bg-bg-primary text-xs border border-border">1D</button>
+<button class="px-3 py-1 rounded-lg bg-primary text-on-primary-container text-xs font-bold">1W</button>
+<button class="px-3 py-1 rounded-lg bg-bg-primary text-xs border border-border">1M</button>
+</div>
+</div>
+<div class="flex-1 h-64 w-full flex items-end gap-3 mt-4">
+<!-- Simple CSS Bar Chart -->
+<div class="flex-1 bg-primary/20 rounded-t-lg hover:bg-primary/40 transition-all cursor-help relative group" style="height: 40%">
+<div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-elevated px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">8.2k</div>
+</div>
+<div class="flex-1 bg-primary/20 rounded-t-lg hover:bg-primary/40 transition-all cursor-help relative group" style="height: 55%"></div>
+<div class="flex-1 bg-primary/20 rounded-t-lg hover:bg-primary/40 transition-all cursor-help relative group" style="height: 45%"></div>
+<div class="flex-1 bg-primary/20 rounded-t-lg hover:bg-primary/40 transition-all cursor-help relative group" style="height: 70%"></div>
+<div class="flex-1 bg-primary/20 rounded-t-lg hover:bg-primary/40 transition-all cursor-help relative group" style="height: 85%"></div>
+<div class="flex-1 bg-primary/40 rounded-t-lg border-t-2 border-primary hover:bg-primary/60 transition-all cursor-help relative group" style="height: 100%"></div>
+<div class="flex-1 bg-primary/20 rounded-t-lg hover:bg-primary/40 transition-all cursor-help relative group" style="height: 92%"></div>
+</div>
+</div>
+<!-- Bento Box 2: Repository Health -->
+<div class="col-span-12 lg:col-span-4 bg-card border border-border rounded-[24px] p-8 flex flex-col justify-between">
+<div>
+<h4 class="text-sm font-medium text-text-muted uppercase tracking-wider mb-6">Component Health</h4>
+<div class="space-y-6">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-orange">warning</span>
+<div>
+<p class="text-sm font-bold">Outdated Modules</p>
+<p class="text-xs text-text-muted">Requires urgent patch</p>
+</div>
+</div>
+<span class="text-orange font-bold">14</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-success">verified</span>
+<div>
+<p class="text-sm font-bold">Verified Shared</p>
+<p class="text-xs text-text-muted">Optimized &amp; Scalable</p>
+</div>
+</div>
+<span class="text-success font-bold">342</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">cloud_done</span>
+<div>
+<p class="text-sm font-bold">Sync Coverage</p>
+<p class="text-xs text-text-muted">Global reach</p>
+</div>
+</div>
+<span class="text-primary font-bold">99.8%</span>
+</div>
+</div>
+</div>
+<button class="w-full mt-8 py-3 bg-elevated border border-border rounded-xl text-sm font-medium hover:bg-bg-primary transition-colors">
+                    View Health Report
+                </button>
+</div>
+<!-- Bento Box 3: AI Chat Entry Point (Glowing Accent) -->
+<div class="col-span-12 lg:col-span-5 bg-card border border-primary/20 rounded-[24px] p-8 glow-accent relative overflow-hidden group cursor-pointer transition-transform duration-300 hover:scale-[1.01]">
+<div class="absolute -right-10 -bottom-10 opacity-20 group-hover:opacity-40 transition-opacity">
+<span class="material-symbols-outlined text-[160px] text-primary" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</div>
+<div class="relative z-10">
+<div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-on-primary-fixed">psychology</span>
+</div>
+<h4 class="text-2xl font-bold mb-3">AI Company Chat</h4>
+<p class="text-text-secondary leading-relaxed mb-6">Ask anything about the company's codebase, history, or past decisions. Tapped directly into the 12.4k memory nodes.</p>
+<div class="flex items-center gap-3">
+<div class="bg-primary/10 px-3 py-1 rounded-full text-xs text-primary font-semibold border border-primary/20">Ask "What is our deployment flow?"</div>
+</div>
+</div>
+</div>
+<!-- Bento Box 4: Recent Team Achievements -->
+<div class="col-span-12 lg:col-span-7 bg-card border border-border rounded-[24px] p-8">
+<h4 class="text-sm font-medium text-text-muted uppercase tracking-wider mb-6">Team Achievements</h4>
+<div class="space-y-6">
+<div class="flex gap-4 items-start">
+<div class="mt-1 w-8 h-8 rounded-full bg-success/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-success text-lg" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+</div>
+<div>
+<p class="text-sm"><span class="font-bold text-text-primary">Marcus Vane</span> solved a critical bottleneck in <span class="text-primary font-medium">@vault/core-api</span></p>
+<p class="text-xs text-text-muted mt-1">Today at 14:20 • Saved 14 hours/mo</p>
+</div>
+</div>
+<div class="flex gap-4 items-start">
+<div class="mt-1 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-lg" style="font-variation-settings: 'FILL' 1;">auto_fix_high</span>
+</div>
+<div>
+<p class="text-sm"><span class="font-bold text-text-primary">AI Sync</span> automatically refactored 4 legacy components</p>
+<p class="text-xs text-text-muted mt-1">Today at 10:15 • Clean-up protocol Alpha</p>
+</div>
+</div>
+<div class="flex gap-4 items-start">
+<div class="mt-1 w-8 h-8 rounded-full bg-orange/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-orange text-lg" style="font-variation-settings: 'FILL' 1;">groups</span>
+</div>
+<div>
+<p class="text-sm"><span class="font-bold text-text-primary">Core Team</span> successfully completed the Q4 Architecture Migration</p>
+<p class="text-xs text-text-muted mt-1">Yesterday at 18:45 • Milestone Reached</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Dynamic Micro-Interaction: Activity Indicator -->
+<div class="mt-12 flex items-center gap-3 px-6 py-4 bg-bg-secondary border border-border rounded-2xl w-fit">
+<div class="flex -space-x-2">
+<img class="w-6 h-6 rounded-full border border-bg-secondary" data-alt="Close up face of a young tech professional with a clean modern look, focused expression, and vibrant lighting. High contrast portrait photography style, shallow depth of field, neutral dark background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6SBiGDhHQeqKeyNZ7jUbsPxOmhSL6wc-TWuXXbtU1KZZLNxkXkt0GqMhYccvqK8T_KzlkFIJHdQVZ2T0KAxnJh5-ELEqqn1W2iqaZwvdJ9Abx7krvJ8RCcl1_HvSSS-R4bs1l4K8evcalrwgaoxONCRXFb_e5XNnrJpLKDTSsL-jfCCFTwm1H53X7pJ5e3b8pr8d_em-jC2MsunZRm3AWWD6bFkz-bV6PKfi72luwqVIp1-rHoqmfIzIJvS3TDreEv7KvKn9UKc4"/>
+<img class="w-6 h-6 rounded-full border border-bg-secondary" data-alt="Portrait of a female creative technologist with a thoughtful expression. Neon ambient lighting highlights her features. Professional studio environment, crisp details, 4k quality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWXBhvDKmdhddnaKWoVJBddqyFYoqm9wAtW3HbCACoD72A6yWixCnx_aH2Z6lOKLQ1NMR3stiTifZuRq9gTArLb2NSX8nMmW5Cjxi1UoP2qtIPVtSERWzKu0xw9meoM8DvHgxyeAmIeLIgRzikpKRkz5c0bzbCjoMheaQd16ZeflhOCdbMvlvmkUzwYbwEUSDj-XS9Zsg-bdxWze6bF0BQ4WwsckxUlJq0q60HQTYpF2Ig9yH_eGLlxSU2YpmGXF4eWdEa-Hvl698"/>
+<div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-[10px] font-bold text-on-primary-fixed border border-bg-secondary">+5</div>
+</div>
+<p class="text-xs text-text-muted font-medium">Team syncing in progress... <span class="text-primary cursor-pointer hover:underline">View live log</span></p>
+</div>
+</main>
+<!-- Code Preview Overlay for Visual Interest -->
+<div class="fixed bottom-10 right-10 z-0 opacity-10 pointer-events-none hidden xl:block">
+<pre class="font-code-md text-code-md text-primary">{
+  "brain_node": "0x4f22ae",
+  "activity": "collaborative_indexing",
+  "status": "synchronized",
+  "members": [
+    "alex_chen",
+    "sarah_j",
+    "marcus_v"
+  ],
+  "pulse": "stable"
+}
+        </pre>
+</div>
+<script>
+        // Simple micro-interaction for cards
+        document.querySelectorAll('.bg-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-2px)';
+                card.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body></html>

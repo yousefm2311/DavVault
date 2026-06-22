@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed": "#ffdbcb",
+                        "on-primary-fixed": "#001b3e",
+                        "orange": "#FF9F0A",
+                        "on-surface-variant": "#c0c6d6",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-container": "#e5a9ff",
+                        "on-tertiary-fixed-variant": "#793100",
+                        "outline": "#8b91a0",
+                        "bg-primary": "#0A0A0A",
+                        "surface-variant": "#31353d",
+                        "on-tertiary": "#552000",
+                        "on-tertiary-container": "#4a1b00",
+                        "text-secondary": "#A1A1AA",
+                        "inverse-surface": "#e0e2ed",
+                        "on-primary": "#003064",
+                        "surface-dim": "#10131b",
+                        "primary-fixed-dim": "#aac7ff",
+                        "inverse-on-surface": "#2d3038",
+                        "on-secondary-fixed-variant": "#7200a3",
+                        "text-muted": "#71717A",
+                        "surface-container-high": "#262a32",
+                        "primary": "#aac7ff",
+                        "secondary-fixed-dim": "#e9b3ff",
+                        "warning": "#FFD60A",
+                        "on-tertiary-fixed": "#341100",
+                        "surface-tint": "#aac7ff",
+                        "on-primary-container": "#002957",
+                        "secondary": "#e9b3ff",
+                        "surface-bright": "#363941",
+                        "on-error": "#690005",
+                        "surface-container-low": "#181c23",
+                        "success": "#30D158",
+                        "tertiary": "#ffb691",
+                        "border": "rgba(255, 255, 255, 0.08)",
+                        "text-disabled": "#52525B",
+                        "error-container": "#93000a",
+                        "on-secondary-fixed": "#310048",
+                        "tertiary-fixed-dim": "#ffb691",
+                        "surface-container-lowest": "#0b0e15",
+                        "secondary-container": "#7d01b1",
+                        "on-background": "#e0e2ed",
+                        "surface": "#161616",
+                        "background": "#10131b",
+                        "outline-variant": "#414754",
+                        "error": "#ffb4ab",
+                        "primary-container": "#3e90ff",
+                        "elevated": "#252525",
+                        "text-primary": "#FFFFFF",
+                        "on-surface": "#e0e2ed",
+                        "on-primary-fixed-variant": "#00468d",
+                        "inverse-primary": "#005db8",
+                        "divider": "rgba(255, 255, 255, 0.05)",
+                        "surface-container-highest": "#31353d",
+                        "danger": "#FF453A",
+                        "secondary-fixed": "#f6d9ff",
+                        "card": "#1C1C1E",
+                        "bg-secondary": "#111111",
+                        "on-secondary": "#510074",
+                        "tertiary-container": "#eb6a12",
+                        "primary-fixed": "#d6e3ff",
+                        "surface-container": "#1c2027"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-sm": "8px",
+                        "stack-lg": "32px",
+                        "sidebar-width": "280px",
+                        "stack-md": "16px",
+                        "main-padding": "40px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Inter"],
+                        "code-md": ["JetBrains Mono"],
+                        "display": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "code-md": ["14px", {"lineHeight": "25.6px", "fontWeight": "400"}],
+                        "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #0A0A0A; color: #FFFFFF; font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0A0A0A; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #252525; border-radius: 10px; }
+        .glass-panel { backdrop-filter: blur(12px); background: rgba(28, 28, 30, 0.6); }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .tab-transition { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-expand { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    </style>
+</head>
+<body class="antialiased overflow-hidden">
+<!-- Fixed SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-bg-secondary border-r border-border flex flex-col py-gutter z-50">
+<div class="px-6 mb-10 flex items-center gap-3">
+<div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-fixed" data-icon="terminal" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-text-primary leading-none">DevVault AI</h1>
+<p class="text-label-sm font-label-sm text-text-muted mt-1 uppercase tracking-widest">Elite Developer Suite</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="folder_copy">folder_copy</span>
+<span class="font-body-md text-body-md">Projects</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-primary font-bold border-l-2 border-primary bg-elevated" href="#">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span class="font-body-md text-body-md">AI Chat</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span class="font-body-md text-body-md">Code Vault</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</nav>
+<div class="mt-auto px-4 pt-6 border-t border-border">
+<button class="w-full bg-primary py-3 rounded-2xl text-on-primary-fixed font-bold text-body-md mb-6 hover:brightness-110 active:scale-[0.98] transition-all duration-150">
+                New Project
+            </button>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 rounded-xl text-text-muted hover:text-text-primary transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+<span class="text-label-sm font-label-sm">Profile</span>
+</a>
+<div class="px-4 py-4">
+<div class="flex justify-between items-center text-label-sm font-label-sm text-text-muted mb-2">
+<span>Storage</span>
+<span>82% Full</span>
+</div>
+<div class="w-full h-1.5 bg-elevated rounded-full overflow-hidden">
+<div class="w-[82%] h-full bg-orange"></div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-280px)] h-16 bg-bg-primary border-b border-border flex items-center justify-between px-main-padding z-40">
+<div class="flex items-center gap-4">
+<span class="text-text-muted">Knowledge Base</span>
+<span class="text-text-muted">/</span>
+<span class="text-text-primary font-semibold">Architecture</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<input class="bg-surface border-none rounded-full px-5 py-2 w-64 text-label-sm focus:ring-1 focus:ring-primary transition-all" placeholder="Search architecture..." type="text"/>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-sm" data-icon="search">search</span>
+</div>
+<nav class="flex items-center gap-6">
+<a class="text-label-sm font-label-sm text-text-muted hover:text-text-primary transition-colors" href="#">Docs</a>
+<a class="text-label-sm font-label-sm text-text-muted hover:text-text-primary transition-colors" href="#">Support</a>
+</nav>
+<div class="flex items-center gap-3 border-l border-divider pl-6">
+<button class="text-text-muted hover:text-text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="bg-primary-container px-4 py-1.5 rounded-lg text-white font-semibold text-label-sm hover:opacity-90 active:opacity-80 transition-all">
+                    Deploy
+                </button>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-[280px] mt-16 p-main-padding h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar">
+<!-- Hero Header -->
+<section class="mb-stack-lg">
+<div class="flex items-end justify-between">
+<div>
+<h1 class="font-display text-display text-text-primary tracking-tight mb-2">Architecture Knowledge Base</h1>
+<p class="text-body-lg font-body-lg text-text-secondary max-w-2xl">
+                        Deep dive into the core systemic blueprints of DevVault AI. Explore logic flows, data structures, and integration points for the elite developer ecosystem.
+                    </p>
+</div>
+<div class="flex bg-bg-secondary p-1 rounded-2xl border border-border">
+<button class="view-toggle-btn active flex items-center gap-2 px-4 py-2 rounded-xl text-label-sm font-semibold transition-all bg-elevated text-text-primary" id="btn-arch" onclick="setView('arch')">
+<span class="material-symbols-outlined text-sm" data-icon="account_tree">account_tree</span>
+                        Architecture
+                    </button>
+<button class="view-toggle-btn flex items-center gap-2 px-4 py-2 rounded-xl text-label-sm font-semibold transition-all text-text-muted hover:text-text-primary" id="btn-code" onclick="setView('code')">
+<span class="material-symbols-outlined text-sm" data-icon="code">code</span>
+                        Code
+                    </button>
+</div>
+</div>
+</section>
+<!-- Bento Grid for Knowledge Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-gutter">
+<!-- Card: Authentication -->
+<div class="group bg-card rounded-[24px] border border-border p-6 hover:border-success/40 transition-all duration-300 flex flex-col h-[420px]">
+<div class="flex justify-between items-start mb-6">
+<div class="p-3 bg-success/10 rounded-2xl text-success">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+</div>
+<span class="text-label-sm font-label-sm text-text-muted py-1 px-3 bg-bg-secondary rounded-full border border-border">v2.4.1</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-text-primary mb-2">Authentication</h3>
+<p class="text-body-sm font-body-sm text-text-muted mb-6">Multi-factor OAuth flow with JWT rotation and biometric fallback systems.</p>
+<div class="flex-1 relative overflow-hidden rounded-xl bg-bg-secondary border border-border">
+<!-- Arch View -->
+<div class="view-content absolute inset-0 p-4 flex flex-col justify-center items-center gap-4 transition-opacity duration-300 opacity-100" id="auth-arch">
+<div class="flex items-center gap-3 w-full">
+<div class="flex-1 h-12 rounded-lg border border-success/30 flex items-center justify-center text-[10px] text-success">Client UI</div>
+<span class="material-symbols-outlined text-text-muted text-sm" data-icon="arrow_forward">arrow_forward</span>
+<div class="flex-1 h-12 rounded-lg bg-success/20 border border-success/40 flex items-center justify-center text-[10px] text-success font-bold">JWT Gateway</div>
+</div>
+<span class="material-symbols-outlined text-text-muted" data-icon="arrow_downward">arrow_downward</span>
+<div class="w-2/3 h-12 rounded-lg border border-success/30 flex items-center justify-center text-[10px] text-success">OAuth Provider</div>
+</div>
+<!-- Code View -->
+<div class="view-content absolute inset-0 p-4 bg-bg-secondary transition-opacity duration-300 opacity-0 hidden" id="auth-code">
+<pre class="font-code-md text-code-md text-success overflow-hidden text-xs"><code>const auth = async (req) =&gt; {
+  const token = req.jwt;
+  const valid = await verify(token);
+  if (!valid) throw Error();
+  return next();
+}</code></pre>
+</div>
+</div>
+</div>
+<!-- Card: PostgreSQL Database -->
+<div class="group bg-card rounded-[24px] border border-border p-6 hover:border-secondary/40 transition-all duration-300 flex flex-col h-[420px]">
+<div class="flex justify-between items-start mb-6">
+<div class="p-3 bg-secondary/10 rounded-2xl text-secondary">
+<span class="material-symbols-outlined" data-icon="database">database</span>
+</div>
+<span class="text-label-sm font-label-sm text-text-muted py-1 px-3 bg-bg-secondary rounded-full border border-border">Clusters</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-text-primary mb-2">PostgreSQL Database</h3>
+<p class="text-body-sm font-body-sm text-text-muted mb-6">Relational schema design with horizontal read-replicas and pgvector support.</p>
+<div class="flex-1 relative overflow-hidden rounded-xl bg-bg-secondary border border-border">
+<div class="view-content absolute inset-0 p-4 flex justify-center items-center gap-6 opacity-100 transition-opacity" id="db-arch">
+<div class="w-16 h-16 rounded-full border-2 border-secondary/40 border-dashed flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary" data-icon="hub">hub</span>
+</div>
+<div class="flex flex-col gap-2">
+<div class="w-24 h-6 rounded bg-secondary/20 flex items-center px-2 text-[9px] text-secondary">Write Node</div>
+<div class="w-24 h-6 rounded border border-secondary/30 flex items-center px-2 text-[9px] text-secondary">Read-Replica 1</div>
+<div class="w-24 h-6 rounded border border-secondary/30 flex items-center px-2 text-[9px] text-secondary">Read-Replica 2</div>
+</div>
+</div>
+<div class="view-content absolute inset-0 p-4 bg-bg-secondary transition-opacity opacity-0 hidden" id="db-code">
+<pre class="font-code-md text-code-md text-secondary text-xs"><code>SELECT * FROM users
+WHERE id = $1
+AND active = true
+JOIN profiles ON ...</code></pre>
+</div>
+</div>
+</div>
+<!-- Card: REST APIs -->
+<div class="group bg-card rounded-[24px] border border-border p-6 hover:border-primary/40 transition-all duration-300 flex flex-col h-[420px]">
+<div class="flex justify-between items-start mb-6">
+<div class="p-3 bg-primary/10 rounded-2xl text-primary">
+<span class="material-symbols-outlined" data-icon="api">api</span>
+</div>
+<span class="text-label-sm font-label-sm text-text-muted py-1 px-3 bg-bg-secondary rounded-full border border-border">OpenAPI 3.1</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-text-primary mb-2">REST APIs</h3>
+<p class="text-body-sm font-body-sm text-text-muted mb-6">Typed endpoints with automated documentation and versioning management.</p>
+<div class="flex-1 relative overflow-hidden rounded-xl bg-bg-secondary border border-border">
+<div class="view-content absolute inset-0 p-4 flex flex-col justify-center items-center gap-2 opacity-100 transition-opacity" id="api-arch">
+<div class="w-full flex justify-around">
+<div class="w-12 h-4 rounded-full bg-primary/20"></div>
+<div class="w-12 h-4 rounded-full bg-primary/20"></div>
+<div class="w-12 h-4 rounded-full bg-primary/20"></div>
+</div>
+<div class="w-4/5 h-20 border border-primary/40 rounded-xl relative flex items-center justify-center">
+<span class="text-[10px] text-primary">API Controller Layer</span>
+<div class="absolute -top-1 w-full flex justify-center gap-8">
+<div class="w-0.5 h-4 bg-primary/40"></div>
+<div class="w-0.5 h-4 bg-primary/40"></div>
+<div class="w-0.5 h-4 bg-primary/40"></div>
+</div>
+</div>
+</div>
+<div class="view-content absolute inset-0 p-4 bg-bg-secondary transition-opacity opacity-0 hidden" id="api-code">
+<pre class="font-code-md text-code-md text-primary text-xs"><code>GET /v1/projects
+{
+  "status": "success",
+  "data": [...]
+}</code></pre>
+</div>
+</div>
+</div>
+<!-- Card: Core Logic -->
+<div class="group bg-card rounded-[24px] border border-border p-6 hover:border-orange/40 transition-all duration-300 flex flex-col h-[420px]">
+<div class="flex justify-between items-start mb-6">
+<div class="p-3 bg-orange/10 rounded-2xl text-orange">
+<span class="material-symbols-outlined" data-icon="settings_suggest">settings_suggest</span>
+</div>
+<span class="text-label-sm font-label-sm text-text-muted py-1 px-3 bg-bg-secondary rounded-full border border-border">Kernel v1</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-text-primary mb-2">Core Logic</h3>
+<p class="text-body-sm font-body-sm text-text-muted mb-6">The proprietary AI orchestration engine driving all vault processing tasks.</p>
+<div class="flex-1 relative overflow-hidden rounded-xl bg-bg-secondary border border-border">
+<div class="view-content absolute inset-0 p-4 flex flex-col justify-center items-center gap-1 opacity-100 transition-opacity" id="core-arch">
+<div class="grid grid-cols-4 gap-1 w-full px-4">
+<div class="h-6 bg-orange/20 rounded"></div>
+<div class="h-6 bg-orange/40 rounded"></div>
+<div class="h-6 bg-orange/20 rounded"></div>
+<div class="h-6 bg-orange/20 rounded"></div>
+<div class="h-6 bg-orange/20 rounded"></div>
+<div class="h-6 bg-orange/60 rounded animate-pulse"></div>
+<div class="h-6 bg-orange/20 rounded"></div>
+<div class="h-6 bg-orange/40 rounded"></div>
+</div>
+<span class="text-[9px] text-orange mt-2 uppercase font-bold tracking-widest">Neural Dispatcher</span>
+</div>
+<div class="view-content absolute inset-0 p-4 bg-bg-secondary transition-opacity opacity-0 hidden" id="core-code">
+<pre class="font-code-md text-code-md text-orange text-xs"><code>while(true) {
+  const signal = await peek();
+  const res = engine.process(signal);
+  broadcast(res);
+}</code></pre>
+</div>
+</div>
+</div>
+<!-- Card: Stripe Payments -->
+<div class="group bg-card rounded-[24px] border border-border p-6 hover:border-warning/40 transition-all duration-300 flex flex-col h-[420px]">
+<div class="flex justify-between items-start mb-6">
+<div class="p-3 bg-warning/10 rounded-2xl text-warning">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+</div>
+<span class="text-label-sm font-label-sm text-text-muted py-1 px-3 bg-bg-secondary rounded-full border border-border">Financial</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-text-primary mb-2">Stripe Payments</h3>
+<p class="text-body-sm font-body-sm text-text-muted mb-6">Secure subscription handling and metered usage billing automation.</p>
+<div class="flex-1 relative overflow-hidden rounded-xl bg-bg-secondary border border-border">
+<div class="view-content absolute inset-0 p-4 flex items-center justify-center opacity-100 transition-opacity" id="pay-arch">
+<div class="flex flex-col items-center gap-2">
+<div class="w-32 h-10 border border-warning/40 rounded flex items-center justify-center text-[10px] text-warning">Webhook Handler</div>
+<span class="material-symbols-outlined text-warning animate-bounce" data-icon="keyboard_double_arrow_down">keyboard_double_arrow_down</span>
+<div class="w-32 h-10 bg-warning/20 rounded flex items-center justify-center text-[10px] text-warning font-bold">Ledger Sync</div>
+</div>
+</div>
+<div class="view-content absolute inset-0 p-4 bg-bg-secondary transition-opacity opacity-0 hidden" id="pay-code">
+<pre class="font-code-md text-code-md text-warning text-xs"><code>stripe.subscriptions.create({
+  customer: 'cus_123',
+  items: [{ price: 'gold_tier' }]
+});</code></pre>
+</div>
+</div>
+</div>
+<!-- New Logic Teaser Card -->
+<div class="group bg-bg-secondary rounded-[24px] border border-dashed border-border p-6 flex flex-col items-center justify-center text-center hover:border-primary transition-all duration-300 cursor-pointer h-[420px]">
+<div class="w-16 h-16 rounded-full border border-divider flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-text-muted group-hover:text-primary" data-icon="add">add</span>
+</div>
+<h4 class="text-headline-sm font-headline-sm text-text-primary">Add Module</h4>
+<p class="text-body-sm text-text-muted mt-2">Document a new architectural domain.</p>
+</div>
+</div>
+</main>
+<script>
+        function setView(type) {
+            const btnArch = document.getElementById('btn-arch');
+            const btnCode = document.getElementById('btn-code');
+            const allArchElements = document.querySelectorAll('[id$="-arch"]');
+            const allCodeElements = document.querySelectorAll('[id$="-code"]');
+
+            if (type === 'arch') {
+                btnArch.classList.add('active', 'bg-elevated', 'text-text-primary');
+                btnArch.classList.remove('text-text-muted');
+                btnCode.classList.remove('active', 'bg-elevated', 'text-text-primary');
+                btnCode.classList.add('text-text-muted');
+
+                allArchElements.forEach(el => {
+                    el.classList.remove('hidden');
+                    setTimeout(() => {
+                        el.classList.remove('opacity-0');
+                        el.classList.add('opacity-100');
+                    }, 10);
+                });
+                allCodeElements.forEach(el => {
+                    el.classList.add('opacity-0');
+                    el.classList.remove('opacity-100');
+                    setTimeout(() => el.classList.add('hidden'), 300);
+                });
+            } else {
+                btnCode.classList.add('active', 'bg-elevated', 'text-text-primary');
+                btnCode.classList.remove('text-text-muted');
+                btnArch.classList.remove('active', 'bg-elevated', 'text-text-primary');
+                btnArch.classList.add('text-text-muted');
+
+                allCodeElements.forEach(el => {
+                    el.classList.remove('hidden');
+                    setTimeout(() => {
+                        el.classList.remove('opacity-0');
+                        el.classList.add('opacity-100');
+                    }, 10);
+                });
+                allArchElements.forEach(el => {
+                    el.classList.add('opacity-0');
+                    el.classList.remove('opacity-100');
+                    setTimeout(() => el.classList.add('hidden'), 300);
+                });
+            }
+        }
+
+        // Initialize view
+        document.addEventListener('DOMContentLoaded', () => {
+            setView('arch');
+        });
+    </script>
+</body></html>

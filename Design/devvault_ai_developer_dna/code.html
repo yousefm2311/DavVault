@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DevVault AI | Developer DNA</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-container": "#4a1b00",
+                    "on-primary": "#003064",
+                    "error": "#ffb4ab",
+                    "surface-tint": "#aac7ff",
+                    "tertiary-fixed-dim": "#ffb691",
+                    "primary-container": "#3e90ff",
+                    "on-tertiary": "#552000",
+                    "inverse-primary": "#005db8",
+                    "primary": "#aac7ff",
+                    "divider": "rgba(255, 255, 255, 0.05)",
+                    "surface-bright": "#363941",
+                    "tertiary-container": "#eb6a12",
+                    "on-tertiary-fixed-variant": "#793100",
+                    "on-primary-container": "#002957",
+                    "secondary": "#e9b3ff",
+                    "on-background": "#e0e2ed",
+                    "inverse-surface": "#e0e2ed",
+                    "border": "rgba(255, 255, 255, 0.08)",
+                    "surface-container-highest": "#31353d",
+                    "primary-fixed": "#d6e3ff",
+                    "on-surface-variant": "#c0c6d6",
+                    "tertiary": "#ffb691",
+                    "on-secondary": "#510074",
+                    "on-error": "#690005",
+                    "card": "#1C1C1E",
+                    "outline": "#8b91a0",
+                    "orange": "#FF9F0A",
+                    "on-surface": "#e0e2ed",
+                    "secondary-fixed": "#f6d9ff",
+                    "on-secondary-container": "#e5a9ff",
+                    "surface-variant": "#31353d",
+                    "surface": "#161616",
+                    "bg-secondary": "#111111",
+                    "surface-container-lowest": "#0b0e15",
+                    "warning": "#FFD60A",
+                    "text-muted": "#71717A",
+                    "on-secondary-fixed-variant": "#7200a3",
+                    "bg-primary": "#0A0A0A",
+                    "error-container": "#93000a",
+                    "surface-container-high": "#262a32",
+                    "on-primary-fixed": "#001b3e",
+                    "secondary-container": "#7d01b1",
+                    "primary-fixed-dim": "#aac7ff",
+                    "elevated": "#252525",
+                    "surface-dim": "#10131b",
+                    "secondary-fixed-dim": "#e9b3ff",
+                    "surface-container-low": "#181c23",
+                    "text-secondary": "#A1A1AA",
+                    "text-disabled": "#52525B",
+                    "on-secondary-fixed": "#310048",
+                    "text-primary": "#FFFFFF",
+                    "success": "#30D158",
+                    "on-primary-fixed-variant": "#00468d",
+                    "inverse-on-surface": "#2d3038",
+                    "background": "#10131b",
+                    "on-error-container": "#ffdad6",
+                    "outline-variant": "#414754",
+                    "tertiary-fixed": "#ffdbcb",
+                    "on-tertiary-fixed": "#341100",
+                    "surface-container": "#1c2027",
+                    "danger": "#FF453A"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-lg": "32px",
+                    "main-padding": "40px",
+                    "stack-sm": "8px",
+                    "stack-md": "16px",
+                    "sidebar-width": "280px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "display": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "code-md": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                    "display": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "code-md": ["14px", {"lineHeight": "25.6px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { background-color: #0A0A0A; color: #FFFFFF; -webkit-font-smoothing: antialiased; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-card { background: #1C1C1E; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; transition: all 0.2s ease; }
+        .glass-card:hover { border-color: rgba(255, 255, 255, 0.15); transform: translateY(-2px); }
+        .ring-progress { transform: rotate(-90deg); transition: stroke-dashoffset 1s ease-out; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #31353d; border-radius: 10px; }
+        .active-dot { width: 6px; height: 6px; background: #aac7ff; border-radius: 50%; box-shadow: 0 0 10px #aac7ff; }
+    </style>
+</head>
+<body class="font-body-md text-body-md overflow-hidden">
+<!-- Fixed SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-bg-secondary border-r border-border flex flex-col py-gutter z-50">
+<div class="px-6 mb-10">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-text-primary leading-tight">DevVault AI</h1>
+<p class="font-label-sm text-label-sm text-text-muted">Elite Developer Suite</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
+<!-- Navigation Items Mapping -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-primary font-bold border-l-2 border-primary bg-elevated transition-all duration-150 active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">folder_copy</span>
+<span>Projects</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span>AI Chat</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">terminal</span>
+<span>Code Vault</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-xl text-text-muted hover:text-text-primary hover:bg-elevated transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</nav>
+<div class="mt-auto px-4 pt-6 space-y-4">
+<button class="w-full py-4 bg-primary text-on-primary font-bold rounded-2xl flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95">
+<span class="material-symbols-outlined">add</span>
+<span>New Project</span>
+</button>
+<div class="p-4 rounded-2xl bg-surface-container-low border border-border">
+<div class="flex items-center justify-between mb-2">
+<span class="text-label-sm text-text-muted">Storage</span>
+<span class="text-label-sm text-text-primary font-semibold">85% Full</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[85%]"></div>
+</div>
+</div>
+<div class="flex items-center gap-3 px-4 py-2">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional studio portrait of a software architect in their 30s, featuring soft cinematic lighting on a dark background. The aesthetic is clean and high-fidelity, matching a premium developer environment with cool blue and deep gray tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8KVHI1PteZTJdSA1eSoGMGtnNtNQIMnU2D6egUTtgRGRcK7my0M6rAHAakDm6kfJ6Y4Gb2GABhelXLzH3qUUHW7Z76arUSOSrla57wLrdVqG1jWeDv7Qa-LvG8DWJaQBKXjYEyPDROAZ6dwp0tn2PvdqdCbHPG9gpfTqgoYHH1pKB7Ff1YVRuSsyMZi7fItCWb1odJn1Zau5xEfFN8oV_98dc_GtjGeXdHxk2RcJtpWE4W00zTgm4JEs5rcnC_zxpLhD22OFDuGA"/>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-semibold text-text-primary truncate">Alex Rivers</p>
+<p class="text-xs text-text-muted truncate">Pro Developer</p>
+</div>
+<span class="material-symbols-outlined text-text-muted cursor-pointer hover:text-text-primary">logout</span>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="fixed top-0 right-0 w-[calc(100%-280px)] h-full flex flex-col bg-bg-primary">
+<!-- TopAppBar -->
+<header class="h-16 flex items-center justify-between px-main-padding border-b border-border bg-bg-primary z-40">
+<div class="flex items-center gap-6">
+<h2 class="font-headline-sm text-headline-sm font-semibold text-text-primary">Developer DNA</h2>
+<div class="hidden md:flex gap-6">
+<a class="font-label-sm text-label-sm text-text-primary border-b-2 border-primary pb-1" href="#">DNA Analytics</a>
+<a class="font-label-sm text-label-sm text-text-muted hover:text-text-primary transition-colors" href="#">Performance</a>
+<a class="font-label-sm text-label-sm text-text-muted hover:text-text-primary transition-colors" href="#">Security</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<input class="w-64 h-10 pl-10 pr-4 bg-surface-container-low border border-border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all" placeholder="Search insights..." type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-text-muted text-sm group-focus-within:text-primary">search</span>
+</div>
+<span class="material-symbols-outlined text-text-muted cursor-pointer hover:text-text-primary transition-opacity">notifications</span>
+<span class="material-symbols-outlined text-text-muted cursor-pointer hover:text-text-primary transition-opacity">help_outline</span>
+<button class="px-5 py-2 bg-primary-container text-on-primary-container rounded-full text-xs font-bold hover:opacity-90 active:scale-95 transition-all">
+                    Deploy DNA
+                </button>
+</div>
+</header>
+<!-- Content Scrollable -->
+<div class="flex-1 overflow-y-auto p-main-padding custom-scrollbar">
+<!-- Bento Grid Section -->
+<div class="grid grid-cols-12 gap-6 max-w-[1400px] mx-auto">
+<!-- Widget 1: Developer Productivity Score -->
+<div class="col-span-12 lg:col-span-5 glass-card p-8 flex flex-col items-center justify-center relative overflow-hidden">
+
+<div class="relative z-10 text-center">
+<h3 class="text-text-muted font-label-sm mb-8 tracking-widest uppercase">Productivity Score</h3>
+<div class="relative w-64 h-64 flex items-center justify-center">
+<svg class="w-full h-full ring-progress">
+<circle cx="128" cy="128" fill="transparent" r="110" stroke="rgba(255, 255, 255, 0.05)" stroke-width="14"></circle>
+<circle cx="128" cy="128" fill="transparent" r="110" stroke="url(#gradientScore)" stroke-dasharray="691" stroke-dashoffset="138" stroke-linecap="round" stroke-width="14"></circle>
+<defs>
+<lineargradient id="gradientScore" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:#aac7ff;stop-opacity:1"></stop>
+<stop offset="100%" style="stop-color:#3e90ff;stop-opacity:1"></stop>
+</lineargradient>
+</defs>
+</svg>
+<div class="absolute flex flex-col items-center">
+<span class="font-display text-text-primary text-[80px] leading-none">94</span>
+<span class="font-label-sm text-success flex items-center gap-1 mt-2">
+<span class="material-symbols-outlined text-sm">trending_up</span> +12%
+                                </span>
+</div>
+</div>
+<p class="mt-8 text-text-muted font-body-sm max-w-xs">Your output is in the top 2% of elite contributors this sprint.</p>
+</div>
+</div>
+<!-- Widget 2: Technology Breakdown (Radial Chart Mockup) -->
+<div class="col-span-12 lg:col-span-7 glass-card p-8 flex flex-col">
+<div class="flex justify-between items-center mb-10">
+<div>
+<h3 class="font-headline-md text-text-primary">Technology Breakdown</h3>
+<p class="text-text-muted text-body-sm">Ecosystem distribution by compute time</p>
+</div>
+<span class="material-symbols-outlined text-text-muted cursor-pointer hover:text-text-primary">more_vert</span>
+</div>
+<div class="flex-1 flex items-center justify-between">
+<div class="w-1/2 flex items-center justify-center relative">
+<!-- Visual placeholder for Radial Chart -->
+<div class="w-56 h-56 rounded-full border-[20px] border-surface-container-highest flex items-center justify-center">
+<div class="w-40 h-40 rounded-full border-[15px] border-primary-container"></div>
+<div class="absolute w-24 h-24 rounded-full border-[10px] border-secondary"></div>
+</div>
+</div>
+<div class="w-1/2 space-y-6">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-primary-container"></div>
+<span class="text-text-primary font-medium">Cloud Native</span>
+</div>
+<span class="font-code-md text-text-muted">45%</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-secondary"></div>
+<span class="text-text-primary font-medium">Web Engine</span>
+</div>
+<span class="font-code-md text-text-muted">30%</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-orange"></div>
+<span class="text-text-primary font-medium">Machine Learning</span>
+</div>
+<span class="font-code-md text-text-muted">15%</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-on-surface-variant"></div>
+<span class="text-text-primary font-medium">Legacy Support</span>
+</div>
+<span class="font-code-md text-text-muted">10%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Widget 3: Most Used Languages -->
+<div class="col-span-12 md:col-span-4 glass-card p-8">
+<h3 class="font-headline-sm mb-8 text-text-primary">Top Languages</h3>
+<div class="space-y-8">
+<div>
+<div class="flex justify-between items-center mb-3">
+<span class="font-code-md text-text-primary">TypeScript</span>
+<span class="text-label-sm text-text-muted">14.2k LOC</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full">
+<div class="h-full bg-primary-container rounded-full w-[88%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-3">
+<span class="font-code-md text-text-primary">Rust</span>
+<span class="text-label-sm text-text-muted">8.1k LOC</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full">
+<div class="h-full bg-secondary rounded-full w-[65%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-3">
+<span class="font-code-md text-text-primary">Python</span>
+<span class="text-label-sm text-text-muted">4.4k LOC</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full">
+<div class="h-full bg-orange rounded-full w-[42%]"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between items-center mb-3">
+<span class="font-code-md text-text-primary">Go</span>
+<span class="text-label-sm text-text-muted">2.9k LOC</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full">
+<div class="h-full bg-primary rounded-full w-[20%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Widget 4: Skill Growth Curve -->
+<div class="col-span-12 md:col-span-8 glass-card p-8 overflow-hidden relative">
+<div class="flex justify-between items-end mb-8">
+<div>
+<h3 class="font-headline-sm text-text-primary">Skill Growth Curve</h3>
+<p class="text-text-muted text-body-sm">Aggregated expertise velocity (Last 6 Months)</p>
+</div>
+<div class="flex gap-2">
+<span class="px-3 py-1 bg-surface-container-high rounded text-xs text-text-primary">Expert</span>
+<span class="px-3 py-1 rounded text-xs text-text-muted">Advanced</span>
+</div>
+</div>
+<div class="h-48 w-full mt-4 flex items-end">
+<!-- Custom SVG Graph -->
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 800 200">
+<path d="M0,180 C100,170 200,100 300,90 S500,40 600,60 S750,10 800,20" fill="none" stroke="#aac7ff" stroke-linecap="round" stroke-width="4"></path>
+<path d="M0,180 C100,170 200,100 300,90 S500,40 600,60 S750,10 800,20 V200 H0 Z" fill="url(#graphGradient)"></path>
+<defs>
+<lineargradient id="graphGradient" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:#aac7ff;stop-opacity:0.2"></stop>
+<stop offset="100%" style="stop-color:#aac7ff;stop-opacity:0"></stop>
+</lineargradient>
+</defs>
+<circle cx="600" cy="60" fill="#FFFFFF" r="6"></circle>
+</svg>
+</div>
+<div class="flex justify-between mt-4 font-label-sm text-text-muted uppercase tracking-tighter">
+<span>Jan</span>
+<span>Feb</span>
+<span>Mar</span>
+<span>Apr</span>
+<span>May</span>
+<span>Jun</span>
+</div>
+</div>
+<!-- Widget 5: Favorite Architecture Pattern Card -->
+<div class="col-span-12 md:col-span-6 glass-card p-8 flex gap-6 items-center">
+<div class="w-24 h-24 rounded-3xl bg-surface-container-highest flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-4xl text-primary" style="font-variation-settings: 'FILL' 1;">architecture</span>
+</div>
+<div>
+<h4 class="text-text-muted font-label-sm uppercase tracking-widest mb-1">Preferred Pattern</h4>
+<h3 class="text-text-primary font-headline-md mb-2">Event-Driven Microservices</h3>
+<p class="text-text-muted text-body-sm leading-relaxed">Prioritizes asynchronous communication, high decoupling, and horizontal scalability via RabbitMQ or Kafka.</p>
+</div>
+</div>
+<!-- Widget 6: Coding Style Analysis -->
+<div class="col-span-12 md:col-span-6 glass-card p-8 bg-gradient-to-br from-card to-surface-container-low border-primary/20">
+<div class="flex items-center gap-3 mb-6">
+<div class="active-dot"></div>
+<span class="text-primary font-semibold tracking-wide uppercase text-xs">Stylistic Identity</span>
+</div>
+<div class="space-y-4">
+<h3 class="font-display text-text-primary text-[32px] leading-tight">
+                            Highly Modular, Strict Functional Preference
+                        </h3>
+<p class="font-body-md text-text-muted italic">
+                            "Code is written for humans to read, and only incidentally for machines to execute." — Abelson &amp; Sussman
+                        </p>
+<div class="flex flex-wrap gap-2 pt-2">
+<span class="px-4 py-1.5 rounded-full bg-surface-container-high border border-border text-xs text-text-primary">Immutability First</span>
+<span class="px-4 py-1.5 rounded-full bg-surface-container-high border border-border text-xs text-text-primary">TDD Practitioner</span>
+<span class="px-4 py-1.5 rounded-full bg-surface-container-high border border-border text-xs text-text-primary">Zero Global State</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Simple Interaction logic
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                // Potential hover sound or micro-interaction
+            });
+        });
+    </script>
+</body></html>
