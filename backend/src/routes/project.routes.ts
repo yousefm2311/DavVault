@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { authenticate } from '../middleware/auth';
+import { checkPlanLimits } from '../middleware/limits';
 import {
   uploadProject,
   getProjects,
@@ -36,7 +37,7 @@ const upload = multer({
 });
 
 // Secure all endpoints with authentication middleware
-router.post('/upload', authenticate, upload.single('project'), uploadProject);
+router.post('/upload', authenticate, checkPlanLimits('project'), upload.single('project'), uploadProject);
 router.get('/', authenticate, getProjects);
 router.get('/:id', authenticate, getProjectById);
 router.delete('/:id', authenticate, deleteProject);

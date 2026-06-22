@@ -27,6 +27,14 @@ const handleChat = async (req, res) => {
             return res.status(400).json({ error: 'Message is required.' });
         }
         const userId = req.user.id;
+        // Log AI query activity
+        await models_1.Activity.create({
+            userId,
+            action: 'ai_question',
+            entityType: 'project',
+            entityId: projectId ? projectId : undefined,
+            metadata: { queryPreview: message.substring(0, 60) }
+        });
         // 1. Retrieve or create ChatSession
         let session;
         if (sessionId) {
@@ -153,6 +161,14 @@ const explainCodeFile = async (req, res) => {
         const { code, fileName, language } = req.body;
         if (!code || !fileName) {
             return res.status(400).json({ error: 'Code content and file name are required.' });
+        }
+        if (req.user) {
+            await models_1.Activity.create({
+                userId: req.user.id,
+                action: 'ai_question',
+                entityType: 'file',
+                metadata: { fileName }
+            });
         }
         const explanation = await ai_service_1.aiService.explainCode(fileName, code, language);
         return res.status(200).json({ explanation });

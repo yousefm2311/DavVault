@@ -19,7 +19,8 @@ import {
   Activity,
   Users,
   Boxes,
-  History
+  History,
+  CreditCard
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -37,12 +38,13 @@ export const Sidebar: React.FC = () => {
     { name: 'Developer DNA', path: '/developer-dna', icon: Brain },
     { name: 'Time Machine', path: '/time-machine', icon: History },
     { name: 'Team Brain', path: '/team', icon: Users },
+    { name: 'Billing & Plans', path: '/billing', icon: CreditCard },
   ];
 
   const subMenuItems: any[] = [];
 
   return (
-    <aside className="w-72 bg-bg-secondary border-r border-card-border flex flex-col h-screen sticky top-0 p-6 select-none">
+    <aside className="w-72 bg-bg-secondary border-r border-card-border flex flex-col h-screen sticky top-0 p-6 select-none overflow-y-auto">
       {/* Brand Header */}
       <div className="flex items-center space-x-3 mb-8">
         <div className="w-10 h-10 rounded-xl bg-accent-blue flex items-center justify-center shadow-lg shadow-accent-blue/20">
@@ -71,7 +73,7 @@ export const Sidebar: React.FC = () => {
       </button>
 
       {/* Main Navigation menu */}
-      <nav className="flex-1 overflow-y-auto space-y-1 pr-1">
+      <nav className="flex-1 space-y-1 pr-1">
         <p className="text-[10px] font-bold text-text-disabled tracking-wider uppercase mb-2 px-3">
           Knowledge Base
         </p>

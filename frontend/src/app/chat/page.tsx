@@ -19,7 +19,8 @@ import {
   Minimize2,
   X,
   Copy,
-  Check
+  Check,
+  ArrowRight
 } from 'lucide-react';
 
 interface Citation {
@@ -34,6 +35,7 @@ interface Message {
   text: string;
   citations?: Citation[];
   createdAt: Date;
+  isLimit?: boolean;
 }
 
 export default function AIChatPage() {
@@ -153,8 +155,18 @@ export default function AIChatPage() {
         const sessionsData = await apiFetch('/ai/sessions');
         setSessions(sessionsData.sessions || []);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Chat]: Message dispatch failed:', err);
+      const isLimitExceeded = err.message?.toLowerCase().includes('limit');
+      const errorMsg: Message = {
+        sender: 'assistant',
+        text: isLimitExceeded
+          ? 'Monthly AI questions limit reached. Please upgrade your subscription plan to continue asking questions.'
+          : 'Failed to process chat query. Please check connection and try again.',
+        createdAt: new Date(),
+        isLimit: isLimitExceeded,
+      };
+      setMessages(prev => [...prev, errorMsg]);
     } finally {
       setSending(false);
     }
@@ -256,6 +268,18 @@ export default function AIChatPage() {
                     }`}>
                       {m.text}
                     </div>
+
+                    {m.isLimit && (
+                      <div className="pt-1">
+                        <button
+                          onClick={() => router.push('/billing')}
+                          className="flex items-center px-4 py-2 bg-accent-blue hover:bg-accent-blue/90 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-lg shadow-accent-blue/10"
+                        >
+                          Upgrade Subscription Plan
+                          <ArrowRight className="w-4 h-4 ml-1.5" />
+                        </button>
+                      </div>
+                    )}
 
                     {/* Source Citations for assistant replies */}
                     {m.citations && m.citations.length > 0 && (

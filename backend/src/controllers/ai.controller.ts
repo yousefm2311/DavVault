@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { ChatSession, Embedding, File as DBFile, Project } from '../models';
+import { ChatSession, Embedding, File as DBFile, Project, Activity } from '../models';
 import { aiService } from '../services/ai.service';
 
 const calculateCosineSimilarity = (vecA: number[], vecB: number[]): number => {
@@ -30,6 +30,15 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const userId = req.user.id;
+
+    // Log AI query activity
+    await Activity.create({
+      userId,
+      action: 'ai_question',
+      entityType: 'project',
+      entityId: projectId ? projectId : undefined,
+      metadata: { queryPreview: message.substring(0, 60) }
+    });
 
     // 1. Retrieve or create ChatSession
     let session;
@@ -175,6 +184,15 @@ export const explainCodeFile = async (req: AuthenticatedRequest, res: Response) 
     const { code, fileName, language } = req.body;
     if (!code || !fileName) {
       return res.status(400).json({ error: 'Code content and file name are required.' });
+    }
+
+    if (req.user) {
+      await Activity.create({
+        userId: req.user.id,
+        action: 'ai_question',
+        entityType: 'file',
+        metadata: { fileName }
+      });
     }
 
     const explanation = await aiService.explainCode(fileName, code, language);

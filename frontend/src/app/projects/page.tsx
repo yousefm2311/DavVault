@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Sidebar } from '@/components/Sidebar';
 import { CommandPalette } from '@/components/CommandPalette';
@@ -240,8 +241,15 @@ export default function ProjectsPage() {
           <div className="mb-8 bg-card-bg/60 border border-card-border p-6 rounded-[28px] glass hover-scale">
             <h3 className="font-bold text-sm mb-4">Import ZIP codebase</h3>
             {uploadError && (
-              <div className="mb-4 p-3 bg-danger/10 border border-danger/25 text-danger rounded-xl text-xs font-medium">
-                {uploadError}
+              <div className="mb-4 p-3 bg-danger/10 border border-danger/25 text-danger rounded-xl text-xs font-medium space-y-1.5">
+                <p>{uploadError}</p>
+                {uploadError.toLowerCase().includes('limit') && (
+                  <Link href="/billing">
+                    <span className="text-accent-blue hover:underline font-bold block cursor-pointer">
+                      View Plans & Upgrade ➔
+                    </span>
+                  </Link>
+                )}
               </div>
             )}
             <form onSubmit={handleUploadSubmit} className="space-y-4">

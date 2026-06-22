@@ -8,6 +8,7 @@ const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const auth_1 = require("../middleware/auth");
+const limits_1 = require("../middleware/limits");
 const project_controller_1 = require("../controllers/project.controller");
 const router = (0, express_1.Router)();
 // Configure temp upload storage
@@ -27,7 +28,7 @@ const upload = (0, multer_1.default)({
     },
 });
 // Secure all endpoints with authentication middleware
-router.post('/upload', auth_1.authenticate, upload.single('project'), project_controller_1.uploadProject);
+router.post('/upload', auth_1.authenticate, (0, limits_1.checkPlanLimits)('project'), upload.single('project'), project_controller_1.uploadProject);
 router.get('/', auth_1.authenticate, project_controller_1.getProjects);
 router.get('/:id', auth_1.authenticate, project_controller_1.getProjectById);
 router.delete('/:id', auth_1.authenticate, project_controller_1.deleteProject);
