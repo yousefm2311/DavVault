@@ -1,0 +1,23 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: devvault-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - devvault_mongo:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: devvault-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - devvault_redis:/data
+
+volumes:
+  devvault_mongo:
+  devvault_redis:

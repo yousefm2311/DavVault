@@ -5,7 +5,10 @@ export interface IUser extends Document {
   email: string;
   passwordHash?: string;
   avatar?: string;
+  bio?: string;
   plan: 'free' | 'pro' | 'team' | 'enterprise';
+  role: 'user' | 'admin' | 'superadmin';
+  status: 'active' | 'suspended' | 'pending';
   googleId?: string;
   githubId?: string;
   isVerified: boolean;
@@ -21,7 +24,10 @@ const UserSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String },
     avatar: { type: String },
+    bio: { type: String },
     plan: { type: String, enum: ['free', 'pro', 'team', 'enterprise'], default: 'free' },
+    role: { type: String, enum: ['user', 'admin', 'superadmin'], default: 'user', index: true },
+    status: { type: String, enum: ['active', 'suspended', 'pending'], default: 'active', index: true },
     googleId: { type: String },
     githubId: { type: String },
     isVerified: { type: Boolean, default: false },

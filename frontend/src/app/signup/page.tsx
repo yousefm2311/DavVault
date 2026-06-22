@@ -1,13 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { User, Mail, Lock, Zap } from 'lucide-react';
 
 export default function SignupPage() {
-  const { register, socialLogin, verifyCode, resendCode } = useAuth();
-  
+  const router = useRouter();
+  const { user, loading: authLoading, register, socialLogin, verifyCode, resendCode } = useAuth();
+  const { t, dir } = useLanguage();
+  const isRtl = dir === 'rtl';
+
   // Registration states
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -25,14 +30,20 @@ export default function SignupPage() {
   const [verificationResending, setVerificationResending] = useState(false);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace('/dashboard');
+    }
+  }, [authLoading, router, user]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields.');
+      setError(t('loginFieldsRequired'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('passwordsDoNotMatch'));
       return;
     }
     setError(null);
@@ -46,7 +57,7 @@ export default function SignupPage() {
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Email might be in use.');
+      setError(err.message || t('signupFailed'));
     } finally {
       setLoading(false);
     }
@@ -60,7 +71,7 @@ export default function SignupPage() {
     try {
       await verifyCode(email, verificationCode);
     } catch (err: any) {
-      setError(err.message || 'Verification failed. Try again.');
+      setError(err.message || t('errorVerification'));
     } finally {
       setVerificationLoading(false);
     }
@@ -72,12 +83,12 @@ export default function SignupPage() {
     setVerificationResending(true);
     try {
       const data = await resendCode(email);
-      setResendMessage('Verification code resent successfully.');
+      setResendMessage(t('codeResentSuccess'));
       if (data.devCode) {
         setDevCode(data.devCode);
       }
     } catch (err: any) {
-      setError(err.message || 'Resend failed. Try again.');
+      setError(err.message || t('errorVerification'));
     } finally {
       setVerificationResending(false);
     }
@@ -87,11 +98,11 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
     try {
-      const mockName = provider === 'google' ? 'Google Developer' : 'GitHub Engineer';
+      const mockName = provider === 'google' ? t('googleDev') : t('githubDev');
       const mockEmail = `${provider}_dev_${Math.floor(Math.random() * 1000)}@devvault.ai`;
       await socialLogin(mockName, mockEmail, provider);
     } catch (err: any) {
-      setError(err.message || 'OAuth registration failed.');
+      setError(err.message || t('errorOAuth'));
     } finally {
       setLoading(false);
     }
@@ -100,7 +111,7 @@ export default function SignupPage() {
   // Render Verification Panel
   if (requiresVerification) {
     return (
-      <div className="flex min-h-screen bg-bg-primary text-white select-none items-center justify-center p-6 relative overflow-hidden">
+      <div className="flex min-h-screen bg-bg-primary text-white select-none items-center justify-center p-6 relative overflow-hidden" dir={dir}>
         {/* Dynamic ambient background blobs */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-accent-blue/5 blur-[120px] pointer-events-none"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-success/5 blur-[120px] pointer-events-none"></div>
@@ -110,9 +121,9 @@ export default function SignupPage() {
             <div className="w-12 h-12 rounded-2xl bg-accent-blue flex items-center justify-center mb-3 shadow-lg shadow-accent-blue/20">
               <Zap className="w-6 h-6 text-white animate-pulse" />
             </div>
-            <h2 className="font-bold text-2xl tracking-tight">Verify email</h2>
+            <h2 className="font-bold text-2xl tracking-tight">{t('confirmEmail')}</h2>
             <p className="text-xs text-text-secondary mt-2 text-center px-4">
-              We've sent a 6-digit verification code to <span className="text-white font-medium">{email}</span>
+              {t('codeSentMsg')} <span className="text-white font-medium">{email}</span>
             </p>
           </div>
 
@@ -132,7 +143,7 @@ export default function SignupPage() {
             <div>
               <input
                 type="text"
-                placeholder="Enter 6-digit code"
+                placeholder={t('enterCodePlaceholder')}
                 value={verificationCode}
                 onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 disabled={verificationLoading}
@@ -143,7 +154,7 @@ export default function SignupPage() {
 
             {devCode && (
               <div className="p-3 bg-white/5 border border-card-border rounded-2xl text-[10px] text-center font-mono">
-                🔑 Sandbox Code: <span className="text-accent-blue font-bold">{devCode}</span>
+                {t('devCodeLabel')}: <span className="text-accent-blue font-bold">{devCode}</span>
               </div>
             )}
 
@@ -155,7 +166,7 @@ export default function SignupPage() {
               {verificationLoading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
               ) : (
-                'Verify & Log In'
+                t('confirmAndLoginBtn')
               )}
             </button>
           </form>
@@ -167,7 +178,7 @@ export default function SignupPage() {
               disabled={verificationResending || verificationLoading}
               className="text-text-secondary hover:text-white transition-colors cursor-pointer disabled:text-text-secondary/40 font-medium"
             >
-              {verificationResending ? 'Resending...' : 'Resend Code'}
+              {verificationResending ? t('resendingCode') : t('resendCodeBtn')}
             </button>
             <button
               type="button"
@@ -179,7 +190,7 @@ export default function SignupPage() {
               disabled={verificationLoading}
               className="text-text-secondary hover:text-white transition-colors cursor-pointer font-medium"
             >
-              Back to Sign Up
+              {t('backToLogin')}
             </button>
           </div>
         </div>
@@ -189,7 +200,7 @@ export default function SignupPage() {
 
   // Render standard Register form
   return (
-    <div className="flex min-h-screen bg-bg-primary text-white select-none items-center justify-center p-6 relative overflow-hidden">
+    <div className="flex min-h-screen bg-bg-primary text-white select-none items-center justify-center p-6 relative overflow-hidden" dir={dir}>
       {/* Dynamic background ambient lights */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-accent-blue/5 blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 rounded-full bg-success/5 blur-[120px] pointer-events-none"></div>
@@ -200,9 +211,9 @@ export default function SignupPage() {
           <div className="w-12 h-12 rounded-2xl bg-accent-blue flex items-center justify-center mb-3 shadow-lg shadow-accent-blue/20">
             <Zap className="w-6 h-6 text-white" />
           </div>
-          <h2 className="font-bold text-2xl tracking-tight">Create account</h2>
+          <h2 className="font-bold text-2xl tracking-tight">{t('createAccount')}</h2>
           <p className="text-xs text-text-secondary mt-1">
-            Build your personalized engineering memory
+            {t('enterMemory')}
           </p>
         </div>
 
@@ -214,53 +225,53 @@ export default function SignupPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
-            <User className="absolute left-4 top-3.5 w-4 h-4 text-text-secondary" />
+            <User className={`absolute ${isRtl ? 'right-4' : 'left-4'} top-3.5 w-4 h-4 text-text-secondary`} />
             <input
               type="text"
-              placeholder="Full name"
+              placeholder={t('nameLabel')}
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={loading}
-              className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 pl-11 pr-4 text-sm text-white placeholder-text-secondary outline-none focus:border-accent-blue/50 transition-colors"
+              className={`w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 ${isRtl ? 'pr-11 pl-4' : 'pl-11 pr-4'} text-sm text-white placeholder-text-secondary outline-none focus:border-accent-blue/50 transition-colors`}
               required
             />
           </div>
 
           <div className="relative">
-            <Mail className="absolute left-4 top-3.5 w-4 h-4 text-text-secondary" />
+            <Mail className={`absolute ${isRtl ? 'right-4' : 'left-4'} top-3.5 w-4 h-4 text-text-secondary`} />
             <input
               type="email"
-              placeholder="Email address"
+              placeholder={t('emailPlaceholder')}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 pl-11 pr-4 text-sm text-white placeholder-text-secondary outline-none focus:border-accent-blue/50 transition-colors"
+              className={`w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 ${isRtl ? 'pr-11 pl-4' : 'pl-11 pr-4'} text-sm text-white placeholder-text-secondary outline-none focus:border-accent-blue/50 transition-colors`}
               required
             />
           </div>
 
           <div className="relative">
-            <Lock className="absolute left-4 top-3.5 w-4 h-4 text-text-secondary" />
+            <Lock className={`absolute ${isRtl ? 'right-4' : 'left-4'} top-3.5 w-4 h-4 text-text-secondary`} />
             <input
               type="password"
-              placeholder="Password"
+              placeholder={t('passwordPlaceholder')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 pl-11 pr-4 text-sm text-white placeholder-text-secondary outline-none focus:border-accent-blue/50 transition-colors"
+              className={`w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 ${isRtl ? 'pr-11 pl-4' : 'pl-11 pr-4'} text-sm text-white placeholder-text-secondary outline-none focus:border-accent-blue/50 transition-colors`}
               required
             />
           </div>
 
           <div className="relative">
-            <Lock className="absolute left-4 top-3.5 w-4 h-4 text-text-secondary" />
+            <Lock className={`absolute ${isRtl ? 'right-4' : 'left-4'} top-3.5 w-4 h-4 text-text-secondary`} />
             <input
               type="password"
-              placeholder="Confirm password"
+              placeholder={t('confirmPassword')}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loading}
-              className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 pl-11 pr-4 text-sm text-white placeholder-text-secondary outline-none focus:border-accent-blue/50 transition-colors"
+              className={`w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 ${isRtl ? 'pr-11 pl-4' : 'pl-11 pr-4'} text-sm text-white placeholder-text-secondary outline-none focus:border-accent-blue/50 transition-colors`}
               required
             />
           </div>
@@ -273,7 +284,7 @@ export default function SignupPage() {
             {loading ? (
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
             ) : (
-              'Sign Up'
+              t('registerNow')
             )}
           </button>
         </form>
@@ -281,7 +292,7 @@ export default function SignupPage() {
         <div className="relative flex py-5 items-center">
           <div className="flex-grow border-t border-card-border"></div>
           <span className="flex-shrink mx-4 text-[10px] text-text-secondary uppercase tracking-wider">
-            Or register with
+            {t('orContinueWith')}
           </span>
           <div className="flex-grow border-t border-card-border"></div>
         </div>
@@ -294,7 +305,7 @@ export default function SignupPage() {
             disabled={loading}
             className="flex items-center justify-center py-2.5 bg-bg-primary/45 border border-card-border rounded-2xl text-xs font-medium hover:bg-white/5 transition-all duration-200 cursor-pointer"
           >
-            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+            <svg className={`w-4 h-4 ${isRtl ? 'ml-2' : 'mr-2'}`} viewBox="0 0 24 24" fill="currentColor">
               <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-6.887 4.114-4.646 0-8.423-3.72-8.423-8.4s3.777-8.4 8.423-8.4c2.037 0 3.868.73 5.3 1.94l3.158-3.158C18.172 1.8 15.42 1 12.24 1 6.033 1 1 6.033 1 12.24s5.033 11.24 11.24 11.24c6.478 0 10.793-4.552 10.793-10.972 0-.74-.08-1.424-.223-2.223H12.24z"/>
             </svg>
             Google
@@ -305,7 +316,7 @@ export default function SignupPage() {
             disabled={loading}
             className="flex items-center justify-center py-2.5 bg-bg-primary/45 border border-card-border rounded-2xl text-xs font-medium hover:bg-white/5 transition-all duration-200 cursor-pointer"
           >
-            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+            <svg className={`w-4 h-4 ${isRtl ? 'ml-2' : 'mr-2'}`} viewBox="0 0 24 24" fill="currentColor">
               <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0012 2z"/>
             </svg>
             GitHub
@@ -313,9 +324,9 @@ export default function SignupPage() {
         </div>
 
         <p className="mt-8 text-center text-xs text-text-secondary">
-          Already have an account?{' '}
+          {t('haveAccount')}{' '}
           <Link href="/login">
-            <span className="text-accent-blue font-semibold hover:underline">Sign in</span>
+            <span className="text-accent-blue font-semibold hover:underline">{t('loginTitle')}</span>
           </Link>
         </p>
       </div>

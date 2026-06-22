@@ -86,6 +86,33 @@ class QueueService {
             this.processMemoryQueue();
         }
     }
+    async getStats() {
+        if (this.projectQueue) {
+            const [waiting, active, completed, failed, delayed] = await Promise.all([
+                this.projectQueue.getWaitingCount(),
+                this.projectQueue.getActiveCount(),
+                this.projectQueue.getCompletedCount(),
+                this.projectQueue.getFailedCount(),
+                this.projectQueue.getDelayedCount(),
+            ]);
+            return {
+                mode: 'bullmq',
+                waiting,
+                active,
+                completed,
+                failed,
+                delayed,
+            };
+        }
+        return {
+            mode: 'memory',
+            waiting: this.memoryQueue.length,
+            active: this.isProcessingMemoryQueue ? 1 : 0,
+            completed: 0,
+            failed: 0,
+            delayed: 0,
+        };
+    }
     async processMemoryQueue() {
         if (this.isProcessingMemoryQueue || this.memoryQueue.length === 0)
             return;

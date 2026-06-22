@@ -11,6 +11,7 @@ const models_1 = require("../models");
 const storage_service_1 = require("./storage.service");
 const parser_service_1 = require("./parser.service");
 const ai_service_1 = require("./ai.service");
+const notification_service_1 = require("./notification.service");
 const security_1 = require("../middleware/security");
 class ProjectProcessorService {
     // Safe directories and extensions checks
@@ -166,13 +167,21 @@ class ProjectProcessorService {
                 }
             }
             onProgress({ status: 'embedding', progress: 90, message: 'Finalizing database entries...' });
+            const project = await models_1.Project.findById(projectId, 'name');
             // Create upload activity log
             await models_1.Activity.create({
                 userId,
                 action: 'project_uploaded',
                 entityType: 'project',
                 entityId: projectId,
-                metadata: { projectName: filesToProcess.length > 0 ? 'Uploaded zip project' : 'Empty project' }
+                metadata: { projectName: project?.name || (filesToProcess.length > 0 ? 'Uploaded zip project' : 'Empty project') }
+            });
+            await notification_service_1.notificationService.create({
+                userId,
+                title: 'تم تجهيز المشروع',
+                message: `اكتملت فهرسة مشروع ${project?.name || 'المشروع المرفوع'} وأصبح جاهزاً للبحث والمحادثة.`,
+                type: 'success',
+                link: `/projects/${projectId}`,
             });
             // Cleanup local temp directories
             if (fs_1.default.existsSync(tempExtractDir)) {
@@ -194,6 +203,13 @@ class ProjectProcessorService {
                 fs_1.default.rmSync(zipFilePath, { force: true });
             }
             onProgress({ status: 'failed', progress: 100, message: `Processing failed: ${err.message}` });
+            await notification_service_1.notificationService.create({
+                userId,
+                title: 'فشلت معالجة المشروع',
+                message: `تعذر فهرسة المشروع. السبب: ${err.message}`,
+                type: 'error',
+                link: `/projects/${projectId}`,
+            });
             throw err;
         }
     }

@@ -11,6 +11,9 @@ import timemachineRoutes from './timemachine.routes';
 import workspaceRoutes from './workspace.routes';
 import aiExtensionsRoutes from './ai-extensions.routes';
 import subscriptionRoutes from './subscription.routes';
+import userRoutes from './user.routes';
+import notificationRoutes from './notification.routes';
+import adminRoutes from './admin.routes';
 
 const router = Router();
 
@@ -26,5 +29,8 @@ router.use('/time-machine', timemachineRoutes);
 router.use('/workspaces', workspaceRoutes);
 router.use('/ai-extensions', aiExtensionsRoutes);
 router.use('/subscription', subscriptionRoutes);
+router.use('/user', userRoutes);
+router.use('/notifications', notificationRoutes);
+router.use('/admin', adminRoutes);
 
 export default router;

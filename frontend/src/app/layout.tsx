@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Cairo, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { CommandProvider } from '@/context/CommandContext';
-
-const inter = Inter({
+import { LanguageProvider } from '@/context/LanguageContext';
+import { NotificationProvider } from '@/context/NotificationContext';
+const cairo = Cairo({
   variable: '--font-sans',
-  subsets: ['latin'],
+  subsets: ['arabic', 'latin'],
   display: 'swap',
 });
 
@@ -17,8 +18,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'DevVault AI | Your Engineering Memory',
-  description: 'DevVault AI acts as a smart engineering memory for developers to store, retrieve and ask about their codes, snippets, errors and architectures.',
+  title: 'DevVault AI | Your Smart Code Vault & Engineering Brain',
+  description: 'DevVault AI indexes, explains, and connects your software repositories into a context-aware developer memory.',
   icons: {
     icon: '/favicon.ico',
   },
@@ -32,13 +33,19 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
+      dir="ltr"
+      className={`${cairo.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-bg-primary text-text-primary">
+      <body className="min-h-full flex flex-col bg-bg-primary text-text-primary" suppressHydrationWarning>
         <AuthProvider>
-          <CommandProvider>
-            {children}
-          </CommandProvider>
+          <LanguageProvider>
+            <NotificationProvider>
+              <CommandProvider>
+                {children}
+              </CommandProvider>
+            </NotificationProvider>
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

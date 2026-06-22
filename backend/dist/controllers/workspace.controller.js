@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.addWorkspaceMember = exports.getWorkspaceMembers = void 0;
 const models_1 = require("../models");
+const notification_service_1 = require("../services/notification.service");
 const getWorkspaceMembers = async (req, res) => {
     try {
         if (!req.user)
@@ -52,6 +53,22 @@ const addWorkspaceMember = async (req, res) => {
             role: role || 'member',
         });
         await workspace.save();
+        await Promise.all([
+            notification_service_1.notificationService.create({
+                userId: targetUser._id,
+                title: 'تمت إضافتك إلى مساحة عمل',
+                message: `تمت إضافتك إلى مساحة ${workspace.name} بدور ${role || 'member'}.`,
+                type: 'info',
+                link: '/team',
+            }),
+            notification_service_1.notificationService.create({
+                userId: req.user.id,
+                title: 'تمت إضافة عضو جديد',
+                message: `تمت إضافة ${targetUser.name} إلى مساحة العمل بنجاح.`,
+                type: 'success',
+                link: '/team',
+            }),
+        ]);
         return res.status(200).json({
             message: 'Teammate added to workspace successfully.',
             member: {

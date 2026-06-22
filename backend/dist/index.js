@@ -12,6 +12,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const routes_1 = __importDefault(require("./routes"));
 const error_1 = require("./middleware/error");
 const queue_service_1 = require("./services/queue.service");
+const subscription_controller_1 = require("./controllers/subscription.controller");
 // Load environment variables
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -25,11 +26,21 @@ const io = new socket_io_1.Server(server, {
 });
 // Configure CORS and JSON Parser
 app.use((0, cors_1.default)());
+app.post('/api/subscription/webhook', express_1.default.raw({ type: 'application/json' }), subscription_controller_1.stripeWebhook);
 app.use(express_1.default.json({ limit: '50mb' }));
 app.use(express_1.default.urlencoded({ extended: true, limit: '50mb' }));
 // Health Check Endpoint
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'healthy', database: mongoose_1.default.connection.readyState === 1 ? 'connected' : 'disconnected' });
+    res.status(200).json({
+        status: 'healthy',
+        database: mongoose_1.default.connection.readyState === 1 ? 'connected' : 'disconnected',
+        integrations: {
+            ai: Boolean(process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY),
+            googleOAuth: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+            githubOAuth: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
+            stripe: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRO_PRICE_ID && process.env.STRIPE_TEAM_PRICE_ID),
+        },
+    });
 });
 // Bind API Routes
 app.use('/api', routes_1.default);

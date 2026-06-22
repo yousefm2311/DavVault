@@ -20,5 +20,7 @@ const SubscriptionSchema = new mongoose_1.Schema({
         aiQuestionsPerMonth: { type: Number, default: 20 },
     },
     renewAt: { type: Date },
+    stripeCustomerId: { type: String },
+    stripeSubscriptionId: { type: String },
 }, { timestamps: true });
 exports.Subscription = (0, mongoose_1.model)('Subscription', SubscriptionSchema);

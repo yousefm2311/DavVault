@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { Sidebar } from '@/components/Sidebar';
 import { CommandPalette } from '@/components/CommandPalette';
+import { AppPageSkeleton } from '@/components/LoadingStates';
 import Editor from '@monaco-editor/react';
 import {
   MessageSquare,
@@ -38,8 +40,17 @@ interface Message {
   isLimit?: boolean;
 }
 
-export default function AIChatPage() {
+interface SourceFile {
+  _id: string;
+  fileName: string;
+  path: string;
+  language?: string;
+  summary?: string;
+}
+
+function AIChatPageContent() {
   const { user, loading, apiFetch } = useAuth();
+  const { t, dir } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -47,6 +58,7 @@ export default function AIChatPage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
+  const [sourceFiles, setSourceFiles] = useState<SourceFile[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
 
   // Input states
@@ -60,6 +72,7 @@ export default function AIChatPage() {
   const [copied, setCopied] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isRtl = dir === 'rtl';
 
   useEffect(() => {
     if (!loading && !user) {
@@ -95,6 +108,25 @@ export default function AIChatPage() {
     if (!user) return;
     loadInitialData();
   }, [user, searchParams]);
+
+  useEffect(() => {
+    if (!user || !selectedProjectId) {
+      setSourceFiles([]);
+      return;
+    }
+
+    const loadSourceFiles = async () => {
+      try {
+        const data = await apiFetch(`/projects/${selectedProjectId}/files`);
+        setSourceFiles((data.files || []).slice(0, 18));
+      } catch (err) {
+        console.error('[Chat]: Failed to load source files:', err);
+        setSourceFiles([]);
+      }
+    };
+
+    loadSourceFiles();
+  }, [user, selectedProjectId]);
 
   // Scroll to bottom when message arrives
   useEffect(() => {
@@ -161,8 +193,8 @@ export default function AIChatPage() {
       const errorMsg: Message = {
         sender: 'assistant',
         text: isLimitExceeded
-          ? 'Monthly AI questions limit reached. Please upgrade your subscription plan to continue asking questions.'
-          : 'Failed to process chat query. Please check connection and try again.',
+          ? t('reachedRagLimit')
+          : t('chatErrorOccurred'),
         createdAt: new Date(),
         isLimit: isLimitExceeded,
       };
@@ -188,43 +220,71 @@ export default function AIChatPage() {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  if (loading || !user) return null;
+  if (loading || !user) return <AppPageSkeleton label={t('loadingChatSpace')} />;
 
   return (
-    <div className="flex min-h-screen bg-bg-primary text-white select-none">
+    <div className="flex min-h-screen bg-bg-primary text-white select-none" dir={dir}>
       <Sidebar />
 
       <main className="flex-1 flex overflow-hidden h-screen">
-        {/* Left Side: Sessions List Drawer (1/4 width) */}
-        <div className="w-64 border-r border-card-border bg-bg-secondary p-5 flex flex-col justify-between select-none">
+        {/* Left Side: Sources and sessions panel */}
+        <div className={`hidden lg:flex w-72 ${isRtl ? 'border-r' : 'border-l'} border-card-border bg-bg-secondary p-5 flex-col justify-between select-none`}>
           <div className="space-y-4">
             <button
               onClick={handleStartNewSession}
               className="w-full flex items-center justify-center py-2.5 bg-white/5 border border-card-border hover:bg-white/10 rounded-2xl text-xs font-semibold cursor-pointer"
             >
-              <Plus className="w-4 h-4 mr-1.5" />
-              New Conversation
+              <Plus className={`w-4 h-4 ${isRtl ? 'ml-1.5' : 'mr-1.5'}`} />
+              {t('newChat')}
             </button>
 
             <div className="space-y-2">
               <span className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold px-2">
-                Project Scope
+                {t('projectScope')}
               </span>
               <select
                 value={selectedProjectId}
                 onChange={(e) => setSelectedProjectId(e.target.value)}
                 className="w-full bg-card-bg/40 border border-card-border rounded-xl py-2 px-3 text-xs text-white outline-none"
               >
-                <option value="">Search all repos</option>
+                <option value="">{t('searchAllRepos')}</option>
                 {projects.map(p => (
                   <option key={p._id} value={p._id}>{p.name}</option>
                 ))}
               </select>
             </div>
 
-            <div className="space-y-1.5 overflow-y-auto max-h-[350px]">
+            <div className="space-y-2">
+              <span className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold px-2 block">
+                {t('loadedSources')}
+              </span>
+              <div className="max-h-[260px] overflow-y-auto rounded-2xl border border-card-border bg-bg-primary/40 p-2">
+                {sourceFiles.length > 0 ? (
+                  sourceFiles.map((file) => (
+                    <button
+                      key={file._id}
+                      onClick={() => {
+                        setDrawerTitle(file.fileName);
+                        setDrawerCode(file.summary || t('openSourceDetails', { path: file.path }));
+                        setDrawerLanguage('markdown');
+                      }}
+                      className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-2 ${isRtl ? 'text-right' : 'text-left'} text-[10px] text-text-secondary transition hover:bg-white/5 hover:text-white`}
+                    >
+                      <FileCode className="h-3.5 w-3.5 shrink-0 text-accent-blue" />
+                      <span className="min-w-0 flex-1 truncate font-mono">{file.path}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-2 py-6 text-center text-[10px] leading-relaxed text-text-muted">
+                    {t('chooseProjectToLoadFiles')}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1.5 overflow-y-auto max-h-[220px]">
               <span className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold px-2 block mb-1">
-                Recent Chats
+                {t('recentChats')}
               </span>
               {sessions.length > 0 ? (
                 sessions.map((s) => (
@@ -239,14 +299,14 @@ export default function AIChatPage() {
                   </div>
                 ))
               ) : (
-                <div className="text-[10px] text-text-secondary/50 px-2 py-4">No recent chats.</div>
+                <div className="text-[10px] text-text-secondary/50 px-2 py-4">{t('noRecentChats')}</div>
               )}
             </div>
           </div>
         </div>
 
         {/* Middle: Chat Bubble Window (expanded / flex) */}
-        <div className="flex-1 flex flex-col justify-between bg-bg-primary h-full relative">
+        <div className="flex-1 flex flex-col justify-between bg-bg-primary h-full relative min-w-0">
           <div className="flex-1 overflow-y-auto p-8 space-y-6">
             {messages.length > 0 ? (
               messages.map((m, idx) => (
@@ -275,8 +335,8 @@ export default function AIChatPage() {
                           onClick={() => router.push('/billing')}
                           className="flex items-center px-4 py-2 bg-accent-blue hover:bg-accent-blue/90 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-lg shadow-accent-blue/10"
                         >
-                          Upgrade Subscription Plan
-                          <ArrowRight className="w-4 h-4 ml-1.5" />
+                          {t('upgradeSubscription')}
+                          <ArrowRight className={`w-4 h-4 ${isRtl ? 'mr-1.5 rotate-180' : 'ml-1.5'}`} />
                         </button>
                       </div>
                     )}
@@ -290,10 +350,10 @@ export default function AIChatPage() {
                             onClick={() => handleOpenCitation(c)}
                             className="inline-flex items-center px-2.5 py-1 bg-white/5 border border-white/5 hover:bg-white/10 hover:border-accent-blue/40 rounded-lg text-[9px] text-text-secondary hover:text-white transition-all cursor-pointer font-mono"
                           >
-                            <FileCode className="w-3.5 h-3.5 mr-1.5 text-accent-blue" />
+                            <FileCode className={`w-3.5 h-3.5 ${isRtl ? 'ml-1.5' : 'mr-1.5'} text-accent-blue`} />
                             {c.fileName}
                             {c.score && (
-                              <span className="text-[8px] opacity-60 ml-1.5">
+                              <span className={`text-[8px] opacity-60 ${isRtl ? 'mr-1.5' : 'ml-1.5'}`}>
                                 ({(c.score * 100).toFixed(0)}%)
                               </span>
                             )}
@@ -310,8 +370,8 @@ export default function AIChatPage() {
                   <Sparkles className="w-6 h-6 text-accent-blue" />
                 </div>
                 <div className="flex flex-col space-y-1">
-                  <span className="text-white font-medium">DevVault AI Assistant</span>
-                  <span>Ask anything about your uploaded codebases and old engineering knowledge.</span>
+                  <span className="text-white font-medium">{t('aiAssistant')}</span>
+                  <span>{t('askAnythingRepo')}</span>
                 </div>
               </div>
             )}
@@ -319,10 +379,10 @@ export default function AIChatPage() {
           </div>
 
           {/* Prompt input field */}
-          <form onSubmit={handleSendMessage} className="p-6 border-t border-card-border bg-bg-secondary flex space-x-3 items-center">
+          <form onSubmit={handleSendMessage} className="p-6 border-t border-card-border bg-bg-secondary flex gap-3 items-center">
             <input
               type="text"
-              placeholder="Ask DevVault AI about your codebases..."
+              placeholder={t('askAiAboutRepos')}
               value={inputMsg}
               onChange={(e) => setInputMsg(e.target.value)}
               disabled={sending}
@@ -342,33 +402,33 @@ export default function AIChatPage() {
           </form>
         </div>
 
-        {/* Right Split Panel: Monaco code citation viewer */}
-        {drawerCode && (
-          <div className="w-96 border-l border-card-border bg-bg-secondary flex flex-col h-full animate-fade-in relative z-20">
-            <div className="flex items-center justify-between p-4 border-b border-card-border">
-              <div className="flex items-center space-x-2">
-                <FileCode className="w-4 h-4 text-accent-blue" />
-                <span className="text-xs font-semibold text-white max-w-[180px] truncate">
-                  {drawerTitle}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={handleCopyCode}
-                  className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-white"
-                  title="Copy code"
-                >
-                  {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={() => setDrawerCode(null)}
-                  className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+        {/* Right Split Panel: Monaco code citation viewer and AI insights */}
+        <div className={`hidden xl:flex w-[40%] max-w-[520px] ${isRtl ? 'border-l' : 'border-r'} border-card-border bg-bg-secondary flex-col h-full animate-fade-in relative z-20`}>
+          <div className="flex items-center justify-between p-4 border-b border-card-border">
+            <div className="flex items-center gap-2">
+              <FileCode className="w-4 h-4 text-accent-blue" />
+              <span className="text-xs font-semibold text-white max-w-[180px] truncate">
+                {drawerTitle || t('codeWorkspace')}
+              </span>
             </div>
-            <div className="flex-1 relative bg-bg-primary select-text">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCopyCode}
+                className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-white"
+                title={t('copyCode')}
+              >
+                {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={() => setDrawerCode(null)}
+                className="p-1.5 hover:bg-white/10 rounded-lg text-text-secondary hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 relative bg-bg-primary select-text">
+            {drawerCode ? (
               <Editor
                 height="100%"
                 language={drawerLanguage}
@@ -384,12 +444,42 @@ export default function AIChatPage() {
                   automaticLayout: true,
                 }}
               />
-            </div>
+            ) : (
+              <div className="flex h-full flex-col justify-between p-6">
+                <div>
+                  <div className="mb-5 rounded-2xl border border-card-border bg-card-bg/40 p-5">
+                    <Sparkles className="mb-3 h-5 w-5 text-accent-blue" />
+                    <h3 className="text-sm font-bold text-white">{t('contextAwareCodePreview')}</h3>
+                    <p className="mt-2 text-xs leading-relaxed text-text-secondary">
+                      {t('askQuestionToPreview')}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-[10px]">
+                    {[t('codeExplanation'), t('dependencies'), t('optimizations'), t('securityAnalysisLabel')].map((item) => (
+                      <div key={item} className="rounded-2xl border border-card-border bg-white/[0.03] p-3 text-text-secondary">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-card-border bg-bg-secondary p-4 text-[10px] leading-relaxed text-text-muted">
+                  {t('loadedSourcesCount', { count: sourceFiles.length })}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </main>
 
       <CommandPalette />
     </div>
+  );
+}
+
+export default function AIChatPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-bg-primary" />}>
+      <AIChatPageContent />
+    </Suspense>
   );
 }

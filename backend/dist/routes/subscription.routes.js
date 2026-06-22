@@ -6,4 +6,5 @@ const subscription_controller_1 = require("../controllers/subscription.controlle
 const router = (0, express_1.Router)();
 router.get('/', auth_1.authenticate, subscription_controller_1.getSubscription);
 router.post('/upgrade', auth_1.authenticate, subscription_controller_1.upgradeSubscription);
+router.post('/checkout', auth_1.authenticate, subscription_controller_1.createCheckoutSession);
 exports.default = router;

@@ -12,6 +12,8 @@ router.post('/verify', security_1.authLimiter, (0, validation_1.validateBody)(['
 router.post('/resend-verification', security_1.authLimiter, (0, validation_1.validateBody)(['email']), validation_1.validateEmail, auth_controller_1.resendCode);
 router.post('/refresh', auth_controller_1.refresh);
 router.post('/logout', auth_controller_1.logout);
+router.get('/oauth/:provider/start', security_1.authLimiter, auth_controller_1.startOAuth);
+router.get('/oauth/:provider/callback', auth_controller_1.oauthCallback);
 // Google/GitHub OAuth stubs
 router.post('/oauth/stub', security_1.authLimiter, (0, validation_1.validateBody)(['name', 'email', 'provider']), auth_controller_1.socialLoginStub);
 exports.default = router;

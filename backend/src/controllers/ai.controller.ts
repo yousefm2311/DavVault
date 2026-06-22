@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { ChatSession, Embedding, File as DBFile, Project, Activity } from '../models';
+import { ChatSession, CodeEntity, Embedding, File as DBFile, Project, Activity } from '../models';
 import { aiService } from '../services/ai.service';
 
 const calculateCosineSimilarity = (vecA: number[], vecB: number[]): number => {
@@ -112,8 +112,9 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
           });
         }
       } else if (c.sourceType === 'codeEntity') {
-        const file = await DBFile.findOne({ projectId: c.projectId }, 'fileName path');
-        if (file) {
+        const entity = await CodeEntity.findOne({ _id: c.sourceId, projectId: c.projectId }).populate('fileId', 'fileName path');
+        const file = entity?.fileId as any;
+        if (entity && file) {
           fileName = file.fileName;
           pathStr = file.path;
 
@@ -126,7 +127,7 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
           citations.push({
             fileName,
             path: pathStr,
-            code: c.content, // code of the class or function
+            code: entity.code || c.content,
             score: scored.score,
           });
         }

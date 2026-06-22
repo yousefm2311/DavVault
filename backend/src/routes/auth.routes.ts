@@ -1,5 +1,15 @@
 import { Router } from 'express';
-import { register, login, refresh, socialLoginStub, logout, verifyCode, resendCode } from '../controllers/auth.controller';
+import {
+  register,
+  login,
+  refresh,
+  socialLoginStub,
+  logout,
+  verifyCode,
+  resendCode,
+  startOAuth,
+  oauthCallback,
+} from '../controllers/auth.controller';
 import { validateBody, validateEmail } from '../middleware/validation';
 import { authLimiter } from '../middleware/security';
 
@@ -40,6 +50,9 @@ router.post(
 
 router.post('/refresh', refresh);
 router.post('/logout', logout);
+
+router.get('/oauth/:provider/start', authLimiter, startOAuth);
+router.get('/oauth/:provider/callback', oauthCallback);
 
 // Google/GitHub OAuth stubs
 router.post(

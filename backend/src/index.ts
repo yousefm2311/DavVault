@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import apiRouter from './routes';
 import { errorHandler } from './middleware/error';
 import { queueService } from './services/queue.service';
+import { stripeWebhook } from './controllers/subscription.controller';
 
 // Load environment variables
 dotenv.config();
@@ -24,12 +25,22 @@ const io = new Server(server, {
 
 // Configure CORS and JSON Parser
 app.use(cors());
+app.post('/api/subscription/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Health Check Endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
+  res.status(200).json({
+    status: 'healthy',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    integrations: {
+      ai: Boolean(process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY),
+      googleOAuth: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+      githubOAuth: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
+      stripe: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRO_PRICE_ID && process.env.STRIPE_TEAM_PRICE_ID),
+    },
+  });
 });
 
 // Bind API Routes

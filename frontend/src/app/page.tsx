@@ -1,7 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import {
   Zap,
   ArrowRight,
@@ -17,91 +20,119 @@ import {
 } from 'lucide-react';
 
 export default function LandingPage() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
+  const { t, dir, language, toggleLanguage } = useLanguage();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/dashboard');
+    }
+  }, [loading, router, user]);
+
   const features = [
     {
-      title: 'Semantic Vector Search',
-      description: 'Find files, functions, and old bug solutions using natural language. Query like "Where did I handle Stripe webhooks?" and get exact files.',
+      title: t('landingSearchTitle'),
+      description: t('landingSearchDesc'),
       icon: Search,
     },
     {
-      title: 'Code RAG Chatbot',
-      description: 'Interact directly with your imported repositories. Ask questions, clarify systems architecture, and receive explained codes citing sources.',
+      title: t('landingChatTitle'),
+      description: t('landingChatDesc'),
       icon: MessageSquare,
     },
     {
-      title: 'Automatic Code DNA Extraction',
-      description: 'Upload ZIP folders. The pipeline automatically extracts classes, routes, models, framework structures, and dependency graphs in the background.',
+      title: t('landingDnaTitle'),
+      description: t('landingDnaDesc'),
       icon: Brain,
     },
     {
-      title: 'Snippet & Bug Vault',
-      description: 'Log resolved exceptions and snippet guides. Keep a persistent repository of exceptions, causes, and before/after code fixes.',
+      title: t('landingSnippetsTitle'),
+      description: t('landingSnippetsDesc'),
       icon: Code2,
     },
     {
-      title: 'Secret Leak Prevention',
-      description: 'Rest easy with automatic scanner scanning. Secrets (.env keys, database credentials, third-party credentials) are redacted before storage.',
+      title: t('landingShieldTitle'),
+      description: t('landingShieldDesc'),
       icon: ShieldCheck,
     },
     {
-      title: 'Code Health Metrics',
-      description: 'Analyze files for empty catch blocks, dead codes, or technical debt, providing overall project scores and optimization steps.',
+      title: t('landingHealthTitle'),
+      description: t('landingHealthDesc'),
       icon: Sparkles,
     },
   ];
 
   const pricing = [
     {
-      name: 'Free Plan',
+      name: t('landingPricingFreeName'),
       price: '$0',
-      description: 'For personal developer use',
+      description: t('landingPricingFreeDesc'),
       features: [
-        'Up to 2 active projects',
-        '100MB cloud storage limit',
-        'Basic keyword search',
-        '20 AI questions / month',
-        'Standard Local Storage',
+        t('quotaActiveRepos'),
+        t('quotaCloudStorageFree'),
+        t('quotaRagFree'),
+        t('quotaSecretScan'),
+        t('quotaLocalSearch'),
       ],
-      cta: 'Get Started',
+      cta: t('landingPricingFreeCTA'),
       href: '/signup',
       popular: false,
+      period: t('landingPricePeriodFree')
     },
     {
-      name: 'Pro Developer',
+      name: t('landingPricingProName'),
       price: '$15',
-      description: 'Perfect for freelancers & power developers',
+      description: t('landingPricingProDesc'),
       features: [
-        'Up to 100 active projects',
-        '50GB cloud storage limits',
-        'Full Semantic & Vector Search',
-        'Unlimited AI chat & explanations',
-        'Code Health analysis',
-        'Detailed Developer DNA profile',
+        t('quotaActiveReposPro'),
+        t('quotaCloudStoragePro'),
+        t('quotaRagPro'),
+        t('quotaDependencyGraph'),
+        t('quotaProjectReplay'),
+        t('quotaStyleMatch'),
       ],
-      cta: 'Go Pro',
+      cta: t('landingPricingProCTA'),
       href: '/signup',
       popular: true,
+      period: t('landingPricePeriodMonth')
     },
     {
-      name: 'Team Brain',
+      name: t('landingPricingTeamName'),
       price: '$49',
-      description: 'For small development teams & workspaces',
+      description: t('landingPricingTeamDesc'),
       features: [
-        'Unlimited projects',
-        'Shared team workspace directory',
-        'Company Brain Chatbot integration',
-        'RBAC member controls',
-        'Employee exit knowledge lock',
-        'Priority support SLA',
+        t('quotaActiveReposTeam'),
+        t('quotaCloudStorageTeam'),
+        t('quotaRagTeam'),
+        t('quotaTeamInvites'),
+        t('quotaSharedCatalog'),
+        t('quotaRbac'),
       ],
-      cta: 'Start Team Trial',
+      cta: t('landingPricingTeamCTA'),
       href: '/signup',
       popular: false,
+      period: t('landingPricePeriodMonth')
     },
   ];
 
+  const isRtl = dir === 'rtl';
+
+  if (loading || user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg-primary text-white" dir={dir}>
+        <div className="relative h-12 w-12">
+          <div className="absolute inset-0 rounded-2xl bg-accent-blue/20 blur-xl" />
+          <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-card-border bg-card-bg/70">
+            <Zap className="h-5 w-5 text-accent-blue" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-bg-primary text-white select-none relative overflow-x-hidden">
+    <div className="min-h-screen bg-bg-primary text-white select-none relative overflow-x-hidden" dir={dir}>
       {/* Background glowing gradients */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[600px] rounded-full bg-gradient-to-b from-accent-blue/10 via-transparent to-transparent blur-[150px] pointer-events-none"></div>
 
@@ -111,17 +142,23 @@ export default function LandingPage() {
           <div className="w-9 h-9 rounded-xl bg-accent-blue flex items-center justify-center shadow-md shadow-accent-blue/15">
             <Zap className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-lg tracking-tight">DevVault AI</span>
+          <span className="font-bold text-lg tracking-tight ml-2">DevVault AI</span>
         </div>
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={toggleLanguage}
+            className="px-3 py-1.5 hover:bg-white/5 rounded-lg text-text-secondary hover:text-white transition-colors text-[11px] font-bold font-mono"
+          >
+            {language === 'ar' ? 'English' : 'العربية'}
+          </button>
           <Link href="/login">
-            <span className="text-sm font-medium text-text-secondary hover:text-white transition-colors cursor-pointer">
-              Sign In
+            <span className="text-sm font-medium text-text-secondary hover:text-white transition-colors cursor-pointer px-2">
+              {t('loginTitle')}
             </span>
           </Link>
           <Link href="/signup">
             <span className="text-sm font-semibold bg-accent-blue hover:bg-accent-blue/90 px-4 py-2.5 rounded-xl transition-all shadow-md shadow-accent-blue/10 cursor-pointer">
-              Get Started
+              {t('registerNow')}
             </span>
           </Link>
         </div>
@@ -131,30 +168,30 @@ export default function LandingPage() {
       <section className="max-w-4xl mx-auto px-6 pt-16 pb-20 text-center relative z-10">
         <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 bg-accent-blue/10 border border-accent-blue/20 rounded-full text-[11px] font-semibold text-accent-blue tracking-wide uppercase mb-6 animate-pulse">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Intelligent Engineering Memory</span>
+          <span className="ml-1 mr-1">{t('landingHeaderTitle')}</span>
         </div>
         
         <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight max-w-3xl mx-auto">
-          Your codebase is your <br />
+          {t('landingTitle1')} <br />
           <span className="bg-gradient-to-r from-accent-blue to-[#64D2FF] bg-clip-text text-transparent">
-            engineering brain.
+            {t('landingTitle2')}
           </span>
         </h1>
         
         <p className="text-text-secondary text-sm md:text-base max-w-xl mx-auto mt-6 leading-relaxed">
-          Stop digging through old folders or GitHub repos. DevVault AI ingests, summarizes, and indexes your projects so you can find code segments and ask questions using natural language.
+          {t('landingSubtitle')}
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row justify-center items-center gap-4">
           <Link href="/signup">
             <span className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 bg-accent-blue hover:bg-accent-blue/90 text-sm font-semibold rounded-2xl transition-all shadow-lg shadow-accent-blue/25 cursor-pointer">
-              Get Started Free
-              <ArrowRight className="w-4 h-4 ml-2" />
+              {t('landingStartFree')}
+              <ArrowRight className={`w-4 h-4 ${isRtl ? 'mr-2 rotate-180' : 'ml-2'}`} />
             </span>
           </Link>
           <Link href="/login">
             <span className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3.5 bg-card-bg border border-card-border hover:bg-white/5 text-sm font-semibold rounded-2xl transition-colors cursor-pointer">
-              Upload Your First Project
+              {t('enterMemory')}
             </span>
           </Link>
         </div>
@@ -172,7 +209,7 @@ export default function LandingPage() {
           </div>
           <div className="p-5 text-left font-mono text-xs text-[#E0E0E0] overflow-x-auto space-y-1.5 select-text">
             <div><span className="text-accent-blue">const</span> <span className="text-success">authenticateUser</span> = <span className="text-warning">async</span> (email, pass) =&gt; &#123;</div>
-            <div className="pl-4 text-text-secondary">// Search matches Firebase code from Ecommerce Project</div>
+            <div className="pl-4 text-text-secondary">// Matching search result from Ecommerce Project</div>
             <div className="pl-4"><span className="text-accent-blue">const</span> auth = getAuth(app);</div>
             <div className="pl-4"><span className="text-accent-blue">try</span> &#123;</div>
             <div className="pl-8"><span className="text-accent-blue">const</span> result = <span className="text-warning">await</span> signInWithEmailAndPassword(auth, email, pass);</div>
@@ -189,9 +226,9 @@ export default function LandingPage() {
       <section className="bg-bg-secondary border-t border-b border-card-border/60 py-24 relative">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center max-w-xl mx-auto mb-16">
-            <h2 className="text-3xl font-bold tracking-tight">Supercharge engineering reuse</h2>
+            <h2 className="text-3xl font-bold tracking-tight">{t('landingHeaderTitle')}</h2>
             <p className="text-sm text-text-secondary mt-3 leading-relaxed">
-              DevVault AI is engineered to parse, extract, index, and organize every helper file or solved error you've ever written.
+              {t('landingSubtitle')}
             </p>
           </div>
 
@@ -218,9 +255,9 @@ export default function LandingPage() {
       {/* Pricing Section */}
       <section className="py-24 max-w-6xl mx-auto px-6">
         <div className="text-center max-w-xl mx-auto mb-16">
-          <h2 className="text-3xl font-bold tracking-tight font-sans">Flexible, Developer-Friendly Plans</h2>
+          <h2 className="text-3xl font-bold tracking-tight font-sans">{t('landingPricingTitle')}</h2>
           <p className="text-sm text-text-secondary mt-3">
-            Unlock your engineering brain limit depending on your active project scale.
+            {t('landingPricingSubtitle')}
           </p>
         </div>
 
@@ -234,7 +271,7 @@ export default function LandingPage() {
             >
               {tier.popular && (
                 <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-accent-blue text-[10px] font-bold tracking-wide uppercase rounded-full">
-                  Most Popular
+                  {t('landingPopular')}
                 </span>
               )}
               <div>
@@ -242,13 +279,13 @@ export default function LandingPage() {
                 <p className="text-xs text-text-secondary mb-6">{tier.description}</p>
                 <div className="flex items-baseline mb-6">
                   <span className="text-4xl font-extrabold text-white">{tier.price}</span>
-                  <span className="text-xs text-text-secondary ml-1">/month</span>
+                  <span className="text-xs text-text-secondary ml-1 mr-1">{tier.period}</span>
                 </div>
                 
                 <ul className="space-y-3.5 mb-8">
                   {tier.features.map((feat, idx) => (
                     <li key={idx} className="flex items-start text-xs text-[#E0E0E0]">
-                      <CheckCircle2 className="w-4 h-4 text-success mr-2.5 mt-0.5 flex-shrink-0" />
+                      <CheckCircle2 className={`w-4 h-4 text-success ${isRtl ? 'ml-2.5' : 'mr-2.5'} mt-0.5 flex-shrink-0`} />
                       <span>{feat}</span>
                     </li>
                   ))}
@@ -271,9 +308,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer footer */}
+      {/* Footer */}
       <footer className="border-t border-card-border py-12 max-w-6xl mx-auto px-6 text-center text-xs text-text-secondary">
-        <p>© {new Date().getFullYear()} DevVault AI. Built for full stack developers. Designed with Linear + Apple inspiration.</p>
+        <p>© {new Date().getFullYear()} DevVault AI. Built for full-stack developers with speed and security.</p>
       </footer>
     </div>
   );

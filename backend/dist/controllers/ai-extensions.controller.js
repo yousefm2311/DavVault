@@ -10,8 +10,8 @@ const getProjectReplay = async (req, res) => {
         const project = await models_1.Project.findOne({ _id: id, userId: req.user.id });
         if (!project)
             return res.status(404).json({ error: 'Project not found.' });
-        const files = await models_1.File.find({ projectId: id }).sort({ createdAt: 1 });
-        const errors = await models_1.ErrorSolution.find({ projectId: id }).sort({ createdAt: 1 });
+        const files = await models_1.File.find({ projectId: id, userId: req.user.id }).sort({ createdAt: 1 });
+        const errors = await models_1.ErrorSolution.find({ projectId: id, userId: req.user.id }).sort({ createdAt: 1 });
         const timeline = [];
         const projectCreated = new Date(project.uploadedAt || project.createdAt);
         // Initialization Milestone
@@ -102,8 +102,10 @@ const getHiddenKnowledge = async (req, res) => {
         if (!req.user)
             return res.status(401).json({ error: 'Unauthorized.' });
         const userId = req.user.id;
-        // Scan for code entities with identical names in different files to find repeats
-        const entities = await models_1.CodeEntity.find().populate('projectId');
+        const projects = await models_1.Project.find({ userId }, '_id');
+        const projectIds = projects.map((project) => project._id);
+        // Scan only this user's projects for repeated code entities.
+        const entities = await models_1.CodeEntity.find({ projectId: { $in: projectIds } }).populate('projectId');
         const nameCountMap = {};
         for (const ent of entities) {
             if (ent.type === 'class' || ent.type === 'function') {

@@ -3,14 +3,42 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Sidebar } from '@/components/Sidebar';
-import { CreditCard, Check, Zap, Sparkles, ShieldCheck, Activity, ArrowRight } from 'lucide-react';
+import { AppPageSkeleton } from '@/components/LoadingStates';
+import { CreditCard, Check, Zap, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/context/LanguageContext';
+
+type Plan = 'free' | 'pro' | 'team';
+
+type SubscriptionData = {
+  plan: Plan;
+  status?: string;
+  limits: {
+    projectsCount: number;
+    storageBytes: number;
+    aiQuestionsPerMonth: number;
+  };
+  usage: {
+    projectsCount: number;
+    storageBytes: number;
+    aiQuestionsUsed: number;
+  };
+};
+
+type CheckoutResponse = {
+  checkoutUrl?: string;
+};
+
+type UpgradeResponse = {
+  message?: string;
+};
 
 export default function BillingPage() {
   const { user, loading, apiFetch } = useAuth();
   const router = useRouter();
+  const { t, dir } = useLanguage();
 
-  const [subData, setSubData] = useState<any>(null);
+  const [subData, setSubData] = useState<SubscriptionData | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +52,7 @@ export default function BillingPage() {
 
   const fetchSubscription = async () => {
     try {
-      const data = await apiFetch('/subscription');
+      const data = await apiFetch('/subscription') as SubscriptionData;
       setSubData(data);
     } catch (err) {
       console.error('[Billing]: Fetch failed:', err);
@@ -38,35 +66,50 @@ export default function BillingPage() {
     fetchSubscription();
   }, [user]);
 
-  const handleUpgrade = async (plan: 'free' | 'pro' | 'team') => {
+  const handleUpgrade = async (plan: Plan) => {
     setError(null);
     setSuccess(null);
     setUpgradingPlan(plan);
     try {
+      if (plan !== 'free') {
+        try {
+          const checkout = await apiFetch('/subscription/checkout', {
+            method: 'POST',
+            body: JSON.stringify({ plan }),
+          }) as CheckoutResponse;
+          if (checkout.checkoutUrl) {
+            window.location.assign(checkout.checkoutUrl);
+            return;
+          }
+        } catch (checkoutErr: unknown) {
+          const message = checkoutErr instanceof Error ? checkoutErr.message : t('stripeInitFailed');
+          if (!message.toLowerCase().includes('stripe')) {
+            throw checkoutErr;
+          }
+          setSuccess(t('stripeNotConfigured'));
+        }
+      }
+
       const res = await apiFetch('/subscription/upgrade', {
         method: 'POST',
         body: JSON.stringify({ plan }),
-      });
-      setSuccess(res.message || `Upgraded to ${plan.toUpperCase()} successfully!`);
+      }) as UpgradeResponse;
+      setSuccess(res.message || t('upgradePlanSuccess', { plan: plan.toUpperCase() }));
       // Reload sub data and trigger context update by reload (or state sync)
       await fetchSubscription();
       // Simple page refresh or context update to let the header show the new plan
       setTimeout(() => {
         window.location.reload();
       }, 1500);
-    } catch (err: any) {
-      setError(err.message || 'Upgrade failed. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t('upgradePlanFailed'));
     } finally {
       setUpgradingPlan(null);
     }
   };
 
   if (loading || !user || loadingData) {
-    return (
-      <div className="flex h-screen bg-bg-primary text-white justify-center items-center">
-        <div className="w-8 h-8 border-4 border-accent-blue/30 border-t-accent-blue rounded-full animate-spin"></div>
-      </div>
-    );
+    return <AppPageSkeleton label={t('loadingBillingData')} />;
   }
 
   const { plan, limits, usage } = subData || {
@@ -87,61 +130,61 @@ export default function BillingPage() {
   const planTiers = [
     {
       id: 'free',
-      name: 'Free Starter',
-      description: 'Test the memory indexing workflow',
+      name: t('pricingFreeStarter'),
+      description: t('pricingFreeStarterDesc'),
       price: '$0',
-      period: 'forever',
+      period: t('pricingFreeStarterPeriod'),
       icon: Zap,
       accentColor: 'text-text-secondary',
-      btnText: 'Current Plan',
+      btnText: t('pricingCurrentPlan'),
       features: [
-        'Up to 2 active repositories',
-        '100 MB safe storage size limit',
-        '20 AI code RAG queries / month',
-        'Secret leaks scanner detector',
-        'Local keyword & semantic search',
+        t('quotaActiveRepos'),
+        t('quotaCloudStorageFree'),
+        t('quotaRagFree'),
+        t('quotaSecretScan'),
+        t('quotaLocalSearch'),
       ]
     },
     {
       id: 'pro',
-      name: 'Pro Developer',
-      description: 'Our most popular tier for active developers',
+      name: t('pricingProName'),
+      description: t('pricingProDesc'),
       price: '$15',
-      period: 'month',
+      period: t('pricingProPeriod'),
       icon: Sparkles,
       accentColor: 'text-accent-blue',
-      btnText: 'Upgrade to Pro',
+      btnText: t('pricingProCTA'),
       features: [
-        'Up to 15 active repositories',
-        '2 GB cloud storage size limits',
-        '250 AI code RAG queries / month',
-        'Visual file dependency graph',
-        'Interactive Project Replays',
-        'Code DNA styles comparisons',
+        t('quotaActiveReposPro'),
+        t('quotaCloudStoragePro'),
+        t('quotaRagPro'),
+        t('quotaDependencyGraph'),
+        t('quotaProjectReplay'),
+        t('quotaStyleMatch'),
       ]
     },
     {
       id: 'team',
-      name: 'Team Workspace',
-      description: 'Complete engineering brain sharing for small squads',
+      name: t('pricingTeamName'),
+      description: t('pricingTeamDesc'),
       price: '$49',
-      period: 'month',
+      period: t('pricingTeamPeriod'),
       icon: ShieldCheck,
       accentColor: 'text-success',
-      btnText: 'Upgrade to Team',
+      btnText: t('pricingTeamCTA'),
       features: [
-        'Up to 100 active repositories',
-        '20 GB workspace storage size',
-        '1,500 AI RAG queries / month',
-        'Teammates invitation & membership',
-        'Shared snippet and error catalog',
-        'RBAC roles management access',
+        t('quotaActiveReposTeam'),
+        t('quotaCloudStorageTeam'),
+        t('quotaRagTeam'),
+        t('quotaTeamInvites'),
+        t('quotaSharedCatalog'),
+        t('quotaRbac'),
       ]
     }
   ];
 
   return (
-    <div className="flex h-screen bg-bg-primary text-white overflow-hidden">
+    <div className="flex h-screen bg-bg-primary text-white overflow-hidden" dir={dir}>
       {/* Sidebar Navigation */}
       <Sidebar />
 
@@ -153,15 +196,15 @@ export default function BillingPage() {
         {/* Title Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Subscription & Billing</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t('billingAndPlans')}</h1>
             <p className="text-xs text-text-secondary mt-1">
-              Monitor plan resource quotas, view usages meters, and upgrade subscriptions tiers.
+              {t('billingMonitorDesc')}
             </p>
           </div>
-          <div className="flex items-center space-x-2 px-4 py-2 bg-card-bg/50 border border-card-border rounded-2xl glass">
+          <div className="flex items-center gap-2 px-4 py-2 bg-card-bg/50 border border-card-border rounded-2xl glass">
             <CreditCard className="w-4 h-4 text-accent-blue" />
             <span className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-              Active Tier: <span className="text-white">{plan.toUpperCase()}</span>
+              {t('planLabel', { plan: plan.toUpperCase() })}
             </span>
           </div>
         </div>
@@ -184,7 +227,7 @@ export default function BillingPage() {
           {/* Meter 1: Projects Count */}
           <div className="bg-card-bg/40 border border-card-border p-6 rounded-[24px] glass">
             <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-semibold text-text-secondary uppercase">Active Repositories</span>
+              <span className="text-xs font-semibold text-text-secondary uppercase">{t('activeReposLabel')}</span>
               <span className="text-xs font-bold text-white">{usage.projectsCount} / {limits.projectsCount}</span>
             </div>
             <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-2">
@@ -194,14 +237,14 @@ export default function BillingPage() {
               ></div>
             </div>
             <p className="text-[10px] text-text-secondary">
-              Active repositories indexed in search and chat sessions.
+              {t('reposIndexedDesc')}
             </p>
           </div>
 
           {/* Meter 2: Cloud Storage */}
           <div className="bg-card-bg/40 border border-card-border p-6 rounded-[24px] glass">
             <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-semibold text-text-secondary uppercase">Indexed Code Storage</span>
+              <span className="text-xs font-semibold text-text-secondary uppercase">{t('indexedCodeStorage')}</span>
               <span className="text-xs font-bold text-white">{storageMB} MB / {limitMB} MB</span>
             </div>
             <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-2">
@@ -211,14 +254,14 @@ export default function BillingPage() {
               ></div>
             </div>
             <p className="text-[10px] text-text-secondary">
-              Total file content size extracted from repository ZIP uploads.
+              {t('fileSizeExtractedDesc')}
             </p>
           </div>
 
           {/* Meter 3: AI Questions */}
           <div className="bg-card-bg/40 border border-card-border p-6 rounded-[24px] glass">
             <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-semibold text-text-secondary uppercase">Monthly AI Queries</span>
+              <span className="text-xs font-semibold text-text-secondary uppercase">{t('monthlyQueriesLabel')}</span>
               <span className="text-xs font-bold text-white">{usage.aiQuestionsUsed} / {limits.aiQuestionsPerMonth}</span>
             </div>
             <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-2">
@@ -228,13 +271,13 @@ export default function BillingPage() {
               ></div>
             </div>
             <p className="text-[10px] text-text-secondary">
-              Questions directed to the RAG chat assistant or explainers this month.
+              {t('queriesRagDesc')}
             </p>
           </div>
         </div>
 
         {/* Plan Tiers Grid */}
-        <h2 className="text-lg font-bold mb-6">Choose Your Plan</h2>
+        <h2 className="text-lg font-bold mb-6">{t('choosePlan')}</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {planTiers.map((tier) => {
             const TierIcon = tier.icon;
@@ -250,7 +293,7 @@ export default function BillingPage() {
               >
                 {isCurrent && (
                   <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-accent-blue rounded-full text-[10px] font-bold uppercase tracking-wider text-white">
-                    Active Plan
+                    {t('activePlan')}
                   </div>
                 )}
 
@@ -264,15 +307,15 @@ export default function BillingPage() {
 
                   <div className="flex items-baseline mb-8">
                     <span className="text-4xl font-extrabold tracking-tight text-white">{tier.price}</span>
-                    <span className="text-text-secondary text-xs ml-1">/{tier.period}</span>
+                    <span className="text-text-secondary text-xs mr-1">/{tier.period}</span>
                   </div>
 
                   <div className="border-t border-card-border/60 pt-6 mb-8">
-                    <p className="text-[10px] font-bold text-text-disabled uppercase tracking-wider mb-4">What's included</p>
+                    <p className="text-[10px] font-bold text-text-disabled uppercase tracking-wider mb-4">{t('whatYouGet')}</p>
                     <ul className="space-y-3.5 text-xs text-text-secondary">
                       {tier.features.map((feat, i) => (
                         <li key={i} className="flex items-start">
-                          <Check className="w-4 h-4 text-accent-blue mr-2.5 flex-shrink-0 mt-0.5" />
+                          <Check className="w-4 h-4 text-accent-blue ml-2.5 flex-shrink-0 mt-0.5" />
                           <span>{feat}</span>
                         </li>
                       ))}
@@ -296,8 +339,8 @@ export default function BillingPage() {
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                     ) : (
                       <>
-                        {isCurrent ? 'Current Plan' : tier.btnText}
-                        {!isCurrent && canUpgrade && <ArrowRight className="w-4 h-4 ml-1.5" />}
+                        {isCurrent ? t('pricingCurrentPlan') : tier.btnText}
+                        {!isCurrent && canUpgrade && <ArrowRight className="w-4 h-4 mr-1.5 ltr:ml-1.5 ltr:mr-0 rtl:rotate-180" />}
                       </>
                     )}
                   </button>

@@ -10,6 +10,8 @@ export interface ISubscription extends Document {
     aiQuestionsPerMonth: number;
   };
   renewAt?: Date;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +35,8 @@ const SubscriptionSchema = new Schema<ISubscription>(
       aiQuestionsPerMonth: { type: Number, default: 20 },
     },
     renewAt: { type: Date },
+    stripeCustomerId: { type: String },
+    stripeSubscriptionId: { type: String },
   },
   { timestamps: true }
 );

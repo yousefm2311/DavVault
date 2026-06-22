@@ -122,7 +122,7 @@ export const getProjectOverview = async (req: AuthenticatedRequest, res: Respons
 
     const totalFiles = await DBFile.countDocuments({ projectId: id });
     const totalEntities = await CodeEntity.countDocuments({ projectId: id });
-    const files = await DBFile.find({ projectId: id }, 'fileName extension size');
+    const files = await DBFile.find({ projectId: id, userId: req.user.id }, 'fileName extension size');
     const totalSize = files.reduce((acc, f) => acc + f.size, 0);
 
     return res.status(200).json({
@@ -180,7 +180,7 @@ export const getProjectHealth = async (req: AuthenticatedRequest, res: Response)
     if (!project) return res.status(404).json({ error: 'Project not found.' });
 
     // Analyze file contents to identify actual code quality and structure issues
-    const files = await DBFile.find({ projectId: id });
+    const files = await DBFile.find({ projectId: id, userId: req.user.id });
     const problems: { file: string; type: string; severity: 'high' | 'medium' | 'low'; description: string }[] = [];
 
     let emptyCatchCount = 0;
@@ -231,20 +231,69 @@ export const getProjectGraph = async (req: AuthenticatedRequest, res: Response) 
     if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
     const { id } = req.params;
 
+    const project = await Project.findOne({ _id: id, userId: req.user.id });
+    if (!project) return res.status(404).json({ error: 'Project not found.' });
+
     // Get files and code entities to make nodes/edges
-    const files = await DBFile.find({ projectId: id }, 'fileName path language');
+    const files = await DBFile.find({ projectId: id, userId: req.user.id }, 'fileName path language extension size summary content');
     const entities = await CodeEntity.find({ projectId: id }, 'name type fileId dependencies');
 
     // Make nodes
     const nodes = files.map((f, i) => ({
       id: f._id.toString(),
       type: 'fileNode',
-      data: { label: f.fileName, path: f.path, language: f.language },
+      data: {
+        label: f.fileName,
+        path: f.path,
+        language: f.language,
+        extension: f.extension,
+        size: f.size,
+        summary: f.summary,
+      },
       position: { x: 100 + (i % 4) * 250, y: 100 + Math.floor(i / 4) * 200 },
     }));
 
     // Add entities as subnodes or connect them
-    const edges: { id: string; source: string; target: string; animated?: boolean }[] = [];
+    const edges: { id: string; source: string; target: string; animated?: boolean; label?: string }[] = [];
+    const edgeKeys = new Set<string>();
+
+    const addEdge = (source: string, target: string, label?: string) => {
+      if (source === target) return;
+      const key = `${source}->${target}`;
+      if (edgeKeys.has(key)) return;
+      edgeKeys.add(key);
+      edges.push({
+        id: `edge_${source}_to_${target}`,
+        source,
+        target,
+        animated: true,
+        ...(label ? { label } : {}),
+      });
+    };
+
+    const normalizeImportTarget = (value: string) =>
+      value
+        .replace(/^@\/?/, '')
+        .replace(/^\.\//, '')
+        .replace(/^\.\.\//, '')
+        .replace(/\.(tsx|ts|jsx|js|mjs|cjs|json|css|scss|py|dart|java|go|rb|php)$/i, '')
+        .toLowerCase();
+
+    const resolveImport = (sourcePath: string, importPath: string) => {
+      const normalized = normalizeImportTarget(importPath);
+      const sourceDir = sourcePath.includes('/') ? sourcePath.split('/').slice(0, -1).join('/') : '';
+      const candidates = files.filter((file) => {
+        const fileWithoutExt = file.path.replace(/\.[^.]+$/, '').toLowerCase();
+        const fileNameWithoutExt = file.fileName.replace(/\.[^.]+$/, '').toLowerCase();
+        return (
+          fileWithoutExt.endsWith(normalized) ||
+          fileNameWithoutExt === normalized.split('/').pop() ||
+          (sourceDir && fileWithoutExt.endsWith(`${sourceDir}/${normalized}`))
+        );
+      });
+
+      return candidates[0];
+    };
 
     // Find imports or dependencies
     entities.forEach(entity => {
@@ -252,14 +301,23 @@ export const getProjectGraph = async (req: AuthenticatedRequest, res: Response) 
         // Match dependency string with filenames
         const matchedFile = files.find(f => f.fileName.toLowerCase().includes(depName.toLowerCase()) || depName.toLowerCase().includes(f.fileName.toLowerCase()));
         if (matchedFile && matchedFile._id.toString() !== entity.fileId.toString()) {
-          edges.push({
-            id: `edge_${entity._id}_to_${matchedFile._id}`,
-            source: entity.fileId.toString(),
-            target: matchedFile._id.toString(),
-            animated: true,
-          });
+          addEdge(entity.fileId.toString(), matchedFile._id.toString(), entity.type);
         }
       });
+    });
+
+    const importRegex = /(?:import\s+(?:[^'"]+\s+from\s+)?|export\s+[^'"]+\s+from\s+|require\()\s*['"]([^'"]+)['"]/g;
+    files.forEach(file => {
+      const content = file.content || '';
+      let match: RegExpExecArray | null;
+      while ((match = importRegex.exec(content)) !== null) {
+        const importPath = match[1];
+        if (!importPath.startsWith('.') && !importPath.startsWith('@/')) continue;
+        const target = resolveImport(file.path, importPath);
+        if (target) {
+          addEdge(file._id.toString(), target._id.toString(), 'import');
+        }
+      }
     });
 
     return res.status(200).json({ nodes, edges });

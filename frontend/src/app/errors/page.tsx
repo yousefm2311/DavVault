@@ -1,25 +1,24 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useLanguage } from '@/context/LanguageContext';
 import { Sidebar } from '@/components/Sidebar';
 import { CommandPalette } from '@/components/CommandPalette';
+import { AppPageSkeleton, SectionSkeleton } from '@/components/LoadingStates';
 import {
   Bug,
   Plus,
   Search,
-  Tag,
   Trash2,
   ChevronRight,
-  BookOpen,
-  Check,
-  Code,
   Info
 } from 'lucide-react';
 
-export default function ErrorsPage() {
+function ErrorsPageContent() {
   const { user, loading, apiFetch } = useAuth();
+  const { t, dir } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -42,6 +41,7 @@ export default function ErrorsPage() {
 
   // Selected error for details drawer
   const [selectedError, setSelectedError] = useState<any | null>(null);
+  const isRtl = dir === 'rtl';
 
   useEffect(() => {
     if (!loading && !user) {
@@ -120,7 +120,7 @@ export default function ErrorsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this error record?')) return;
+    if (!confirm(t('deleteErrorConfirm'))) return;
     try {
       await apiFetch(`/errors/${id}`, { method: 'DELETE' });
       setErrors(prev => prev.filter(e => e._id !== id));
@@ -130,45 +130,45 @@ export default function ErrorsPage() {
     }
   };
 
-  if (loading || !user) return null;
+  if (loading || !user) return <AppPageSkeleton label={t('loadingErrors')} />;
 
   // Filter errors by keyword
   const filteredErrors = errors.filter(e =>
     e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     e.errorMessage.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    e.tags.some((t: string) => t.toLowerCase().includes(searchQuery.toLowerCase()))
+    (e.tags || []).some((tItem: string) => tItem.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
-    <div className="flex min-h-screen bg-bg-primary text-white select-none">
+    <div className="flex min-h-screen bg-bg-primary text-white select-none" dir={dir}>
       <Sidebar />
 
       <main className="flex-1 p-10 overflow-y-auto max-w-5xl mx-auto flex flex-col">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Error Library</h2>
-            <p className="text-xs text-text-secondary mt-1">Repository of technical exceptions, causes, and solved codes</p>
+            <h2 className="text-2xl font-bold tracking-tight">{t('errorsLibrary')}</h2>
+            <p className="text-xs text-text-secondary mt-1">{t('errorsLibraryDesc')}</p>
           </div>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
             className="flex items-center px-4 py-2.5 bg-accent-blue hover:bg-accent-blue/90 text-xs font-semibold rounded-2xl transition-all shadow-md shadow-accent-blue/10 cursor-pointer"
           >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Log Exception
+            <Plus className={`w-4 h-4 ${isRtl ? 'ml-1.5' : 'mr-1.5'}`} />
+            {t('logError')}
           </button>
         </div>
 
         {/* Log Exception Form Panel */}
         {showAddForm && (
           <div className="mb-8 bg-card-bg/60 border border-card-border p-6 rounded-[28px] glass">
-            <h3 className="font-bold text-sm mb-4">Log solved exception</h3>
+            <h3 className="font-bold text-sm mb-4">{t('logSolvedError')}</h3>
             <form onSubmit={handleAddSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">Title</label>
+                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('snippetTitle')}</label>
                   <input
                     type="text"
-                    placeholder="e.g. Supabase Storage Object Upload error"
+                    placeholder={t('errorTitlePlaceholder')}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
@@ -176,13 +176,13 @@ export default function ErrorsPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">Associated Project</label>
+                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('relatedProject')}</label>
                   <select
                     value={projectId}
                     onChange={(e) => setProjectId(e.target.value)}
                     className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
                   >
-                    <option value="">General (No Project)</option>
+                    <option value="">{t('genericNoProject')}</option>
                     {projects.map(p => (
                       <option key={p._id} value={p._id}>{p.name}</option>
                     ))}
@@ -191,9 +191,9 @@ export default function ErrorsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">Error Message / Log Exception</label>
+                <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('errorMessageLog')}</label>
                 <textarea
-                  placeholder="Paste the full stack trace or message here"
+                  placeholder={t('pasteErrorTrace')}
                   value={errorMessage}
                   onChange={(e) => setErrorMessage(e.target.value)}
                   rows={3}
@@ -204,9 +204,9 @@ export default function ErrorsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">Root Cause</label>
+                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('errorCause')}</label>
                   <textarea
-                    placeholder="Why did this error happen?"
+                    placeholder={t('whyErrorHappened')}
                     value={cause}
                     onChange={(e) => setCause(e.target.value)}
                     rows={2.5}
@@ -215,9 +215,9 @@ export default function ErrorsPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">Resolution Solution</label>
+                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('errorSolution')}</label>
                   <textarea
-                    placeholder="How did you resolve it?"
+                    placeholder={t('howErrorSolved')}
                     value={solution}
                     onChange={(e) => setSolution(e.target.value)}
                     rows={2.5}
@@ -229,9 +229,9 @@ export default function ErrorsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">Before Code Fix</label>
+                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('codeBeforeFix')}</label>
                   <textarea
-                    placeholder="Code causing error"
+                    placeholder={t('codeBeforeFixPlaceholder')}
                     value={beforeCode}
                     onChange={(e) => setBeforeCode(e.target.value)}
                     rows={4}
@@ -239,9 +239,9 @@ export default function ErrorsPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">After Code Fix</label>
+                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('codeAfterFix')}</label>
                   <textarea
-                    placeholder="Corrected code"
+                    placeholder={t('codeAfterFixPlaceholder')}
                     value={afterCode}
                     onChange={(e) => setAfterCode(e.target.value)}
                     rows={4}
@@ -251,7 +251,7 @@ export default function ErrorsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">Tags (comma separated)</label>
+                <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('tagsCommaSeparated')}</label>
                 <input
                   type="text"
                   placeholder="supabase, file-upload, node-js"
@@ -261,20 +261,20 @@ export default function ErrorsPage() {
                 />
               </div>
 
-              <div className="flex justify-end space-x-3 pt-2">
+              <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAddForm(false)}
                   className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-2xl text-xs font-semibold"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
                   className="px-5 py-2.5 bg-accent-blue hover:bg-accent-blue/90 disabled:bg-accent-blue/50 text-white rounded-2xl text-xs font-semibold"
                 >
-                  {submitting ? 'Saving...' : 'Save Record'}
+                  {submitting ? t('savingSnippet') : t('saveLog')}
                 </button>
               </div>
             </form>
@@ -283,13 +283,13 @@ export default function ErrorsPage() {
 
         {/* Filter Input */}
         <div className="mb-6 relative max-w-sm">
-          <Search className="absolute left-4 top-3.5 w-4 h-4 text-text-secondary" />
+          <Search className={`absolute ${isRtl ? 'right-4' : 'left-4'} top-3.5 w-4 h-4 text-text-secondary`} />
           <input
             type="text"
-            placeholder="Search exceptions by title or tag..."
+            placeholder={t('searchErrorsPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-card-bg/40 border border-card-border rounded-2xl py-3 pl-11 pr-4 text-xs text-white placeholder-text-secondary outline-none focus:border-accent-blue/50 transition-colors"
+            className={`w-full bg-card-bg/40 border border-card-border rounded-2xl py-3 ${isRtl ? 'pr-11 pl-4' : 'pl-11 pr-4'} text-xs text-white placeholder-text-secondary outline-none focus:border-accent-blue/50 transition-colors`}
           />
         </div>
 
@@ -298,9 +298,7 @@ export default function ErrorsPage() {
           {/* Left: list cards */}
           <div className="md:col-span-2 space-y-4">
             {loadingErrors ? (
-              <div className="py-20 flex justify-center bg-card-bg/25 border border-card-border rounded-[28px]">
-                <div className="w-5 h-5 border-2 border-accent-blue/30 border-t-accent-blue rounded-full animate-spin"></div>
-              </div>
+              <SectionSkeleton rows={4} />
             ) : filteredErrors.length > 0 ? (
               <div className="space-y-3">
                 {filteredErrors.map((err) => (
@@ -313,40 +311,40 @@ export default function ErrorsPage() {
                         : 'bg-card-bg/40 border-card-border'
                     }`}
                   >
-                    <div className="flex items-start space-x-4 max-w-[80%]">
+                    <div className="flex items-start gap-4 max-w-[80%]">
                       <div className="mt-0.5 w-9 h-9 rounded-xl bg-danger/10 flex items-center justify-center flex-shrink-0">
                         <Bug className="w-5 h-5 text-danger" />
                       </div>
-                      <div className="flex flex-col">
+                      <div className="flex flex-col ml-3">
                         <h3 className="font-bold text-xs text-white">{err.title}</h3>
                         <p className="text-[10px] text-text-secondary mt-1 line-clamp-1 font-mono">
                           {err.errorMessage}
                         </p>
-                        <div className="flex items-center space-x-1.5 mt-2.5">
-                          {err.tags.slice(0, 3).map((t: string) => (
+                        <div className="flex items-center gap-1.5 mt-2.5">
+                          {(err.tags || []).slice(0, 3).map((tItem: string) => (
                             <span
-                              key={t}
+                              key={tItem}
                               className="text-[8px] bg-white/5 border border-white/5 px-2 py-0.5 rounded text-text-secondary"
                             >
-                              {t}
+                              {tItem}
                             </span>
                           ))}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDelete(err._id);
                         }}
                         className="p-1.5 bg-danger/5 hover:bg-danger/15 text-danger rounded-lg transition-colors"
-                        title="Delete record"
+                        title={t('cancel')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                      <ChevronRight className="w-4 h-4 text-text-secondary" />
+                      <ChevronRight className={`w-4 h-4 text-text-secondary ${isRtl ? 'rotate-180' : ''}`} />
                     </div>
                   </div>
                 ))}
@@ -356,7 +354,7 @@ export default function ErrorsPage() {
                 <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center">
                   <Bug className="w-5 h-5 text-danger" />
                 </div>
-                <span>No logged exceptions. Keep log notes of your bugs here.</span>
+                <span>{t('noErrorsText')}</span>
               </div>
             )}
           </div>
@@ -367,20 +365,20 @@ export default function ErrorsPage() {
               <div className="space-y-5 flex-1 flex flex-col justify-between">
                 <div>
                   <h3 className="font-bold text-sm text-white mb-2">{selectedError.title}</h3>
-                  <div className="text-[9px] font-mono bg-danger/10 border border-danger/15 p-2 rounded-xl text-danger max-h-[80px] overflow-y-auto mb-4">
+                  <div className="text-[9px] font-mono bg-danger/10 border border-danger/15 p-2 rounded-xl text-danger max-h-[80px] overflow-y-auto mb-4" dir="ltr">
                     {selectedError.errorMessage}
                   </div>
 
                   <div className="space-y-3.5">
                     <div className="space-y-1">
-                      <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">Root Cause</span>
+                      <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">{t('errorCause')}</span>
                       <p className="text-xs text-text-secondary leading-relaxed bg-white/5 p-3 rounded-xl">
                         {selectedError.cause}
                       </p>
                     </div>
 
                     <div className="space-y-1">
-                      <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">Solution</span>
+                      <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">{t('solution')}</span>
                       <p className="text-xs text-text-secondary leading-relaxed bg-success/10 border border-success/15 p-3 rounded-xl">
                         {selectedError.solution}
                       </p>
@@ -388,13 +386,13 @@ export default function ErrorsPage() {
 
                     {selectedError.beforeCode && (
                       <div className="space-y-1">
-                        <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">Code Fix comparison</span>
+                        <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">{t('codeFixComparison')}</span>
                         <div className="grid grid-cols-1 gap-2.5">
-                          <pre className="p-2.5 bg-danger/5 border border-danger/10 rounded-xl overflow-x-auto text-[9px] font-mono text-[#FF8585] max-h-[100px]">
+                          <pre className="p-2.5 bg-danger/5 border border-danger/10 rounded-xl overflow-x-auto text-[9px] font-mono text-[#FF8585] max-h-[100px]" dir="ltr">
                             <code>{selectedError.beforeCode}</code>
                           </pre>
                           {selectedError.afterCode && (
-                            <pre className="p-2.5 bg-success/5 border border-success/10 rounded-xl overflow-x-auto text-[9px] font-mono text-[#85FF85] max-h-[100px]">
+                            <pre className="p-2.5 bg-success/5 border border-success/10 rounded-xl overflow-x-auto text-[9px] font-mono text-[#85FF85] max-h-[100px]" dir="ltr">
                               <code>{selectedError.afterCode}</code>
                             </pre>
                           )}
@@ -407,7 +405,7 @@ export default function ErrorsPage() {
             ) : (
               <div className="py-20 text-center text-xs text-text-secondary flex flex-col items-center justify-center space-y-3 h-full justify-center">
                 <Info className="w-5 h-5 text-accent-blue opacity-50" />
-                <span>Select an exception item to view structural details, cause root-cause logs, and before/after fixes.</span>
+                <span>{t('chooseErrorToPreview')}</span>
               </div>
             )}
           </div>
@@ -416,5 +414,13 @@ export default function ErrorsPage() {
 
       <CommandPalette />
     </div>
+  );
+}
+
+export default function ErrorsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-bg-primary" />}>
+      <ErrorsPageContent />
+    </Suspense>
   );
 }

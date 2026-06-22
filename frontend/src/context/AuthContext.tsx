@@ -8,8 +8,23 @@ export interface UserProfile {
   name: string;
   email: string;
   plan: 'free' | 'pro' | 'team' | 'enterprise';
+  role?: 'user' | 'admin' | 'superadmin';
+  status?: 'active' | 'suspended' | 'pending';
   avatar?: string;
+  bio?: string;
+  createdAt?: string;
 }
+
+type AuthPayload = {
+  user: unknown;
+  workspaceId?: string | null;
+  accessToken?: string;
+  refreshToken?: string;
+  tokens?: {
+    accessToken?: string;
+    refreshToken?: string;
+  };
+};
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -19,10 +34,12 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<any>;
   register: (name: string, email: string, password: string) => Promise<any>;
   socialLogin: (name: string, email: string, provider: 'google' | 'github') => Promise<void>;
+  completeOAuthLogin: (payload: string) => void;
   logout: () => void;
   apiFetch: (endpoint: string, options?: RequestInit) => Promise<any>;
   verifyCode: (email: string, code: string) => Promise<void>;
   resendCode: (email: string) => Promise<any>;
+  updateUserState: (user: UserProfile) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,32 +53,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
 
-  useEffect(() => {
-    // Check if tokens exist in local storage on mount
-    const checkAuth = async () => {
-      const storedUser = localStorage.getItem('user');
-      const storedWorkspace = localStorage.getItem('workspaceId');
-      const storedAccess = localStorage.getItem('accessToken');
-      const storedRefresh = localStorage.getItem('refreshToken');
+  const normalizeUser = (rawUser: any): UserProfile => {
+    if (!rawUser) {
+      throw new Error('Invalid user session payload');
+    }
 
-      if (storedUser && storedAccess && storedRefresh) {
-        setUser(JSON.parse(storedUser));
-        setWorkspaceId(storedWorkspace);
-        setAccessToken(storedAccess);
+    const rawId = rawUser.id || rawUser._id;
+    if (!rawId) {
+      throw new Error('Invalid user session id');
+    }
 
-        // Try to refresh token immediately to verify validity
-        try {
-          await refreshTokens(storedRefresh);
-        } catch (e) {
-          // If refresh fails, log out
-          clearAuth();
-        }
-      }
-      setLoading(false);
+    return {
+      id: String(rawId),
+      name: rawUser.name || rawUser.email?.split('@')[0] || 'DevVault User',
+      email: rawUser.email || '',
+      plan: rawUser.plan || 'free',
+      role: rawUser.role || 'user',
+      status: rawUser.status || 'active',
+      avatar: rawUser.avatar,
+      bio: rawUser.bio,
+      createdAt: rawUser.createdAt,
     };
+  };
 
-    checkAuth();
-  }, []);
+  const parseApiResponse = async (res: Response) => {
+    const text = await res.text();
+    if (!text) return {};
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { error: text };
+    }
+  };
 
   const clearAuth = () => {
     setUser(null);
@@ -73,6 +97,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('refreshToken');
   };
 
+  const persistSession = (payload: AuthPayload) => {
+    const sessionUser = normalizeUser(payload.user);
+    const sessionAccessToken = payload.accessToken || payload.tokens?.accessToken;
+    const sessionRefreshToken = payload.refreshToken || payload.tokens?.refreshToken;
+
+    if (!sessionAccessToken || !sessionRefreshToken) {
+      throw new Error('Incomplete authentication payload');
+    }
+
+    const sessionWorkspaceId = payload.workspaceId || null;
+
+    setUser(sessionUser);
+    setWorkspaceId(sessionWorkspaceId);
+    setAccessToken(sessionAccessToken);
+
+    localStorage.setItem('user', JSON.stringify(sessionUser));
+    localStorage.setItem('workspaceId', sessionWorkspaceId || '');
+    localStorage.setItem('accessToken', sessionAccessToken);
+    localStorage.setItem('refreshToken', sessionRefreshToken);
+
+    return sessionUser;
+  };
+
+  const redirectToLogin = (reason = 'session_expired') => {
+    clearAuth();
+    router.push(`/login?reason=${encodeURIComponent(reason)}`);
+  };
+
+  const raiseApiError = (data: any, status: number, fallback: string) => {
+    const error = new Error(data?.error || fallback) as Error & { status?: number };
+    error.status = status;
+    return error;
+  };
+
   const refreshTokens = async (refreshToken: string) => {
     const res = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
@@ -80,13 +138,104 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       body: JSON.stringify({ token: refreshToken }),
     });
 
-    if (!res.ok) throw new Error('Refresh failed');
-    const data = await res.json();
-    
-    setAccessToken(data.accessToken);
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
+    const data = await parseApiResponse(res);
+    if (!res.ok) throw raiseApiError(data, res.status, 'Refresh failed');
+
+    const nextAccessToken = data.accessToken;
+    const nextRefreshToken = data.refreshToken;
+    if (!nextAccessToken || !nextRefreshToken) {
+      throw new Error('Refresh response is missing tokens');
+    }
+
+    if (data.user) {
+      const sessionUser = normalizeUser(data.user);
+      setUser(sessionUser);
+      localStorage.setItem('user', JSON.stringify(sessionUser));
+    }
+
+    if (data.workspaceId !== undefined) {
+      setWorkspaceId(data.workspaceId || null);
+      localStorage.setItem('workspaceId', data.workspaceId || '');
+    }
+
+    setAccessToken(nextAccessToken);
+    localStorage.setItem('accessToken', nextAccessToken);
+    localStorage.setItem('refreshToken', nextRefreshToken);
+
+    return {
+      accessToken: nextAccessToken,
+      refreshToken: nextRefreshToken,
+    };
   };
+
+  const fetchProfile = async (token: string) => {
+    const res = await fetch(`${API_URL}/user/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const data = await parseApiResponse(res);
+    if (!res.ok) throw raiseApiError(data, res.status, 'Profile validation failed');
+    return data;
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkAuth = async () => {
+      const storedWorkspace = localStorage.getItem('workspaceId');
+      const storedAccess = localStorage.getItem('accessToken');
+      const storedRefresh = localStorage.getItem('refreshToken');
+
+      if (!storedAccess || !storedRefresh) {
+        clearAuth();
+        setLoading(false);
+        return;
+      }
+
+      try {
+        let validAccessToken = storedAccess;
+        let profilePayload: any;
+
+        try {
+          profilePayload = await fetchProfile(validAccessToken);
+        } catch (error: any) {
+          if (error.status !== 401) {
+            throw error;
+          }
+
+          const refreshed = await refreshTokens(storedRefresh);
+          validAccessToken = refreshed.accessToken;
+          profilePayload = await fetchProfile(validAccessToken);
+        }
+
+        if (cancelled) return;
+
+        const sessionUser = normalizeUser(profilePayload.user);
+        const sessionWorkspaceId =
+          profilePayload.workspaceId !== undefined ? profilePayload.workspaceId : storedWorkspace;
+
+        setUser(sessionUser);
+        setWorkspaceId(sessionWorkspaceId || null);
+        setAccessToken(validAccessToken);
+
+        localStorage.setItem('user', JSON.stringify(sessionUser));
+        localStorage.setItem('workspaceId', sessionWorkspaceId || '');
+        localStorage.setItem('accessToken', validAccessToken);
+      } catch (e) {
+        if (!cancelled) {
+          clearAuth();
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void checkAuth();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const login = async (email: string, password: string) => {
     const res = await fetch(`${API_URL}/auth/login`, {
@@ -103,14 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error(data.error || 'Login failed');
     }
 
-    setUser(data.user);
-    setWorkspaceId(data.workspaceId);
-    setAccessToken(data.accessToken);
-
-    localStorage.setItem('user', JSON.stringify(data.user));
-    localStorage.setItem('workspaceId', data.workspaceId || '');
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
+    persistSession(data);
 
     router.push('/dashboard');
     return data;
@@ -139,14 +281,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Verification failed');
 
-    setUser(data.user);
-    setWorkspaceId(data.workspaceId);
-    setAccessToken(data.accessToken);
-
-    localStorage.setItem('user', JSON.stringify(data.user));
-    localStorage.setItem('workspaceId', data.workspaceId || '');
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
+    persistSession(data);
 
     router.push('/dashboard');
   };
@@ -164,29 +299,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const socialLogin = async (name: string, email: string, provider: 'google' | 'github') => {
-    const res = await fetch(`${API_URL}/auth/oauth/stub`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        email,
-        provider,
-        providerId: `oauth_${provider}_${Date.now()}`,
-        avatar: provider === 'github' ? 'https://github.com/github.png' : 'https://lh3.googleusercontent.com/a/default-user',
-      }),
-    });
+    window.location.href = `${API_URL}/auth/oauth/${provider}/start`;
+  };
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'OAuth Login failed');
+  const completeOAuthLogin = (payload: string) => {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+    const data = JSON.parse(atob(padded));
 
-    setUser(data.user);
-    setWorkspaceId(data.workspaceId);
-    setAccessToken(data.accessToken);
-
-    localStorage.setItem('user', JSON.stringify(data.user));
-    localStorage.setItem('workspaceId', data.workspaceId || '');
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
+    persistSession(data);
 
     router.push('/dashboard');
   };
@@ -206,8 +327,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (storedAccess) token = storedAccess;
     }
 
-    const headers = {
-      'Content-Type': 'application/json',
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+    const headers: HeadersInit = {
+      ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     };
@@ -221,31 +343,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (res.status === 401) {
       const storedRefresh = localStorage.getItem('refreshToken');
       if (storedRefresh) {
+        let refreshed: { accessToken: string; refreshToken: string };
         try {
-          await refreshTokens(storedRefresh);
-          const newToken = localStorage.getItem('accessToken');
-          
-          // Retry original request with new token
-          const retryHeaders = {
-            ...headers,
-            'Authorization': `Bearer ${newToken}`,
-          };
-          const retryRes = await fetch(`${API_URL}${endpoint}`, {
-            ...options,
-            headers: retryHeaders,
-          });
-          return retryRes.json();
-        } catch (e) {
-          clearAuth();
-          router.push('/login');
+          refreshed = await refreshTokens(storedRefresh);
+        } catch (e: any) {
+          const reason = String(e?.message || '').toLowerCase().includes('suspended')
+            ? 'account_suspended'
+            : 'session_expired';
+          redirectToLogin(reason);
           throw new Error('Session expired');
         }
+
+        // Retry original request with new token
+        const retryHeaders = {
+          ...headers,
+          'Authorization': `Bearer ${refreshed.accessToken}`,
+        };
+        const retryRes = await fetch(`${API_URL}${endpoint}`, {
+          ...options,
+          headers: retryHeaders,
+        });
+        const retryData = await parseApiResponse(retryRes);
+        if (retryRes.status === 401) {
+          redirectToLogin('session_expired');
+          throw new Error('Session expired');
+        }
+        if (retryRes.status === 403 && String(retryData.error || '').toLowerCase().includes('suspended')) {
+          redirectToLogin('account_suspended');
+          throw new Error('Account suspended');
+        }
+        if (!retryRes.ok) throw new Error(retryData.error || 'Request failed');
+        return retryData;
+      } else {
+        redirectToLogin('session_expired');
+        throw new Error('Session expired');
       }
     }
 
-    const data = await res.json();
+    const data = await parseApiResponse(res);
+    if (res.status === 403 && String(data.error || '').toLowerCase().includes('suspended')) {
+      redirectToLogin('account_suspended');
+      throw new Error('Account suspended');
+    }
     if (!res.ok) throw new Error(data.error || 'Request failed');
     return data;
+  };
+
+  const updateUserState = (updatedUser: UserProfile) => {
+    const sessionUser = normalizeUser(updatedUser);
+    setUser(sessionUser);
+    localStorage.setItem('user', JSON.stringify(sessionUser));
   };
 
   return (
@@ -258,10 +405,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         register,
         socialLogin,
+        completeOAuthLogin,
         logout,
         apiFetch,
         verifyCode,
         resendCode,
+        updateUserState,
       }}
     >
       {children}

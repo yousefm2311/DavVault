@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { Workspace, User } from '../models';
+import { notificationService } from '../services/notification.service';
 
 export const getWorkspaceMembers = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -58,6 +59,23 @@ export const addWorkspaceMember = async (req: AuthenticatedRequest, res: Respons
     });
 
     await workspace.save();
+
+    await Promise.all([
+      notificationService.create({
+        userId: targetUser._id,
+        title: 'تمت إضافتك إلى مساحة عمل',
+        message: `تمت إضافتك إلى مساحة ${workspace.name} بدور ${role || 'member'}.`,
+        type: 'info',
+        link: '/team',
+      }),
+      notificationService.create({
+        userId: req.user.id,
+        title: 'تمت إضافة عضو جديد',
+        message: `تمت إضافة ${targetUser.name} إلى مساحة العمل بنجاح.`,
+        type: 'success',
+        link: '/team',
+      }),
+    ]);
 
     return res.status(200).json({
       message: 'Teammate added to workspace successfully.',

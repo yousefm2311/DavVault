@@ -99,8 +99,9 @@ const handleChat = async (req, res) => {
                 }
             }
             else if (c.sourceType === 'codeEntity') {
-                const file = await models_1.File.findOne({ projectId: c.projectId }, 'fileName path');
-                if (file) {
+                const entity = await models_1.CodeEntity.findOne({ _id: c.sourceId, projectId: c.projectId }).populate('fileId', 'fileName path');
+                const file = entity?.fileId;
+                if (entity && file) {
                     fileName = file.fileName;
                     pathStr = file.path;
                     contextChunks.push({
@@ -111,7 +112,7 @@ const handleChat = async (req, res) => {
                     citations.push({
                         fileName,
                         path: pathStr,
-                        code: c.content, // code of the class or function
+                        code: entity.code || c.content,
                         score: scored.score,
                     });
                 }

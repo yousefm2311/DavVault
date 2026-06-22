@@ -61,3 +61,20 @@ body {
 .hover-scale:hover {
   transform: scale(1.02);
 }
+
+/* Accent Color Theme Overrides */
+html.accent-purple {
+  --color-accent-blue: #BF5AF2;
+}
+
+html.accent-amber {
+  --color-accent-blue: #FFD60A;
+}
+
+html.accent-green {
+  --color-accent-blue: #30D158;
+}
+
+html.accent-blue {
+  --color-accent-blue: #0A84FF;
+}

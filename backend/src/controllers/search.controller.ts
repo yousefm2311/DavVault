@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { Embedding, File as DBFile, CodeEntity, Snippet, ErrorSolution, Project, ReusableSystem } from '../models';
+import { Activity, Embedding, File as DBFile, CodeEntity, Snippet, ErrorSolution, Project, ReusableSystem } from '../models';
 import { aiService } from '../services/ai.service';
 
 // Utility: Compute Cosine Similarity between two arrays of numbers
@@ -21,6 +21,8 @@ const calculateCosineSimilarity = (vecA: number[], vecB: number[]): number => {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 };
 
+const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 export const searchHybrid = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
@@ -34,7 +36,7 @@ export const searchHybrid = async (req: AuthenticatedRequest, res: Response) => 
     const limit = Number(req.body.limit) || 15;
 
     // 1. Keyword search (regex match content and titles)
-    const queryRegex = new RegExp(query, 'i');
+    const queryRegex = new RegExp(escapeRegex(query), 'i');
     
     // Project filter
     const projectFilter: any = projectId ? { projectId } : {};
@@ -70,6 +72,7 @@ export const searchHybrid = async (req: AuthenticatedRequest, res: Response) => 
         type: 'codeEntity',
         path: e.fileId?.path || '',
         projectId: e.projectId,
+        fileId: e.fileId?._id,
         content: e.code.substring(0, 300),
         score: 0.7,
         createdAt: e.createdAt
@@ -105,45 +108,86 @@ export const searchHybrid = async (req: AuthenticatedRequest, res: Response) => 
     // 2. Semantic vector search (generate query embedding and run local cosine similarity)
     const queryEmbedding = await aiService.generateEmbedding(query);
     
-    // Find candidate embeddings
+    // Find candidate embeddings using lean() for maximum performance and select only required fields
     const embeddingCandidates = await Embedding.find({
       userId,
       ...(projectId ? { projectId } : {})
-    });
+    })
+      .select('vector sourceType sourceId projectId content createdAt')
+      .limit(3000)
+      .lean();
+
+    // Precompute query vector norm once
+    const normA = Math.sqrt(queryEmbedding.reduce((sum, val) => sum + val * val, 0));
+
+    const scoredCandidates: any[] = [];
+
+    if (normA > 0) {
+      for (const candidate of embeddingCandidates) {
+        if (!candidate.vector || candidate.vector.length !== queryEmbedding.length) continue;
+        
+        let dotProduct = 0;
+        let normB = 0;
+        const vecB = candidate.vector;
+        const len = vecB.length;
+        
+        for (let i = 0; i < len; i++) {
+          dotProduct += queryEmbedding[i] * vecB[i];
+          normB += vecB[i] * vecB[i];
+        }
+        
+        if (normB === 0) continue;
+        const similarity = dotProduct / (normA * Math.sqrt(normB));
+        
+        // Filter out low similarity matches
+        if (similarity < 0.35) continue;
+
+        scoredCandidates.push({
+          candidate,
+          similarity
+        });
+      }
+    }
+
+    // Sort by similarity descending
+    scoredCandidates.sort((a, b) => b.similarity - a.similarity);
+
+    // Limit lookups to top (limit * 2) candidates to prevent blocking/timeouts
+    const topScoredCandidates = scoredCandidates.slice(0, limit * 2);
 
     const vectorResults: any[] = [];
-
-    for (const candidate of embeddingCandidates) {
-      const similarity = calculateCosineSimilarity(queryEmbedding, candidate.vector);
-      
-      // Filter out low similarity matches
-      if (similarity < 0.35) continue;
+    for (const item of topScoredCandidates) {
+      const candidate = item.candidate;
+      const similarity = item.similarity;
 
       let name = '';
       let pathStr = '';
-      let contentPreview = candidate.content.substring(0, 300);
+      let fileId;
+      let contentPreview = candidate.content ? candidate.content.substring(0, 300) : '';
 
       // Fetch name and details depending on source type
       if (candidate.sourceType === 'file') {
-        const file = await DBFile.findById(candidate.sourceId, 'fileName path');
+        const file = await DBFile.findById(candidate.sourceId, 'fileName path').lean();
         if (file) {
           name = file.fileName;
           pathStr = file.path;
+          fileId = file._id;
         }
       } else if (candidate.sourceType === 'codeEntity') {
-        const entity = await CodeEntity.findById(candidate.sourceId).populate('fileId');
+        const entity = await CodeEntity.findById(candidate.sourceId).populate('fileId').lean();
         if (entity) {
           name = `${entity.type}: ${entity.name}`;
           pathStr = (entity.fileId as any)?.path || '';
+          fileId = (entity.fileId as any)?._id;
         }
       } else if (candidate.sourceType === 'snippet') {
-        const snippet = await Snippet.findById(candidate.sourceId, 'title');
+        const snippet = await Snippet.findById(candidate.sourceId, 'title').lean();
         if (snippet) {
           name = snippet.title;
           pathStr = 'Snippet Library';
         }
       } else if (candidate.sourceType === 'errorSolution') {
-        const err = await ErrorSolution.findById(candidate.sourceId, 'title');
+        const err = await ErrorSolution.findById(candidate.sourceId, 'title').lean();
         if (err) {
           name = err.title;
           pathStr = 'Error Library';
@@ -157,6 +201,7 @@ export const searchHybrid = async (req: AuthenticatedRequest, res: Response) => 
           type: candidate.sourceType,
           path: pathStr,
           projectId: candidate.projectId,
+          fileId,
           content: contentPreview,
           score: similarity,
           createdAt: candidate.createdAt
@@ -208,12 +253,17 @@ export const getQuickStats = async (req: AuthenticatedRequest, res: Response) =>
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
 
-    const [projectsCount, filesCount, snippetsCount, errorsCount, reusableSystemsCount] = await Promise.all([
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const [projectsCount, filesCount, snippetsCount, errorsCount, reusableSystemsCount, aiQueriesCount] = await Promise.all([
       Project.countDocuments({ userId: req.user.id }),
       DBFile.countDocuments({ userId: req.user.id }),
       Snippet.countDocuments({ userId: req.user.id }),
       ErrorSolution.countDocuments({ userId: req.user.id }),
       ReusableSystem.countDocuments({ userId: req.user.id }),
+      Activity.countDocuments({ userId: req.user.id, action: 'ai_question', createdAt: { $gte: startOfMonth } }),
     ]);
 
     return res.status(200).json({
@@ -223,6 +273,7 @@ export const getQuickStats = async (req: AuthenticatedRequest, res: Response) =>
         snippetsCount,
         errorsCount,
         reusableSystemsCount,
+        aiQueriesCount,
       },
     });
   } catch (error: any) {

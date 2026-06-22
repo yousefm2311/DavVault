@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { User } from '../models';
 
 // Extend Express Request type to include user information
 export interface AuthenticatedRequest extends Request {
@@ -7,10 +8,12 @@ export interface AuthenticatedRequest extends Request {
     id: string;
     email: string;
     plan: 'free' | 'pro' | 'team' | 'enterprise';
+    role: 'user' | 'admin' | 'superadmin';
+    status: 'active' | 'suspended' | 'pending';
   };
 }
 
-export const authenticate = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authenticate = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Access denied. No token provided.' });
@@ -24,9 +27,24 @@ export const authenticate = (req: AuthenticatedRequest, res: Response, next: Nex
       id: string;
       email: string;
       plan: 'free' | 'pro' | 'team' | 'enterprise';
+      role?: 'user' | 'admin' | 'superadmin';
     };
 
-    req.user = decoded;
+    const user = await User.findById(decoded.id, 'email plan role status');
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid token user.' });
+    }
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Account suspended. Contact support.' });
+    }
+
+    req.user = {
+      id: user._id.toString(),
+      email: user.email,
+      plan: user.plan,
+      role: user.role || 'user',
+      status: user.status || 'active',
+    };
     next();
   } catch (error: any) {
     if (error.name === 'TokenExpiredError') {
@@ -34,6 +52,20 @@ export const authenticate = (req: AuthenticatedRequest, res: Response, next: Nex
     }
     return res.status(403).json({ error: 'Invalid token.' });
   }
+};
+
+export const isAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'superadmin')) {
+    return res.status(403).json({ error: 'Access denied. Administrator privileges required.' });
+  }
+  next();
+};
+
+export const isSuperAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  if (!req.user || req.user.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Access denied. Super administrator privileges required.' });
+  }
+  next();
 };
 
 export const requirePlan = (allowedPlans: ('free' | 'pro' | 'team' | 'enterprise')[]) => {

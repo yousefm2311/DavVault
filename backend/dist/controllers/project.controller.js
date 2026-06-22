@@ -114,7 +114,7 @@ const getProjectOverview = async (req, res) => {
             return res.status(404).json({ error: 'Project not found.' });
         const totalFiles = await models_1.File.countDocuments({ projectId: id });
         const totalEntities = await models_1.CodeEntity.countDocuments({ projectId: id });
-        const files = await models_1.File.find({ projectId: id }, 'fileName extension size');
+        const files = await models_1.File.find({ projectId: id, userId: req.user.id }, 'fileName extension size');
         const totalSize = files.reduce((acc, f) => acc + f.size, 0);
         return res.status(200).json({
             project,
@@ -174,7 +174,7 @@ const getProjectHealth = async (req, res) => {
         if (!project)
             return res.status(404).json({ error: 'Project not found.' });
         // Analyze file contents to identify actual code quality and structure issues
-        const files = await models_1.File.find({ projectId: id });
+        const files = await models_1.File.find({ projectId: id, userId: req.user.id });
         const problems = [];
         let emptyCatchCount = 0;
         let largeFileCount = 0;
@@ -222,32 +222,85 @@ const getProjectGraph = async (req, res) => {
         if (!req.user)
             return res.status(401).json({ error: 'Unauthorized.' });
         const { id } = req.params;
+        const project = await models_1.Project.findOne({ _id: id, userId: req.user.id });
+        if (!project)
+            return res.status(404).json({ error: 'Project not found.' });
         // Get files and code entities to make nodes/edges
-        const files = await models_1.File.find({ projectId: id }, 'fileName path language');
+        const files = await models_1.File.find({ projectId: id, userId: req.user.id }, 'fileName path language extension size summary content');
         const entities = await models_1.CodeEntity.find({ projectId: id }, 'name type fileId dependencies');
         // Make nodes
         const nodes = files.map((f, i) => ({
             id: f._id.toString(),
             type: 'fileNode',
-            data: { label: f.fileName, path: f.path, language: f.language },
+            data: {
+                label: f.fileName,
+                path: f.path,
+                language: f.language,
+                extension: f.extension,
+                size: f.size,
+                summary: f.summary,
+            },
             position: { x: 100 + (i % 4) * 250, y: 100 + Math.floor(i / 4) * 200 },
         }));
         // Add entities as subnodes or connect them
         const edges = [];
+        const edgeKeys = new Set();
+        const addEdge = (source, target, label) => {
+            if (source === target)
+                return;
+            const key = `${source}->${target}`;
+            if (edgeKeys.has(key))
+                return;
+            edgeKeys.add(key);
+            edges.push({
+                id: `edge_${source}_to_${target}`,
+                source,
+                target,
+                animated: true,
+                ...(label ? { label } : {}),
+            });
+        };
+        const normalizeImportTarget = (value) => value
+            .replace(/^@\/?/, '')
+            .replace(/^\.\//, '')
+            .replace(/^\.\.\//, '')
+            .replace(/\.(tsx|ts|jsx|js|mjs|cjs|json|css|scss|py|dart|java|go|rb|php)$/i, '')
+            .toLowerCase();
+        const resolveImport = (sourcePath, importPath) => {
+            const normalized = normalizeImportTarget(importPath);
+            const sourceDir = sourcePath.includes('/') ? sourcePath.split('/').slice(0, -1).join('/') : '';
+            const candidates = files.filter((file) => {
+                const fileWithoutExt = file.path.replace(/\.[^.]+$/, '').toLowerCase();
+                const fileNameWithoutExt = file.fileName.replace(/\.[^.]+$/, '').toLowerCase();
+                return (fileWithoutExt.endsWith(normalized) ||
+                    fileNameWithoutExt === normalized.split('/').pop() ||
+                    (sourceDir && fileWithoutExt.endsWith(`${sourceDir}/${normalized}`)));
+            });
+            return candidates[0];
+        };
         // Find imports or dependencies
         entities.forEach(entity => {
             entity.dependencies.forEach(depName => {
                 // Match dependency string with filenames
                 const matchedFile = files.find(f => f.fileName.toLowerCase().includes(depName.toLowerCase()) || depName.toLowerCase().includes(f.fileName.toLowerCase()));
                 if (matchedFile && matchedFile._id.toString() !== entity.fileId.toString()) {
-                    edges.push({
-                        id: `edge_${entity._id}_to_${matchedFile._id}`,
-                        source: entity.fileId.toString(),
-                        target: matchedFile._id.toString(),
-                        animated: true,
-                    });
+                    addEdge(entity.fileId.toString(), matchedFile._id.toString(), entity.type);
                 }
             });
+        });
+        const importRegex = /(?:import\s+(?:[^'"]+\s+from\s+)?|export\s+[^'"]+\s+from\s+|require\()\s*['"]([^'"]+)['"]/g;
+        files.forEach(file => {
+            const content = file.content || '';
+            let match;
+            while ((match = importRegex.exec(content)) !== null) {
+                const importPath = match[1];
+                if (!importPath.startsWith('.') && !importPath.startsWith('@/'))
+                    continue;
+                const target = resolveImport(file.path, importPath);
+                if (target) {
+                    addEdge(file._id.toString(), target._id.toString(), 'import');
+                }
+            }
         });
         return res.status(200).json({ nodes, edges });
     }

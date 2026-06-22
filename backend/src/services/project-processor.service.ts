@@ -5,6 +5,7 @@ import { Project, File as DBFile, CodeEntity, Embedding, Activity } from '../mod
 import { storageService } from './storage.service';
 import { parserService } from './parser.service';
 import { aiService } from './ai.service';
+import { notificationService } from './notification.service';
 import { scanForSecrets } from '../middleware/security';
 
 export interface ProcessingProgress {
@@ -207,13 +208,23 @@ class ProjectProcessorService {
 
       onProgress({ status: 'embedding', progress: 90, message: 'Finalizing database entries...' });
 
+      const project = await Project.findById(projectId, 'name');
+
       // Create upload activity log
       await Activity.create({
         userId,
         action: 'project_uploaded',
         entityType: 'project',
         entityId: projectId,
-        metadata: { projectName: filesToProcess.length > 0 ? 'Uploaded zip project' : 'Empty project' }
+        metadata: { projectName: project?.name || (filesToProcess.length > 0 ? 'Uploaded zip project' : 'Empty project') }
+      });
+
+      await notificationService.create({
+        userId,
+        title: 'تم تجهيز المشروع',
+        message: `اكتملت فهرسة مشروع ${project?.name || 'المشروع المرفوع'} وأصبح جاهزاً للبحث والمحادثة.`,
+        type: 'success',
+        link: `/projects/${projectId}`,
       });
 
       // Cleanup local temp directories
@@ -236,6 +247,13 @@ class ProjectProcessorService {
         fs.rmSync(zipFilePath, { force: true });
       }
       onProgress({ status: 'failed', progress: 100, message: `Processing failed: ${err.message}` });
+      await notificationService.create({
+        userId,
+        title: 'فشلت معالجة المشروع',
+        message: `تعذر فهرسة المشروع. السبب: ${err.message}`,
+        type: 'error',
+        link: `/projects/${projectId}`,
+      });
       throw err;
     }
   }

@@ -19,6 +19,7 @@ const calculateCosineSimilarity = (vecA, vecB) => {
         return 0;
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 };
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const searchHybrid = async (req, res) => {
     try {
         if (!req.user)
@@ -30,7 +31,7 @@ const searchHybrid = async (req, res) => {
         const userId = req.user.id;
         const limit = Number(req.body.limit) || 15;
         // 1. Keyword search (regex match content and titles)
-        const queryRegex = new RegExp(query, 'i');
+        const queryRegex = new RegExp(escapeRegex(query), 'i');
         // Project filter
         const projectFilter = projectId ? { projectId } : {};
         // Search DB models for keywords
@@ -61,6 +62,7 @@ const searchHybrid = async (req, res) => {
                 type: 'codeEntity',
                 path: e.fileId?.path || '',
                 projectId: e.projectId,
+                fileId: e.fileId?._id,
                 content: e.code.substring(0, 300),
                 score: 0.7,
                 createdAt: e.createdAt
@@ -92,44 +94,79 @@ const searchHybrid = async (req, res) => {
         });
         // 2. Semantic vector search (generate query embedding and run local cosine similarity)
         const queryEmbedding = await ai_service_1.aiService.generateEmbedding(query);
-        // Find candidate embeddings
+        // Find candidate embeddings using lean() for maximum performance and select only required fields
         const embeddingCandidates = await models_1.Embedding.find({
             userId,
             ...(projectId ? { projectId } : {})
-        });
+        })
+            .select('vector sourceType sourceId projectId content createdAt')
+            .limit(3000)
+            .lean();
+        // Precompute query vector norm once
+        const normA = Math.sqrt(queryEmbedding.reduce((sum, val) => sum + val * val, 0));
+        const scoredCandidates = [];
+        if (normA > 0) {
+            for (const candidate of embeddingCandidates) {
+                if (!candidate.vector || candidate.vector.length !== queryEmbedding.length)
+                    continue;
+                let dotProduct = 0;
+                let normB = 0;
+                const vecB = candidate.vector;
+                const len = vecB.length;
+                for (let i = 0; i < len; i++) {
+                    dotProduct += queryEmbedding[i] * vecB[i];
+                    normB += vecB[i] * vecB[i];
+                }
+                if (normB === 0)
+                    continue;
+                const similarity = dotProduct / (normA * Math.sqrt(normB));
+                // Filter out low similarity matches
+                if (similarity < 0.35)
+                    continue;
+                scoredCandidates.push({
+                    candidate,
+                    similarity
+                });
+            }
+        }
+        // Sort by similarity descending
+        scoredCandidates.sort((a, b) => b.similarity - a.similarity);
+        // Limit lookups to top (limit * 2) candidates to prevent blocking/timeouts
+        const topScoredCandidates = scoredCandidates.slice(0, limit * 2);
         const vectorResults = [];
-        for (const candidate of embeddingCandidates) {
-            const similarity = calculateCosineSimilarity(queryEmbedding, candidate.vector);
-            // Filter out low similarity matches
-            if (similarity < 0.35)
-                continue;
+        for (const item of topScoredCandidates) {
+            const candidate = item.candidate;
+            const similarity = item.similarity;
             let name = '';
             let pathStr = '';
-            let contentPreview = candidate.content.substring(0, 300);
+            let fileId;
+            let contentPreview = candidate.content ? candidate.content.substring(0, 300) : '';
             // Fetch name and details depending on source type
             if (candidate.sourceType === 'file') {
-                const file = await models_1.File.findById(candidate.sourceId, 'fileName path');
+                const file = await models_1.File.findById(candidate.sourceId, 'fileName path').lean();
                 if (file) {
                     name = file.fileName;
                     pathStr = file.path;
+                    fileId = file._id;
                 }
             }
             else if (candidate.sourceType === 'codeEntity') {
-                const entity = await models_1.CodeEntity.findById(candidate.sourceId).populate('fileId');
+                const entity = await models_1.CodeEntity.findById(candidate.sourceId).populate('fileId').lean();
                 if (entity) {
                     name = `${entity.type}: ${entity.name}`;
                     pathStr = entity.fileId?.path || '';
+                    fileId = entity.fileId?._id;
                 }
             }
             else if (candidate.sourceType === 'snippet') {
-                const snippet = await models_1.Snippet.findById(candidate.sourceId, 'title');
+                const snippet = await models_1.Snippet.findById(candidate.sourceId, 'title').lean();
                 if (snippet) {
                     name = snippet.title;
                     pathStr = 'Snippet Library';
                 }
             }
             else if (candidate.sourceType === 'errorSolution') {
-                const err = await models_1.ErrorSolution.findById(candidate.sourceId, 'title');
+                const err = await models_1.ErrorSolution.findById(candidate.sourceId, 'title').lean();
                 if (err) {
                     name = err.title;
                     pathStr = 'Error Library';
@@ -142,6 +179,7 @@ const searchHybrid = async (req, res) => {
                     type: candidate.sourceType,
                     path: pathStr,
                     projectId: candidate.projectId,
+                    fileId,
                     content: contentPreview,
                     score: similarity,
                     createdAt: candidate.createdAt
@@ -188,12 +226,16 @@ const getQuickStats = async (req, res) => {
     try {
         if (!req.user)
             return res.status(401).json({ error: 'Unauthorized.' });
-        const [projectsCount, filesCount, snippetsCount, errorsCount, reusableSystemsCount] = await Promise.all([
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const [projectsCount, filesCount, snippetsCount, errorsCount, reusableSystemsCount, aiQueriesCount] = await Promise.all([
             models_1.Project.countDocuments({ userId: req.user.id }),
             models_1.File.countDocuments({ userId: req.user.id }),
             models_1.Snippet.countDocuments({ userId: req.user.id }),
             models_1.ErrorSolution.countDocuments({ userId: req.user.id }),
             models_1.ReusableSystem.countDocuments({ userId: req.user.id }),
+            models_1.Activity.countDocuments({ userId: req.user.id, action: 'ai_question', createdAt: { $gte: startOfMonth } }),
         ]);
         return res.status(200).json({
             stats: {
@@ -202,6 +244,7 @@ const getQuickStats = async (req, res) => {
                 snippetsCount,
                 errorsCount,
                 reusableSystemsCount,
+                aiQueriesCount,
             },
         });
     }
