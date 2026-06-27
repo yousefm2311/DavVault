@@ -7,6 +7,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Sidebar } from '@/components/Sidebar';
 import { CommandPalette } from '@/components/CommandPalette';
 import { AppPageSkeleton } from '@/components/LoadingStates';
+import { AnimatedCounter } from '@/components/AnimatedCounter';
 import Editor from '@monaco-editor/react';
 import ReactFlow, { Background, Controls, MiniMap, Node, Edge, Handle, Position } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -29,7 +30,9 @@ import {
   Database,
   Code2,
   ShieldCheck,
-  Maximize2
+  Maximize2,
+  Trash2,
+  Download
 } from 'lucide-react';
 
 interface FileNode {
@@ -123,17 +126,17 @@ const CustomFileNode = ({ data }: any) => {
   );
 };
 
-const nodeTypes = {
-  fileNode: CustomFileNode,
-};
-
 function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const { id } = params;
-  const { user, loading, apiFetch } = useAuth();
+  const { user, loading, apiFetch, accessToken } = useAuth();
   const { t, dir } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const nodeTypes = useMemo(() => ({
+    fileNode: CustomFileNode,
+  }), []);
 
   // Selected tab
   const [activeTab, setActiveTab] = useState<'overview' | 'files' | 'chat' | 'graph' | 'replay'>('overview');
@@ -201,14 +204,15 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
 
   const loadProjectDetails = async () => {
     try {
-      const [overviewData, filesData, graphData, replayData] = await Promise.all([
+      const [overviewData, filesData, graphData, replayData, healthData] = await Promise.all([
         apiFetch(`/projects/${id}/overview`),
         apiFetch(`/projects/${id}/files`),
         apiFetch(`/projects/${id}/graph`),
         apiFetch(`/ai-extensions/projects/${id}/replay`),
+        apiFetch(`/projects/${id}/health`),
       ]);
 
-      setProject(overviewData.project);
+      setProject({ ...overviewData.project, healthScore: healthData.healthScore });
       setStats(overviewData.stats);
       setFiles(filesData.files || []);
       setReplayTimeline(replayData.timeline || []);
@@ -320,6 +324,46 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
     }
   };
 
+  const handleDeleteProject = async () => {
+    if (!confirm(t('confirmDeleteProject'))) {
+      return;
+    }
+    try {
+      await apiFetch(`/projects/${id}`, { method: 'DELETE' });
+      router.push('/projects');
+    } catch (err) {
+      console.error('[ProjectDetail]: Delete failed:', err);
+    }
+  };
+
+  const handleDownloadZip = async () => {
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+      const res = await fetch(`${apiBase}/projects/${id}/download`, {
+        credentials: 'include',
+        headers: {
+          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
+        }
+      });
+      if (!res.ok) {
+        alert('Failed to download project files');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${project.name || 'project'}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Failed to download project zip');
+    }
+  };
+
   const handleCopyCode = () => {
     if (!selectedFileContent) return;
     navigator.clipboard.writeText(selectedFileContent);
@@ -425,15 +469,29 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
               <Heart className="w-4 h-4 text-danger animate-pulse" />
               <div className="flex flex-col">
                 <span className="text-[9px] uppercase tracking-wider font-semibold opacity-80">{t('healthScore')}</span>
-                <span className="text-xs font-bold font-mono">{project.healthScore}%</span>
+                <span className="text-xs font-bold font-mono"><AnimatedCounter value={project.healthScore || 0} />%</span>
               </div>
             </div>
             <button
+              onClick={handleDownloadZip}
+              className="inline-flex items-center gap-2 rounded-2xl border border-card-border bg-card-bg/50 px-4 py-3 text-xs font-semibold text-accent-blue transition hover:bg-accent-blue/10 hover:text-white cursor-pointer"
+            >
+              <Download className="h-4 w-4" />
+              {t('downloadZip')}
+            </button>
+            <button
               onClick={loadProjectDetails}
-              className="inline-flex items-center gap-2 rounded-2xl border border-card-border bg-card-bg/50 px-4 py-3 text-xs font-semibold text-text-secondary transition hover:bg-white/10 hover:text-white"
+              className="inline-flex items-center gap-2 rounded-2xl border border-card-border bg-card-bg/50 px-4 py-3 text-xs font-semibold text-text-secondary transition hover:bg-white/10 hover:text-white cursor-pointer"
             >
               <RefreshCw className="h-4 w-4" />
               {isRtl ? 'تحديث' : 'Refresh'}
+            </button>
+            <button
+              onClick={handleDeleteProject}
+              className="inline-flex items-center gap-2 rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-xs font-semibold text-danger transition hover:bg-danger/25 cursor-pointer"
+            >
+              <Trash2 className="h-4 w-4" />
+              {t('deleteProjectBtn')}
             </button>
           </div>
         </div>
@@ -455,8 +513,8 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
                 graph: t('graph'),
                 replay: t('replay'),
               }[tab]}
-              {tab === 'files' && <span className="ml-1 opacity-70">({files.length})</span>}
-              {tab === 'graph' && <span className="ml-1 opacity-70">({graphEdges.length})</span>}
+              {tab === 'files' && <span className="ml-1 opacity-70">(<AnimatedCounter value={files.length} />)</span>}
+              {tab === 'graph' && <span className="ml-1 opacity-70">(<AnimatedCounter value={graphEdges.length} />)</span>}
             </button>
           ))}
         </div>
@@ -468,10 +526,10 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
             <div className="h-full overflow-y-auto space-y-6 animate-fade-in pr-2 select-text">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                 {[
-                  { label: t('totalFiles'), value: stats?.totalFiles || files.length, icon: FileCode, tone: 'text-accent-blue' },
-                  { label: t('indexedClassesRoutes'), value: stats?.totalEntities || 0, icon: Code2, tone: 'text-success' },
+                  { label: t('totalFiles'), value: <AnimatedCounter value={stats?.totalFiles || files.length} />, icon: FileCode, tone: 'text-accent-blue' },
+                  { label: t('indexedClassesRoutes'), value: <AnimatedCounter value={stats?.totalEntities || 0} />, icon: Code2, tone: 'text-success' },
                   { label: isRtl ? 'حجم المشروع' : 'Project Size', value: formatBytes(stats?.totalSize || fileStats.totalSize), icon: Database, tone: 'text-warning' },
-                  { label: isRtl ? 'العلاقات' : 'Relations', value: graphEdges.length, icon: GitBranch, tone: 'text-accent-blue' },
+                  { label: isRtl ? 'العلاقات' : 'Relations', value: <AnimatedCounter value={graphEdges.length} />, icon: GitBranch, tone: 'text-accent-blue' },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
@@ -506,11 +564,11 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-text-secondary">{t('totalFiles')}</span>
-                      <span className="font-semibold text-white font-mono">{stats?.totalFiles}</span>
+                      <span className="font-semibold text-white font-mono"><AnimatedCounter value={stats?.totalFiles || 0} /></span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-text-secondary">{t('indexedClassesRoutes')}</span>
-                      <span className="font-semibold text-white font-mono">{stats?.totalEntities}</span>
+                      <span className="font-semibold text-white font-mono"><AnimatedCounter value={stats?.totalEntities || 0} /></span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-text-secondary">{t('projectSize')}</span>
@@ -787,8 +845,16 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
                 </div>
                 <span>{t('graphNodesDesc')}</span>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-accent-blue/10 px-2 py-1 text-accent-blue">{t('nodesCount', { count: graphNodes.length })}</span>
-                  <span className="rounded-full bg-success/10 px-2 py-1 text-success">{t('edgesCount', { count: graphEdges.length })}</span>
+                  <span className="rounded-full bg-accent-blue/10 px-2 py-1 text-accent-blue">
+                    {t('nodesCount', { count: 'COUNT' }).split('COUNT').map((part, idx) => (
+                      idx === 0 ? <React.Fragment key={idx}>{part}<AnimatedCounter value={graphNodes.length} /></React.Fragment> : part
+                    ))}
+                  </span>
+                  <span className="rounded-full bg-success/10 px-2 py-1 text-success">
+                    {t('edgesCount', { count: 'COUNT' }).split('COUNT').map((part, idx) => (
+                      idx === 0 ? <React.Fragment key={idx}>{part}<AnimatedCounter value={graphEdges.length} /></React.Fragment> : part
+                    ))}
+                  </span>
                   <span className="rounded-full bg-white/5 px-2 py-1 text-text-secondary">{isRtl ? 'اضغط على ملف لعرض التفاصيل' : 'Click a file for details'}</span>
                 </div>
               </div>

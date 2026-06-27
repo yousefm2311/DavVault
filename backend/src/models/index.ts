@@ -12,3 +12,5 @@ export * from './Activity';
 export * from './Subscription';
 export * from './Notification';
 export * from './AdminSetting';
+export * from './AiAgent';
+

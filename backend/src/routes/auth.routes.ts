@@ -3,14 +3,15 @@ import {
   register,
   login,
   refresh,
-  socialLoginStub,
   logout,
   verifyCode,
   resendCode,
   startOAuth,
   oauthCallback,
+  requestPasswordReset,
+  resetPassword,
 } from '../controllers/auth.controller';
-import { validateBody, validateEmail } from '../middleware/validation';
+import { validateBody, validateEmail, validatePassword } from '../middleware/validation';
 import { authLimiter } from '../middleware/security';
 
 const router = Router();
@@ -21,6 +22,7 @@ router.post(
   authLimiter,
   validateBody(['name', 'email', 'password']),
   validateEmail,
+  validatePassword,
   register
 );
 
@@ -50,16 +52,17 @@ router.post(
 
 router.post('/refresh', refresh);
 router.post('/logout', logout);
+router.post('/forgot-password', authLimiter, validateBody(['email']), validateEmail, requestPasswordReset);
+router.post(
+  '/reset-password',
+  authLimiter,
+  validateBody(['email', 'token', 'password']),
+  validateEmail,
+  validatePassword,
+  resetPassword
+);
 
 router.get('/oauth/:provider/start', authLimiter, startOAuth);
 router.get('/oauth/:provider/callback', oauthCallback);
-
-// Google/GitHub OAuth stubs
-router.post(
-  '/oauth/stub',
-  authLimiter,
-  validateBody(['name', 'email', 'provider']),
-  socialLoginStub
-);
 
 export default router;

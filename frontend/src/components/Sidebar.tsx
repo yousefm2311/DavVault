@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -37,9 +37,21 @@ interface SidebarItem {
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, apiFetch } = useAuth();
   const { toggleSearch } = useCommand();
   const { t, dir, language, toggleLanguage } = useLanguage();
+  const [storagePercent, setStoragePercent] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    void apiFetch('/subscription')
+      .then((data) => {
+        const used = Number(data.usage?.storageBytes || 0);
+        const limit = Number(data.limits?.storageBytes || 1);
+        setStoragePercent(Math.min(100, Math.round((used / limit) * 100)));
+      })
+      .catch(() => setStoragePercent(0));
+  }, [user]);
 
   const menuItems: SidebarItem[] = [
     { nameKey: 'dashboard', mobileNameKey: 'dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -129,10 +141,10 @@ export const Sidebar: React.FC = () => {
         <div className="space-y-2 px-1">
           <div className="flex justify-between text-[10px] font-semibold uppercase tracking-wider text-text-secondary">
             <span>{t('cloudStorage')}</span>
-            <span>{user?.plan === 'free' ? '12%' : '84%'}</span>
+            <span>{storagePercent}%</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full rounded-full bg-[#9DBDFF]" style={{ width: user?.plan === 'free' ? '12%' : '84%' }} />
+            <div className="h-full rounded-full bg-[#9DBDFF]" style={{ width: `${storagePercent}%` }} />
           </div>
         </div>
         {user && (

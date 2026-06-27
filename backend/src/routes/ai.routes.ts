@@ -1,7 +1,17 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { checkPlanLimits } from '../middleware/limits';
-import { handleChat, explainCodeFile, getSessions, getSessionById } from '../controllers/ai.controller';
+import {
+  handleChat,
+  explainCodeFile,
+  getSessions,
+  getSessionById,
+  deleteSession,
+  simulateTeamDiscussion,
+  getAgents,
+  createAgent,
+  deleteAgent
+} from '../controllers/ai.controller';
 import { validateBody } from '../middleware/validation';
 import { apiLimiter } from '../middleware/security';
 
@@ -11,5 +21,13 @@ router.post('/chat', authenticate, checkPlanLimits('aiQuestions'), apiLimiter, v
 router.post('/explain-code', authenticate, checkPlanLimits('aiQuestions'), apiLimiter, validateBody(['code', 'fileName']), explainCodeFile);
 router.get('/sessions', authenticate, getSessions);
 router.get('/sessions/:id', authenticate, getSessionById);
+router.delete('/sessions/:id', authenticate, deleteSession);
+router.post('/team-simulation', authenticate, apiLimiter, validateBody(['projectId', 'task']), simulateTeamDiscussion);
+
+// AI Agent Management Routes
+router.get('/agents', authenticate, getAgents);
+router.post('/agents', authenticate, apiLimiter, validateBody(['name', 'role', 'focus', 'systemPrompt']), createAgent);
+router.delete('/agents/:id', authenticate, deleteAgent);
 
 export default router;
+

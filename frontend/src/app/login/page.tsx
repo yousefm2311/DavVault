@@ -20,7 +20,6 @@ export default function LoginPage() {
   // Verification states
   const [requiresVerification, setRequiresVerification] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
-  const [devCode, setDevCode] = useState('');
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,9 +45,6 @@ export default function LoginPage() {
       const data = await login(email, password);
       if (data && data.requiresVerification) {
         setRequiresVerification(true);
-        if (data.devCode) {
-          setDevCode(data.devCode);
-        }
       }
     } catch (err: any) {
       setError(err.message || t('errorLogin'));
@@ -78,9 +74,6 @@ export default function LoginPage() {
     try {
       const data = await resendCode(email);
       setResendMessage(t('codeResentSuccess'));
-      if (data.devCode) {
-        setDevCode(data.devCode);
-      }
     } catch (err: any) {
       setError(err.message || t('errorVerification'));
     } finally {
@@ -145,12 +138,6 @@ export default function LoginPage() {
                 required
               />
             </div>
-
-            {devCode && (
-              <div className="p-3 bg-white/5 border border-card-border rounded-2xl text-[10px] text-center font-mono">
-                {t('devCodeLabel')}: <span className="text-accent-blue font-bold">{devCode}</span>
-              </div>
-            )}
 
             <button
               type="submit"
@@ -229,6 +216,12 @@ export default function LoginPage() {
               className={`w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 ${isRtl ? 'pr-11 pl-4' : 'pl-11 pr-4'} text-sm text-white placeholder-text-secondary outline-none focus:border-accent-blue/50 transition-colors`}
               required
             />
+          </div>
+
+          <div className="text-end">
+            <Link href="/forgot-password" className="text-xs text-accent-blue hover:underline">
+              {isRtl ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+            </Link>
           </div>
 
           <div className="relative">

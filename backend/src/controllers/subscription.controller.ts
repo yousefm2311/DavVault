@@ -121,27 +121,6 @@ export const getSubscription = async (req: AuthenticatedRequest, res: Response) 
   }
 };
 
-export const upgradeSubscription = async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
-    const userId = req.user.id;
-    const { plan } = req.body;
-
-    if (!['free', 'pro', 'team'].includes(plan)) {
-      return res.status(400).json({ error: 'Invalid plan selected. Choose: free, pro, or team.' });
-    }
-
-    const subscription = await syncSubscriptionPlan({ userId, plan });
-
-    return res.status(200).json({
-      message: `Successfully updated subscription to ${plan.toUpperCase()}`,
-      subscription
-    });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
-  }
-};
-
 export const createCheckoutSession = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
@@ -191,6 +170,36 @@ export const createCheckoutSession = async (req: AuthenticatedRequest, res: Resp
     return res.status(200).json({ checkoutUrl: data.url, sessionId: data.id });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
+  }
+};
+
+export const createBillingPortalSession = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
+    const stripeSecret = process.env.STRIPE_SECRET_KEY;
+    const subscription = await Subscription.findOne({ userId: req.user.id });
+    if (!stripeSecret || !subscription?.stripeCustomerId) {
+      return res.status(400).json({ error: 'No Stripe billing account is available for this user.' });
+    }
+
+    const response = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${stripeSecret}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        customer: subscription.stripeCustomerId,
+        return_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/billing`,
+      }),
+    });
+    const data: any = await response.json();
+    if (!response.ok) {
+      return res.status(502).json({ error: data.error?.message || 'Stripe billing portal failed.' });
+    }
+    return res.status(200).json({ portalUrl: data.url });
+  } catch {
+    return res.status(500).json({ error: 'Unable to open the billing portal.' });
   }
 };
 

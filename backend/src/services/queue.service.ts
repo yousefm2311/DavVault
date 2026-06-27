@@ -2,6 +2,7 @@ import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import { projectProcessorService } from './project-processor.service';
 import { Server } from 'socket.io';
+import { Project } from '../models';
 
 export interface JobData {
   projectId: string;
@@ -170,6 +171,11 @@ class QueueService {
   }
 
   private broadcastProgress(projectId: string, progress: any) {
+    void Project.findByIdAndUpdate(projectId, {
+      processingStatus: progress.status,
+      processingProgress: progress.progress,
+      processingMessage: progress.message,
+    });
     if (this.io) {
       // Emit to room specific to project
       this.io.to(`project_${projectId}`).emit('processing_progress', progress);

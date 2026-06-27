@@ -7,6 +7,8 @@ import { Sidebar } from '@/components/Sidebar';
 import { CommandPalette } from '@/components/CommandPalette';
 import { AppPageSkeleton, SectionSkeleton } from '@/components/LoadingStates';
 import { useLanguage } from '@/context/LanguageContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatedCounter } from '@/components/AnimatedCounter';
 import {
   Activity,
   AlertTriangle,
@@ -203,7 +205,12 @@ export default function TimeMachinePage() {
     <div className="flex min-h-screen bg-bg-primary text-white select-none" dir={dir}>
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto px-5 py-6 pb-28 lg:px-10 lg:py-10">
+      <motion.main
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="flex-1 overflow-y-auto px-5 py-6 pb-28 lg:px-10 lg:py-10"
+      >
         <div className="mx-auto max-w-7xl">
           <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -239,7 +246,20 @@ export default function TimeMachinePage() {
             </div>
           </div>
 
-          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
+          <motion.div
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.1
+                }
+              }
+            }}
+            initial="hidden"
+            animate="show"
+            className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4"
+          >
             {[
               { label: language === 'ar' ? 'إجمالي الأحداث' : 'Total Events', value: summary.total, icon: Activity, tone: 'text-accent-blue' },
               { label: language === 'ar' ? 'أيام نشطة' : 'Active Days', value: Object.keys(summary.byDay).length, icon: Calendar, tone: 'text-success' },
@@ -248,14 +268,23 @@ export default function TimeMachinePage() {
             ].map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.label} className="rounded-[24px] border border-card-border bg-card-bg/40 p-5 glass">
+                <motion.div
+                  key={item.label}
+                  variants={{
+                    hidden: { opacity: 0, y: 15 },
+                    show: { opacity: 1, y: 0 }
+                  }}
+                  className="rounded-[24px] border border-card-border bg-card-bg/40 p-5 glass"
+                >
                   <Icon className={`mb-5 h-5 w-5 ${item.tone}`} />
-                  <p className="text-2xl font-bold text-white">{item.value}</p>
+                  <p className="text-2xl font-bold text-white select-all">
+                    <AnimatedCounter value={item.value} />
+                  </p>
                   <p className="mt-1 text-[11px] text-text-secondary">{item.label}</p>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
 
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[280px_minmax(0,1fr)_340px]">
             <aside className="space-y-6">
@@ -590,7 +619,7 @@ export default function TimeMachinePage() {
             </aside>
           </div>
         </div>
-      </main>
+      </motion.main>
 
       <CommandPalette />
     </div>

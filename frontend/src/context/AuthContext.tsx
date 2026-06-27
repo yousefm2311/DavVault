@@ -19,10 +19,8 @@ type AuthPayload = {
   user: unknown;
   workspaceId?: string | null;
   accessToken?: string;
-  refreshToken?: string;
   tokens?: {
     accessToken?: string;
-    refreshToken?: string;
   };
 };
 
@@ -34,8 +32,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<any>;
   register: (name: string, email: string, password: string) => Promise<any>;
   socialLogin: (name: string, email: string, provider: 'google' | 'github') => Promise<void>;
-  completeOAuthLogin: (payload: string) => void;
-  logout: () => void;
+  completeOAuthLogin: () => Promise<void>;
+  logout: () => Promise<void>;
   apiFetch: (endpoint: string, options?: RequestInit) => Promise<any>;
   verifyCode: (email: string, code: string) => Promise<void>;
   resendCode: (email: string) => Promise<any>;
@@ -93,16 +91,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAccessToken(null);
     localStorage.removeItem('user');
     localStorage.removeItem('workspaceId');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
   };
 
   const persistSession = (payload: AuthPayload) => {
     const sessionUser = normalizeUser(payload.user);
     const sessionAccessToken = payload.accessToken || payload.tokens?.accessToken;
-    const sessionRefreshToken = payload.refreshToken || payload.tokens?.refreshToken;
 
-    if (!sessionAccessToken || !sessionRefreshToken) {
+    if (!sessionAccessToken) {
       throw new Error('Incomplete authentication payload');
     }
 
@@ -114,9 +109,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     localStorage.setItem('user', JSON.stringify(sessionUser));
     localStorage.setItem('workspaceId', sessionWorkspaceId || '');
-    localStorage.setItem('accessToken', sessionAccessToken);
-    localStorage.setItem('refreshToken', sessionRefreshToken);
-
     return sessionUser;
   };
 
@@ -131,19 +123,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return error;
   };
 
-  const refreshTokens = async (refreshToken: string) => {
+  const refreshTokens = async () => {
     const res = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: refreshToken }),
     });
 
     const data = await parseApiResponse(res);
     if (!res.ok) throw raiseApiError(data, res.status, 'Refresh failed');
 
     const nextAccessToken = data.accessToken;
-    const nextRefreshToken = data.refreshToken;
-    if (!nextAccessToken || !nextRefreshToken) {
+    if (!nextAccessToken) {
       throw new Error('Refresh response is missing tokens');
     }
 
@@ -159,17 +150,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setAccessToken(nextAccessToken);
-    localStorage.setItem('accessToken', nextAccessToken);
-    localStorage.setItem('refreshToken', nextRefreshToken);
-
-    return {
-      accessToken: nextAccessToken,
-      refreshToken: nextRefreshToken,
-    };
+    return { accessToken: nextAccessToken };
   };
 
   const fetchProfile = async (token: string) => {
     const res = await fetch(`${API_URL}/user/profile`, {
+      credentials: 'include',
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -183,30 +169,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const checkAuth = async () => {
       const storedWorkspace = localStorage.getItem('workspaceId');
-      const storedAccess = localStorage.getItem('accessToken');
-      const storedRefresh = localStorage.getItem('refreshToken');
-
-      if (!storedAccess || !storedRefresh) {
-        clearAuth();
-        setLoading(false);
-        return;
-      }
-
       try {
-        let validAccessToken = storedAccess;
-        let profilePayload: any;
-
-        try {
-          profilePayload = await fetchProfile(validAccessToken);
-        } catch (error: any) {
-          if (error.status !== 401) {
-            throw error;
-          }
-
-          const refreshed = await refreshTokens(storedRefresh);
-          validAccessToken = refreshed.accessToken;
-          profilePayload = await fetchProfile(validAccessToken);
-        }
+        const refreshed = await refreshTokens();
+        const validAccessToken = refreshed.accessToken;
+        const profilePayload = await fetchProfile(validAccessToken);
 
         if (cancelled) return;
 
@@ -220,7 +186,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         localStorage.setItem('user', JSON.stringify(sessionUser));
         localStorage.setItem('workspaceId', sessionWorkspaceId || '');
-        localStorage.setItem('accessToken', validAccessToken);
       } catch (e) {
         if (!cancelled) {
           clearAuth();
@@ -240,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     const res = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
@@ -261,6 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (name: string, email: string, password: string) => {
     const res = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password }),
     });
@@ -274,6 +241,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyCode = async (email: string, code: string) => {
     const res = await fetch(`${API_URL}/auth/verify`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, code }),
     });
@@ -289,6 +257,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resendCode = async (email: string) => {
     const res = await fetch(`${API_URL}/auth/resend-verification`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     });
@@ -302,18 +271,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.location.href = `${API_URL}/auth/oauth/${provider}/start`;
   };
 
-  const completeOAuthLogin = (payload: string) => {
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
-    const data = JSON.parse(atob(padded));
-
-    persistSession(data);
-
+  const completeOAuthLogin = async () => {
+    const data = await refreshTokens();
+    const profile = await fetchProfile(data.accessToken);
+    persistSession({ ...profile, accessToken: data.accessToken });
     router.push('/dashboard');
   };
 
-  const logout = () => {
-    clearAuth();
+  const logout = async () => {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } finally {
+      clearAuth();
+    }
     router.push('/login');
   };
 
@@ -323,8 +296,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Check if token exists
     if (!token) {
-      const storedAccess = localStorage.getItem('accessToken');
-      if (storedAccess) token = storedAccess;
+      token = accessToken;
     }
 
     const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
@@ -336,48 +308,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const res = await fetch(`${API_URL}${endpoint}`, {
       ...options,
+      credentials: 'include',
       headers,
     });
 
     // Handle token expiration and attempt auto-refresh
     if (res.status === 401) {
-      const storedRefresh = localStorage.getItem('refreshToken');
-      if (storedRefresh) {
-        let refreshed: { accessToken: string; refreshToken: string };
-        try {
-          refreshed = await refreshTokens(storedRefresh);
-        } catch (e: any) {
-          const reason = String(e?.message || '').toLowerCase().includes('suspended')
-            ? 'account_suspended'
-            : 'session_expired';
-          redirectToLogin(reason);
-          throw new Error('Session expired');
-        }
+      let refreshed: { accessToken: string };
+      try {
+        refreshed = await refreshTokens();
+      } catch (e: any) {
+        const reason = String(e?.message || '').toLowerCase().includes('suspended')
+          ? 'account_suspended'
+          : 'session_expired';
+        redirectToLogin(reason);
+        throw new Error('Session expired');
+      }
 
-        // Retry original request with new token
-        const retryHeaders = {
-          ...headers,
-          'Authorization': `Bearer ${refreshed.accessToken}`,
-        };
-        const retryRes = await fetch(`${API_URL}${endpoint}`, {
-          ...options,
-          headers: retryHeaders,
-        });
-        const retryData = await parseApiResponse(retryRes);
-        if (retryRes.status === 401) {
-          redirectToLogin('session_expired');
-          throw new Error('Session expired');
-        }
-        if (retryRes.status === 403 && String(retryData.error || '').toLowerCase().includes('suspended')) {
-          redirectToLogin('account_suspended');
-          throw new Error('Account suspended');
-        }
-        if (!retryRes.ok) throw new Error(retryData.error || 'Request failed');
-        return retryData;
-      } else {
+      const retryHeaders = {
+        ...headers,
+        'Authorization': `Bearer ${refreshed.accessToken}`,
+      };
+      const retryRes = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        credentials: 'include',
+        headers: retryHeaders,
+      });
+      const retryData = await parseApiResponse(retryRes);
+      if (retryRes.status === 401) {
         redirectToLogin('session_expired');
         throw new Error('Session expired');
       }
+      if (retryRes.status === 403 && String(retryData.error || '').toLowerCase().includes('suspended')) {
+        redirectToLogin('account_suspended');
+        throw new Error('Account suspended');
+      }
+      if (!retryRes.ok) throw new Error(retryData.error || 'Request failed');
+      return retryData;
     }
 
     const data = await parseApiResponse(res);

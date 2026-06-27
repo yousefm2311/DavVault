@@ -7,6 +7,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Sidebar } from '@/components/Sidebar';
 import { CommandPalette } from '@/components/CommandPalette';
 import { AppPageSkeleton, SectionSkeleton } from '@/components/LoadingStates';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bug,
   Plus,
@@ -143,7 +144,12 @@ function ErrorsPageContent() {
     <div className="flex min-h-screen bg-bg-primary text-white select-none" dir={dir}>
       <Sidebar />
 
-      <main className="flex-1 p-10 overflow-y-auto max-w-5xl mx-auto flex flex-col">
+      <motion.main
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="flex-1 p-10 overflow-y-auto max-w-5xl mx-auto flex flex-col"
+      >
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">{t('errorsLibrary')}</h2>
@@ -159,8 +165,15 @@ function ErrorsPageContent() {
         </div>
 
         {/* Log Exception Form Panel */}
-        {showAddForm && (
-          <div className="mb-8 bg-card-bg/60 border border-card-border p-6 rounded-[28px] glass">
+        <AnimatePresence>
+          {showAddForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-8 bg-card-bg/60 border border-card-border p-6 rounded-[28px] glass overflow-hidden"
+            >
             <h3 className="font-bold text-sm mb-4">{t('logSolvedError')}</h3>
             <form onSubmit={handleAddSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -278,8 +291,9 @@ function ErrorsPageContent() {
                 </button>
               </div>
             </form>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {/* Filter Input */}
         <div className="mb-6 relative max-w-sm">
@@ -294,16 +308,33 @@ function ErrorsPageContent() {
         </div>
 
         {/* Layout split */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 items-start animate-fade-in">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {/* Left: list cards */}
           <div className="md:col-span-2 space-y-4">
             {loadingErrors ? (
               <SectionSkeleton rows={4} />
             ) : filteredErrors.length > 0 ? (
-              <div className="space-y-3">
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: {
+                      staggerChildren: 0.08
+                    }
+                  }
+                }}
+                initial="hidden"
+                animate="show"
+                className="space-y-3"
+              >
                 {filteredErrors.map((err) => (
-                  <div
+                  <motion.div
                     key={err._id}
+                    variants={{
+                      hidden: { opacity: 0, y: 12 },
+                      show: { opacity: 1, y: 0 }
+                    }}
                     onClick={() => setSelectedError(err)}
                     className={`p-5 rounded-[24px] border transition-all duration-150 cursor-pointer flex items-center justify-between hover:bg-white/5 ${
                       selectedError?._id === err._id
@@ -346,9 +377,9 @@ function ErrorsPageContent() {
                       </button>
                       <ChevronRight className={`w-4 h-4 text-text-secondary ${isRtl ? 'rotate-180' : ''}`} />
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ) : (
               <div className="py-20 text-center text-xs text-text-secondary flex flex-col items-center justify-center space-y-4 bg-card-bg/25 border border-card-border rounded-[28px]">
                 <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center">
@@ -360,9 +391,17 @@ function ErrorsPageContent() {
           </div>
 
           {/* Right: Drawer Details with before/after diff code checks */}
-          <div className="bg-card-bg/40 border border-card-border p-6 rounded-[28px] glass flex flex-col min-h-[400px]">
-            {selectedError ? (
-              <div className="space-y-5 flex-1 flex flex-col justify-between">
+          <div className="bg-card-bg/40 border border-card-border p-6 rounded-[28px] glass flex flex-col min-h-[400px] overflow-hidden">
+            <AnimatePresence mode="wait">
+              {selectedError ? (
+                <motion.div
+                  key={selectedError._id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-5 flex-1 flex flex-col justify-between"
+                >
                 <div>
                   <h3 className="font-bold text-sm text-white mb-2">{selectedError.title}</h3>
                   <div className="text-[9px] font-mono bg-danger/10 border border-danger/15 p-2 rounded-xl text-danger max-h-[80px] overflow-y-auto mb-4" dir="ltr">
@@ -401,16 +440,17 @@ function ErrorsPageContent() {
                     )}
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ) : (
               <div className="py-20 text-center text-xs text-text-secondary flex flex-col items-center justify-center space-y-3 h-full justify-center">
                 <Info className="w-5 h-5 text-accent-blue opacity-50" />
                 <span>{t('chooseErrorToPreview')}</span>
               </div>
-            )}
+              )}
+            </AnimatePresence>
           </div>
         </div>
-      </main>
+      </motion.main>
 
       <CommandPalette />
     </div>

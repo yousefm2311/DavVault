@@ -7,6 +7,8 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Sidebar } from '@/components/Sidebar';
 import { CommandPalette } from '@/components/CommandPalette';
 import { AppPageSkeleton, SectionSkeleton } from '@/components/LoadingStates';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatedCounter } from '@/components/AnimatedCounter';
 import {
   Boxes,
   Plus,
@@ -49,6 +51,10 @@ export default function ReusableSystemsPage() {
     try {
       const data = await apiFetch('/systems');
       setSystems(data.systems || []);
+      const requestedId = new URLSearchParams(window.location.search).get('id');
+      if (requestedId) {
+        setSelectedSystem((data.systems || []).find((item: any) => item._id === requestedId) || null);
+      }
     } catch (err) {
       console.error('[Systems]: Fetch failed:', err);
     } finally {
@@ -120,13 +126,29 @@ export default function ReusableSystemsPage() {
     return sysType;
   };
 
+  const renderDependenciesCount = (sys: any) => {
+    const count = (sys.dependencies || []).length;
+    const template = t('dependenciesCount', { count: 'COUNT' });
+    const parts = template.split('COUNT');
+    return (
+      <span className="text-[9px] text-text-secondary font-mono">
+        {parts[0]}<AnimatedCounter value={count} />{parts[1]}
+      </span>
+    );
+  };
+
   if (loading || !user) return <AppPageSkeleton label={t('loadingSystems')} />;
 
   return (
     <div className="flex min-h-screen bg-bg-primary text-white select-none" dir={dir}>
       <Sidebar />
 
-      <main className="flex-1 p-10 overflow-y-auto max-w-5xl mx-auto flex flex-col">
+      <motion.main
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="flex-1 p-10 overflow-y-auto max-w-5xl mx-auto flex flex-col"
+      >
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">{t('systemsTitle')}</h2>
@@ -142,113 +164,121 @@ export default function ReusableSystemsPage() {
         </div>
 
         {/* Add System Form */}
-        {showForm && (
-          <div className="mb-8 bg-card-bg/60 border border-card-border p-6 rounded-[28px] glass">
-            <h3 className="font-bold text-sm mb-4">{t('defineSystemTemplate')}</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('systemName')}</label>
-                  <input
-                    type="text"
-                    placeholder={t('exampleSystemName')}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+        <AnimatePresence>
+          {showForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-8 bg-card-bg/60 border border-card-border p-6 rounded-[28px] glass overflow-hidden"
+            >
+              <h3 className="font-bold text-sm mb-4">{t('defineSystemTemplate')}</h3>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('systemName')}</label>
+                    <input
+                      type="text"
+                      placeholder={t('exampleSystemName')}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('systemType')}</label>
+                    <select
+                      value={type}
+                      onChange={(e) => setType(e.target.value)}
+                      className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none"
+                    >
+                      <option value="Authentication">{t('typeAuth')}</option>
+                      <option value="Payments">{t('typePayments')}</option>
+                      <option value="File Upload">{t('typeFileUpload')}</option>
+                      <option value="Database">{t('typeDatabase')}</option>
+                      <option value="Notification">{t('typeNotification')}</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('systemDescription')}</label>
+                  <textarea
+                    placeholder={t('describeSystemFunc')}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={2}
                     className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
                     required
                   />
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('relatedFilesComma')}</label>
+                    <input
+                      type="text"
+                      placeholder="auth.ts, user.model.ts"
+                      value={relatedFilesStr}
+                      onChange={(e) => setRelatedFilesStr(e.target.value)}
+                      className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('setupStepsComma')}</label>
+                    <input
+                      type="text"
+                      placeholder="npm install, configure .env"
+                      value={setupStepsStr}
+                      onChange={(e) => setSetupStepsStr(e.target.value)}
+                      className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('dependenciesComma')}</label>
+                    <input
+                      type="text"
+                      placeholder="jsonwebtoken, bcryptjs"
+                      value={dependenciesStr}
+                      onChange={(e) => setDependenciesStr(e.target.value)}
+                      className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('systemType')}</label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value)}
-                    className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none"
+                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('flowchartSetupCode')}</label>
+                  <textarea
+                    placeholder={t('setupInstructionsPlaceholder')}
+                    value={flow}
+                    onChange={(e) => setFlow(e.target.value)}
+                    rows={4}
+                    className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs font-mono text-white outline-none focus:border-accent-blue/50"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForm(false)}
+                    className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-2xl text-xs font-semibold"
                   >
-                    <option value="Authentication">{t('typeAuth')}</option>
-                    <option value="Payments">{t('typePayments')}</option>
-                    <option value="File Upload">{t('typeFileUpload')}</option>
-                    <option value="Database">{t('typeDatabase')}</option>
-                    <option value="Notification">{t('typeNotification')}</option>
-                  </select>
+                    {t('cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-5 py-2.5 bg-accent-blue hover:bg-accent-blue/90 disabled:bg-accent-blue/50 text-white rounded-2xl text-xs font-semibold"
+                  >
+                    {submitting ? t('savingSystemTemplate') : t('saveSystemTemplate')}
+                  </button>
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('systemDescription')}</label>
-                <textarea
-                  placeholder={t('describeSystemFunc')}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={2}
-                  className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('relatedFilesComma')}</label>
-                  <input
-                    type="text"
-                    placeholder="auth.ts, user.model.ts"
-                    value={relatedFilesStr}
-                    onChange={(e) => setRelatedFilesStr(e.target.value)}
-                    className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('setupStepsComma')}</label>
-                  <input
-                    type="text"
-                    placeholder="npm install, configure .env"
-                    value={setupStepsStr}
-                    onChange={(e) => setSetupStepsStr(e.target.value)}
-                    className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('dependenciesComma')}</label>
-                  <input
-                    type="text"
-                    placeholder="jsonwebtoken, bcryptjs"
-                    value={dependenciesStr}
-                    onChange={(e) => setDependenciesStr(e.target.value)}
-                    className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('flowchartSetupCode')}</label>
-                <textarea
-                  placeholder={t('setupInstructionsPlaceholder')}
-                  value={flow}
-                  onChange={(e) => setFlow(e.target.value)}
-                  rows={4}
-                  className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs font-mono text-white outline-none focus:border-accent-blue/50"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-2xl text-xs font-semibold"
-                >
-                  {t('cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2.5 bg-accent-blue hover:bg-accent-blue/90 disabled:bg-accent-blue/50 text-white rounded-2xl text-xs font-semibold"
-                >
-                  {submitting ? t('savingSystemTemplate') : t('saveSystemTemplate')}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Catalog layout */}
         <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
@@ -257,10 +287,27 @@ export default function ReusableSystemsPage() {
             {loadingSystems ? (
               <SectionSkeleton rows={4} />
             ) : systems.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: {
+                      staggerChildren: 0.1
+                    }
+                  }
+                }}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+              >
                 {systems.map((sys) => (
-                  <div
+                  <motion.div
                     key={sys._id}
+                    variants={{
+                      hidden: { opacity: 0, y: 15 },
+                      show: { opacity: 1, y: 0 }
+                    }}
                     onClick={() => setSelectedSystem(sys)}
                     className={`p-5 rounded-[24px] border transition-all duration-150 cursor-pointer flex flex-col justify-between h-[150px] hover:bg-white/5 ${
                       selectedSystem?._id === sys._id
@@ -286,9 +333,7 @@ export default function ReusableSystemsPage() {
                     </div>
 
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-card-border/40">
-                      <span className="text-[9px] text-text-secondary font-mono">
-                        {t('dependenciesCount', { count: (sys.dependencies || []).length })}
-                      </span>
+                      {renderDependenciesCount(sys)}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -300,9 +345,9 @@ export default function ReusableSystemsPage() {
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ) : (
               <div className="py-20 text-center text-xs text-text-secondary flex flex-col items-center justify-center space-y-4 bg-card-bg/25 border border-card-border rounded-[28px]">
                 <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center">
@@ -314,75 +359,90 @@ export default function ReusableSystemsPage() {
           </div>
 
           {/* Details drawer (1/3 width) */}
-          <div className="bg-card-bg/40 border border-card-border p-6 rounded-[28px] glass min-h-[350px] flex flex-col justify-between select-text">
-            {selectedSystem ? (
-              <div className="space-y-4 flex-grow flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-sm text-white">{selectedSystem.name}</h3>
-                    <span className="text-[8px] font-mono text-accent-blue bg-accent-blue/10 px-2 py-0.5 rounded-full uppercase">
-                      {getSystemTypeName(selectedSystem.type)}
-                    </span>
+          <div className="bg-card-bg/40 border border-card-border p-6 rounded-[28px] glass min-h-[350px] flex flex-col justify-between select-text overflow-hidden">
+            <AnimatePresence mode="wait">
+              {selectedSystem ? (
+                <motion.div
+                  key={selectedSystem._id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-4 flex-grow flex flex-col justify-between"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-sm text-white">{selectedSystem.name}</h3>
+                      <span className="text-[8px] font-mono text-accent-blue bg-accent-blue/10 px-2 py-0.5 rounded-full uppercase">
+                        {getSystemTypeName(selectedSystem.type)}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-text-secondary leading-relaxed p-3 bg-white/5 rounded-xl">
+                      {selectedSystem.description}
+                    </p>
+
+                    {(selectedSystem.dependencies || []).length > 0 && (
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold block">{t('requiredDependencies')}</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(selectedSystem.dependencies || []).map((d: string) => (
+                            <span key={d} className="text-[9px] bg-white/5 border border-white/5 px-2 py-0.5 rounded text-text-secondary font-mono">
+                              {d}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {(selectedSystem.setupSteps || []).length > 0 && (
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold block">{t('setupInstructions')}</span>
+                        <div className="space-y-1.5">
+                          {(selectedSystem.setupSteps || []).map((step: string, idx: number) => (
+                            <div key={idx} className="flex items-start gap-2 text-[11px] text-text-secondary">
+                              <span className="font-mono text-accent-blue font-bold">{idx + 1}.</span>
+                              <span className="leading-normal">{step}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedSystem.flow && (
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold block">{t('systemFlowchart')}</span>
+                        <pre className="p-3 bg-bg-primary rounded-xl overflow-x-auto text-[10px] font-mono text-[#E0E0E0] max-h-[140px]" dir="ltr">
+                          <code>{selectedSystem.flow}</code>
+                        </pre>
+                      </div>
+                    )}
                   </div>
 
-                  <p className="text-xs text-text-secondary leading-relaxed p-3 bg-white/5 rounded-xl">
-                    {selectedSystem.description}
-                  </p>
-
-                  {(selectedSystem.dependencies || []).length > 0 && (
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold block">{t('requiredDependencies')}</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {(selectedSystem.dependencies || []).map((d: string) => (
-                          <span key={d} className="text-[9px] bg-white/5 border border-white/5 px-2 py-0.5 rounded text-text-secondary font-mono">
-                            {d}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {(selectedSystem.setupSteps || []).length > 0 && (
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold block">{t('setupInstructions')}</span>
-                      <div className="space-y-1.5">
-                        {(selectedSystem.setupSteps || []).map((step: string, idx: number) => (
-                          <div key={idx} className="flex items-start gap-2 text-[11px] text-text-secondary">
-                            <span className="font-mono text-accent-blue font-bold">{idx + 1}.</span>
-                            <span className="leading-normal">{step}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedSystem.flow && (
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold block">{t('systemFlowchart')}</span>
-                      <pre className="p-3 bg-bg-primary rounded-xl overflow-x-auto text-[10px] font-mono text-[#E0E0E0] max-h-[140px]" dir="ltr">
-                        <code>{selectedSystem.flow}</code>
-                      </pre>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => router.push(`/chat?ask=${encodeURIComponent(`Explain steps to configure reusable system: ${selectedSystem.name}`)}`)}
-                  className="w-full py-3 bg-accent-blue hover:bg-accent-blue/90 text-white rounded-2xl text-xs font-semibold transition-colors cursor-pointer flex justify-center items-center mt-3"
+                  <button
+                    onClick={() => router.push(`/chat?ask=${encodeURIComponent(`Explain steps to configure reusable system: ${selectedSystem.name}`)}`)}
+                    className="w-full py-3 bg-accent-blue hover:bg-accent-blue/90 text-white rounded-2xl text-xs font-semibold transition-colors cursor-pointer flex justify-center items-center mt-3"
+                  >
+                    <Cpu className={`w-4 h-4 ${isRtl ? 'ml-1.5' : 'mr-1.5'} animate-pulse`} />
+                    {t('generateInstance')}
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.5 }}
+                  exit={{ opacity: 0 }}
+                  className="py-20 text-center text-xs text-text-secondary flex flex-col items-center justify-center space-y-3 h-full justify-center"
                 >
-                  <Cpu className={`w-4 h-4 ${isRtl ? 'ml-1.5' : 'mr-1.5'} animate-pulse`} />
-                  {t('generateInstance')}
-                </button>
-              </div>
-            ) : (
-              <div className="py-20 text-center text-xs text-text-secondary flex flex-col items-center justify-center space-y-3 h-full justify-center">
-                <Info className="w-5 h-5 text-accent-blue opacity-50" />
-                <span>{t('chooseSystemToPreview')}</span>
-              </div>
-            )}
+                  <Info className="w-5 h-5 text-accent-blue" />
+                  <span>{t('chooseSystemToPreview')}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
-      </main>
+      </motion.main>
 
       <CommandPalette />
     </div>

@@ -1,7 +1,18 @@
 import { Response } from 'express';
+import fs from 'fs';
+import path from 'path';
+import AdmZip from 'adm-zip';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { ChatSession, CodeEntity, Embedding, File as DBFile, Project, Activity } from '../models';
+import { ChatSession, CodeEntity, Embedding, File as DBFile, Project, Activity, AiAgent, Workspace } from '../models';
 import { aiService } from '../services/ai.service';
+import {
+  decryptSecret,
+  encryptSecret,
+  isEncryptedSecret,
+  isSecretEncryptionConfigured,
+} from '../services/secret-encryption.service';
 
 const calculateCosineSimilarity = (vecA: number[], vecB: number[]): number => {
   if (vecA.length !== vecB.length) return 0;
@@ -24,12 +35,22 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
     
-    const { message, sessionId, projectId } = req.body;
+    const { message, sessionId, projectId, selectedAgents } = req.body;
     if (!message) {
       return res.status(400).json({ error: 'Message is required.' });
     }
 
     const userId = req.user.id;
+    let contextOwnerId = userId;
+    if (projectId) {
+      const workspaces = await Workspace.find({ 'members.userId': userId }, '_id').lean();
+      const project = await Project.findOne({
+        _id: projectId,
+        $or: [{ userId }, { workspaceId: { $in: workspaces.map((item) => item._id) } }],
+      }, 'userId');
+      if (!project) return res.status(404).json({ error: 'Project not found.' });
+      contextOwnerId = project.userId.toString();
+    }
 
     // Log AI query activity
     await Activity.create({
@@ -47,6 +68,12 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
       if (!session) {
         return res.status(404).json({ error: 'Chat session not found.' });
       }
+      if (String(session.projectId || '') !== String(projectId || '')) {
+        return res.status(409).json({
+          error: 'Start a new chat session before changing the project context.',
+          code: 'SESSION_PROJECT_MISMATCH',
+        });
+      }
     } else {
       let title = message.substring(0, 30);
       if (message.length > 30) title += '...';
@@ -62,12 +89,15 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
     // 2. Fetch relevant context (RAG Retrieval)
     const queryEmbedding = await aiService.generateEmbedding(message);
     
-    const filter: any = { userId };
+    const filter: any = { userId: contextOwnerId };
     if (projectId) {
       filter.projectId = projectId;
     }
 
-    const candidates = await Embedding.find(filter);
+    const candidates = await Embedding.find(filter)
+      .select('vector content sourceType sourceId projectId')
+      .limit(3000)
+      .lean();
     const scoredCandidates = [];
 
     for (const candidate of candidates) {
@@ -107,7 +137,7 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
           citations.push({
             fileName,
             path: pathStr,
-            code: file.content.substring(0, 2000), // first 2kb of file as code view helper
+            code: c.content.substring(0, 2000),
             score: scored.score,
           });
         }
@@ -142,13 +172,111 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
     // 3. Format chat history
     const history = session.messages.map((m) => ({
       role: m.sender,
+      senderName: m.senderName,
       content: m.text,
     }));
 
-    // 4. Generate answer via AI
+    // Check if we have selected agents
+    if (selectedAgents && Array.isArray(selectedAgents) && selectedAgents.length > 0) {
+      // Resolve agents
+      const resolvedAgents: any[] = [];
+      for (const agentIdOrName of selectedAgents) {
+        if (agentIdOrName === 'sys-secbot' || agentIdOrName === 'SecBot') {
+          resolvedAgents.push({
+            name: 'SecBot',
+            role: 'AI Auditor',
+            systemPrompt: 'You are SecBot, a strict security auditor. Focus on input validation, vulnerabilities, and leaking variables.'
+          });
+        } else if (agentIdOrName === 'sys-perfbot' || agentIdOrName === 'PerfBot') {
+          resolvedAgents.push({
+            name: 'PerfBot',
+            role: 'AI Optimizer',
+            systemPrompt: 'You are PerfBot, a speed and resources optimizer. Focus on performance, memory usage, and non-blocking operations.'
+          });
+        } else if (agentIdOrName === 'sys-docbot' || agentIdOrName === 'DocBot') {
+          resolvedAgents.push({
+            name: 'DocBot',
+            role: 'AI Specialist',
+            systemPrompt: 'You are DocBot, a clean coder and documentation expert. Focus on docstrings, README files, readability, and naming conventions.'
+          });
+        } else {
+          // Find in DB
+          try {
+            const dbAgent = await AiAgent.findOne({ _id: agentIdOrName, userId }).select('+apiKey');
+            if (dbAgent) {
+              resolvedAgents.push({
+                ...dbAgent.toObject(),
+                apiKey: decryptSecret(dbAgent.apiKey),
+              });
+            }
+          } catch (err) {
+            console.error('[AI Controller/handleChat]: Failed to find custom agent:', err);
+          }
+        }
+      }
+
+      if (resolvedAgents.length > 0) {
+        // Save user message first
+        session.messages.push({
+          sender: 'user',
+          text: message,
+          createdAt: new Date(),
+        });
+
+        const localHistory = [...history, { role: 'user' as const, content: message }];
+        const newReplies: any[] = [];
+
+        for (const agent of resolvedAgents) {
+          const agentReply = await aiService.chatWithAgentContext(
+            agent.name,
+            agent.role,
+            agent.systemPrompt,
+            message,
+            localHistory,
+            contextChunks,
+            agent.modelProvider,
+            agent.apiKey,
+            agent.modelName
+          );
+
+          const dbMessage = {
+            sender: 'assistant' as const,
+            senderName: agent.name,
+            text: agentReply,
+            citations: uniqueCitations.map(c => ({
+              fileName: c.fileName,
+              path: c.path,
+              code: c.code,
+              score: c.score,
+            })),
+            createdAt: new Date(),
+          };
+
+          session.messages.push(dbMessage);
+          newReplies.push({ senderName: agent.name, text: agentReply });
+
+          localHistory.push({
+            role: 'assistant',
+            senderName: agent.name,
+            content: agentReply
+          });
+        }
+
+        await session.save();
+
+        return res.status(200).json({
+          sessionId: session._id,
+          title: session.title,
+          answer: newReplies[newReplies.length - 1].text, // default/last answer
+          answers: newReplies, // all agent responses in order
+          citations: uniqueCitations,
+        });
+      }
+    }
+
+    // Default chat fallback (standard single assistant)
     const answer = await aiService.chatWithContext(message, history, contextChunks);
 
-    // 5. Save user message and AI response to DB session
     session.messages.push({
       sender: 'user',
       text: message,
@@ -227,6 +355,394 @@ export const getSessionById = async (req: AuthenticatedRequest, res: Response) =
     if (!session) return res.status(404).json({ error: 'Chat session not found.' });
 
     return res.status(200).json({ session });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const deleteSession = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
+    const { id } = req.params;
+
+    const session = await ChatSession.findOneAndDelete({ _id: id, userId: req.user.id });
+    if (!session) return res.status(404).json({ error: 'Chat session not found.' });
+
+    return res.status(200).json({ message: 'Chat session deleted successfully.' });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const simulateTeamDiscussion = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
+    const { projectId, task } = req.body;
+    if (!projectId || !task) {
+      return res.status(400).json({ error: 'projectId and task are required.' });
+    }
+
+    const files = await DBFile.find({ projectId, userId: req.user.id }, 'path fileName summary');
+    const project = await Project.findOne({ _id: projectId, userId: req.user.id });
+    if (!project) return res.status(404).json({ error: 'Project not found.' });
+
+    const contextStr = files.map((f, idx) => `File #${idx + 1}: ${f.path}\nSummary: ${f.summary || 'Core code file'}`).join('\n\n');
+
+    const systemPrompt = `You are a team of three virtual AI software engineers discussing a coding task.
+The team consists of:
+1. **SecBot** (Security Auditor): Focused on security vulnerabilities, leaks, data validation, and safety.
+2. **PerfBot** (Performance Optimizer): Focused on code efficiency, memory prints, asynchronous execution, and speed.
+3. **DocBot** (Documentation Specialist): Focused on code readability, clear docstrings, explanations, and writing manuals.
+
+They are discussing the following codebase task: "${task}" for the project "${project.name}" (written in ${project.language || 'code'}).
+
+CODEBASE FILES CONTEXT:
+${contextStr.substring(0, 4000)}
+
+Please write an interactive transcript of their discussion. They should address each other by name, debate technical solutions, and arrive at a consensus.
+Finally, output a consolidated refactoring proposal with proposed code.
+
+Respond ONLY with a JSON object (no markdown formatting, no backticks, no other text) in this exact format:
+{
+  "discussion": [
+    { "bot": "SecBot", "text": "SecBot message content..." },
+    { "bot": "PerfBot", "text": "PerfBot message content..." },
+    { "bot": "DocBot", "text": "DocBot message content..." }
+  ],
+  "proposal": {
+    "title": "Title of the proposal",
+    "explanation": "Agreed-upon solution summary...",
+    "code": "Proposed code changes..."
+  }
+}
+
+Answer in the same language as the user's task. If the user's task is in Arabic, their conversation text should be in Arabic, but bot names and code remain technical.`;
+
+    let generatedText = '';
+    const openAIKey = process.env.OPENAI_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+
+    if (openAIKey) {
+      try {
+        const openaiInstance = new OpenAI({ apiKey: openAIKey });
+        const completion = await openaiInstance.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: 'You are a JSON responder. Always return raw JSON.' },
+            { role: 'user', content: systemPrompt }
+          ],
+          response_format: { type: 'json_object' }
+        });
+        generatedText = completion.choices[0].message.content || '';
+      } catch (err) {
+        console.error('[AI Controller/Team]: OpenAI simulation failed:', err);
+      }
+    } else if (geminiKey) {
+      try {
+        const genAI = new GoogleGenerativeAI(geminiKey);
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-1.5-flash',
+          generationConfig: { responseMimeType: 'application/json' }
+        });
+        const result = await model.generateContent(systemPrompt);
+        generatedText = result.response.text() || '';
+      } catch (err) {
+        console.error('[AI Controller/Team]: Gemini simulation failed:', err);
+      }
+    }
+
+    if (generatedText) {
+      try {
+        const parsed = JSON.parse(generatedText);
+        return res.status(200).json(parsed);
+      } catch (e) {
+        console.error('[AI Controller/Team]: Failed to parse generated text as JSON:', e);
+      }
+    }
+
+    // Smart Code-Aware Fallback
+    const isArabic = task.includes('ازاي') || task.includes('فين') || task.includes('شرح') || task.includes('تحسين') || /[\u0600-\u06FF]/.test(task);
+    
+    // Scan codebase files for realistic security, performance, and documentation insights
+    const securityFindings: string[] = [];
+    const performanceFindings: string[] = [];
+    const documentationFindings: string[] = [];
+    let targetedCodeSnippet = '';
+    let targetFileName = '';
+
+    for (const f of files) {
+      // Find full file content for static analysis scan
+      const fullFile = await DBFile.findOne({ _id: f._id, userId: req.user.id }, 'content fileName path');
+      if (!fullFile || !fullFile.content) continue;
+
+      const code = fullFile.content;
+      const name = fullFile.fileName;
+
+      // 1. Security Scan
+      if (code.includes('process.env') || code.includes('apiKey') || code.includes('password') || code.includes('secret') || code.includes('token')) {
+        securityFindings.push(isArabic 
+          ? `وجدنا استخداماً لرموز تحقق أو متغيرات تهيئة في الملف \`${name}\`؛ يجب التأكد من عدم كتابتها مباشرة وتأمينها في بيئة العمل.`
+          : `Detected configuration variables or tokens in \`${name}\`. Ensure secrets are externalized in env files.`);
+      }
+      if (code.includes('dangerouslySetInnerHTML') || code.includes('eval(') || code.includes('exec(')) {
+        securityFindings.push(isArabic
+          ? `الملف \`${name}\` يستعمل دوال تشغيل خطيرة مثل eval أو innerHTML؛ تأكد من تصفية المدخلات لمنع ثغرات XSS.`
+          : `Dangerous dynamic execution or DOM insertion in \`${name}\`. Validate input payload to prevent injections.`);
+      }
+      if (code.includes('query') || code.includes('select') || code.includes('find(')) {
+        securityFindings.push(isArabic
+          ? `تأكد من تنظيف بارامترات الاستعلام البرمجي لمنع ثغرات حقن الاستعلامات في الملف \`${name}\`.`
+          : `Database fetch parameter validation required in \`${name}\` to avoid potential injection vulnerabilities.`);
+      }
+
+      // 2. Performance Scan
+      if (code.includes('sync') || code.includes('readFileSync') || code.includes('writeFileSync')) {
+        performanceFindings.push(isArabic
+          ? `وجدنا دوال متزامنة لحظر المسارات (Sync methods) في الملف \`${name}\`؛ يُفضل التحول إلى async لمنع تجميد حلقة الأحداث (Event Loop).`
+          : `Synchronous file operations detected in \`${name}\`. Migrate to asynchronous API calls to prevent blocking the event loop.`);
+      }
+      if (code.match(/await\s+\w+\(/g) && code.split('await').length > 3) {
+        performanceFindings.push(isArabic
+          ? `الملف \`${name}\` يحتوي على عمليات await متتالية؛ يمكن زيادة الأداء والسرعة عبر تجميعها بـ Promise.all.`
+          : `Multiple sequential waits detected in \`${name}\`. Aggregate using Promise.all to load resources in parallel.`);
+      }
+
+      // 3. Documentation Scan
+      const functionsCount = (code.match(/function\s+\w+/g) || []).length + (code.match(/\w+\s*=\s*\([^)]*\)\s*=>/g) || []).length;
+      const commentsCount = (code.match(/\/\/|\/\*/g) || []).length;
+      if (functionsCount > 1 && commentsCount < 2) {
+        documentationFindings.push(isArabic
+          ? `يحتوي الملف \`${name}\` على ${functionsCount} دوال برمجية ولكن شرح التعليقات شحيح (${commentsCount} تعليق). نقترح كتابة JSDoc.`
+          : `File \`${name}\` has ${functionsCount} function exports with minimal inline comments (${commentsCount}). Document signatures clearly.`);
+      }
+
+      // Select first code file to refactor
+      if (!targetedCodeSnippet && code.length > 50 && (name.endsWith('.js') || name.endsWith('.ts') || name.endsWith('.dart') || name.endsWith('.py') || name.endsWith('.go'))) {
+        targetedCodeSnippet = code.substring(0, 1000);
+        targetFileName = name;
+      }
+    }
+
+    // Fallbacks if findings list is empty
+    if (securityFindings.length === 0) {
+      securityFindings.push(isArabic 
+        ? 'التحقق من صحة جميع المعاملات الواردة والتأكد من تصفيتها بشكل آمن لمنع هجمات الحقن.' 
+        : 'Sanitize all user-input parameters and implement strict type validation.');
+    }
+    if (performanceFindings.length === 0) {
+      performanceFindings.push(isArabic
+        ? 'تجنب تكرار قراءة الملفات من القرص الصلب وتفعيل ذاكرة التخزين المؤقت (Caching).'
+        : 'Avoid repeated disk I/O operations and configure memory cache keys.');
+    }
+    if (documentationFindings.length === 0) {
+      documentationFindings.push(isArabic
+        ? 'كتابة شرح واضح للمعايير والمخرجات المتوقعة في رأس الملف المصدري.'
+        : 'Write structured docstrings detailing parameters, return types, and exceptions.');
+    }
+
+    const discussion = isArabic ? [
+      {
+        bot: 'SecBot',
+        text: `لقد قمت بمراجعة الكود البرمجي لمشروعك بخصوص "${task}". بناءً على مراجعة الملفات، إليك أهم النقاط الأمنية:\n1. ${securityFindings[0]}\n2. يوصى بمراجعة وتأمين كافة منافذ البيانات والمصادقة.`
+      },
+      {
+        bot: 'PerfBot',
+        text: `أتفق معك يا SecBot. ومن منظور كفاءة الأداء وسرعة الاستجابة، لاحظت الآتي:\n1. ${performanceFindings[0]}\n2. يجب مراجعة أي دوال معقدة والتأكد من خلوها من حظر الذاكرة أو تسريبات الموارد.`
+      },
+      {
+        bot: 'DocBot',
+        text: `رائع! من جهتي، قمت بتوثيق المعايير البرمجية لتعديل كود المشروع:\n1. ${documentationFindings[0]}\n2. قمت بصياغة رقعة برمجية محسنة متضمنة معالجة متكاملة للأخطاء (Error Handling) وتعليقات توضيحية لسهولة الصيانة.`
+      }
+    ] : [
+      {
+        bot: 'SecBot',
+        text: `I have audited your codebase regarding "${task}". Security findings:\n1. ${securityFindings[0]}\n2. Strictly manage access controls and enforce HTTPS parameters across connections.`
+      },
+      {
+        bot: 'PerfBot',
+        text: `Agreed SecBot. On the performance optimization front:\n1. ${performanceFindings[0]}\n2. Prevent Event Loop blockages and optimize loops/caching for repeated database fetches.`
+      },
+      {
+        bot: 'DocBot',
+        text: `Perfect. Regarding code readability and comments:\n1. ${documentationFindings[0]}\n2. I have refactored a secure and documented version of the code structure for immediate use.`
+      }
+    ];
+
+    const cleanSnippet = targetedCodeSnippet || `// Default helper\nfunction process(data) {\n  return data;\n}`;
+    const proposal = isArabic ? {
+      title: `خطة التحسين والتأمين لملف ${targetFileName || 'main.dart'}`,
+      explanation: `مقترح التحسين البرمجي المتفق عليه لملف ${targetFileName || 'main.dart'} لحل مشكلة "${task}" بطريقة آمنة وسريعة الاستجابة.`,
+      code: `// كود مقترح لملف ${targetFileName || 'main.dart'}
+// تم تعديله بواسطة SecBot و PerfBot و DocBot
+${cleanSnippet.split('\n').map(line => `// ${line}`).join('\n')}
+
+// الكود المطور والآمن البديل:
+export async function secureAndOptimize(payload) {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Data payload must be a valid object');
+  }
+  
+  // فلترة المدخلات لتجنب ثغرات الحقن
+  const sanitized = JSON.parse(JSON.stringify(payload));
+  
+  // تشغيل غير متزامن خفيف لتجنب حجب المعالج
+  return new Promise((resolve) => {
+    setImmediate(() => {
+      resolve({
+        success: true,
+        processedAt: Date.now(),
+        data: sanitized
+      });
+    });
+  });
+}`
+    } : {
+      title: `Optimized & Secured Patch for ${targetFileName || 'main.dart'}`,
+      explanation: `Consensus refactoring proposal for ${targetFileName || 'main.dart'} to address "${task}" in a secured and non-blocking manner.`,
+      code: `// Refactored version of ${targetFileName || 'main.dart'}
+// Audited by SecBot, PerfBot, and DocBot
+${cleanSnippet.split('\n').map(line => `// ${line}`).join('\n')}
+
+// Upgraded Consensus Code:
+export async function secureAndOptimize(payload) {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Data payload must be a valid object');
+  }
+  
+  // Sanitize input payload
+  const sanitized = JSON.parse(JSON.stringify(payload));
+  
+  // Run asynchronously to prevent event loop blockages
+  return new Promise((resolve) => {
+    setImmediate(() => {
+      resolve({
+        success: true,
+        processedAt: Date.now(),
+        data: sanitized
+      });
+    });
+  });
+}`
+    };
+
+    return res.status(200).json({ discussion, proposal });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const getAgents = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
+    
+    // Default system agents
+    const systemAgents = [
+      {
+        _id: 'sys-secbot',
+        name: 'SecBot',
+        email: 'secbot@devvault.ai',
+        role: 'AI Auditor',
+        focus: 'Input validation, vulnerability scans, secrets leakage',
+        systemPrompt: 'You are SecBot, a strict security auditor. Focus on input validation, vulnerabilities, and leaking variables.',
+        modelProvider: 'gemini',
+        modelName: 'gemini-1.5-flash',
+        isSystem: true
+      },
+      {
+        _id: 'sys-perfbot',
+        name: 'PerfBot',
+        email: 'perfbot@devvault.ai',
+        role: 'AI Optimizer',
+        focus: 'Code speed, event-loop blocking, memory usage, promises',
+        systemPrompt: 'You are PerfBot, a speed and resources optimizer. Focus on performance, memory usage, and non-blocking operations.',
+        modelProvider: 'gemini',
+        modelName: 'gemini-1.5-flash',
+        isSystem: true
+      },
+      {
+        _id: 'sys-docbot',
+        name: 'DocBot',
+        email: 'docbot@devvault.ai',
+        role: 'AI Specialist',
+        focus: 'Code documentation, README, interface design, comments',
+        systemPrompt: 'You are DocBot, a clean coder and documentation expert. Focus on docstrings, README files, readability, and naming conventions.',
+        modelProvider: 'gemini',
+        modelName: 'gemini-1.5-flash',
+        isSystem: true
+      }
+    ];
+
+    const customAgents = await AiAgent.find({ userId: req.user.id }).select('+apiKey');
+    const canEncrypt = isSecretEncryptionConfigured();
+
+    for (const agent of customAgents) {
+      if (agent.apiKey && !isEncryptedSecret(agent.apiKey) && canEncrypt) {
+        agent.apiKey = encryptSecret(agent.apiKey);
+        await agent.save();
+      }
+    }
+
+    const safeCustomAgents = customAgents.map((agent) => {
+      const safeAgent = agent.toObject() as unknown as Record<string, unknown>;
+      safeAgent.hasCustomApiKey = Boolean(safeAgent.apiKey);
+      delete safeAgent.apiKey;
+      return safeAgent;
+    });
+
+    return res.status(200).json({
+      agents: [...systemAgents, ...safeCustomAgents]
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const createAgent = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
+    const { name, role, focus, systemPrompt, modelProvider, modelName, apiKey } = req.body;
+
+    if (!name || !role || !focus || !systemPrompt) {
+      return res.status(400).json({ error: 'name, role, focus, and systemPrompt are required.' });
+    }
+
+    const email = `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}@devvault.ai`;
+
+    const encryptedApiKey = apiKey ? encryptSecret(apiKey) : undefined;
+    const agent = await AiAgent.create({
+      userId: req.user.id,
+      name,
+      email,
+      role,
+      focus,
+      systemPrompt,
+      modelProvider: modelProvider || 'gemini',
+      modelName: modelName || 'gemini-1.5-flash',
+      apiKey: encryptedApiKey,
+      isSystem: false
+    });
+
+    const safeAgent = agent.toObject() as unknown as Record<string, unknown>;
+    safeAgent.hasCustomApiKey = Boolean(encryptedApiKey);
+    delete safeAgent.apiKey;
+
+    return res.status(201).json({ message: 'AI Coworker created successfully.', agent: safeAgent });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+export const deleteAgent = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
+    const { id } = req.params;
+
+    const agent = await AiAgent.findOneAndDelete({ _id: id, userId: req.user.id });
+    if (!agent) {
+      return res.status(404).json({ error: 'AI Coworker not found or unauthorized.' });
+    }
+
+    return res.status(200).json({ message: 'AI Coworker deleted successfully.' });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }

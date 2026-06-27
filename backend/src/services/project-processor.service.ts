@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import AdmZip from 'adm-zip';
+import ignore from 'ignore';
 import { Project, File as DBFile, CodeEntity, Embedding, Activity } from '../models';
 import { storageService } from './storage.service';
 import { parserService } from './parser.service';
@@ -15,7 +16,7 @@ export interface ProcessingProgress {
 }
 
 class ProjectProcessorService {
-  // Safe directories and extensions checks
+  // Safe directories checks (fallback if no .gitignore)
   private ignoredFolders = [
     'node_modules',
     '.git',
@@ -31,9 +32,13 @@ class ProjectProcessorService {
     'obj'
   ];
 
+  // Extended to support all major programming, markup, styling, shell, and DB languages
   private supportedExtensions = [
     'js', 'jsx', 'ts', 'tsx', 'py', 'dart', 'php', 'java',
-    'json', 'md', 'txt', 'yml', 'yaml', 'env'
+    'go', 'rs', 'c', 'h', 'cpp', 'hpp', 'cc', 'cxx', 'cs',
+    'rb', 'swift', 'kt', 'kts', 'html', 'css', 'scss',
+    'sass', 'less', 'sql', 'sh', 'bash', 'json', 'md',
+    'txt', 'yml', 'yaml', 'env'
   ];
 
   async processProjectZip(
@@ -54,26 +59,79 @@ class ProjectProcessorService {
         fs.mkdirSync(tempExtractDir, { recursive: true });
       }
 
+      // Initialize the ignore instance and add default ignores
+      const ig = ignore();
+      ig.add([
+        '.git/**',
+        '.github/**',
+        'node_modules/**',
+        'dist/**',
+        'build/**',
+        '.idea/**',
+        '.vscode/**',
+        '*.zip',
+        '*.tar.gz'
+      ]);
+
+      // First pass: Find all .gitignore files and read/parse their rules
+      for (const entry of zipEntries) {
+        if (entry.isDirectory) continue;
+        const entryName = entry.entryName;
+        const normalized = entryName.replace(/\\/g, '/');
+
+        if (normalized.endsWith('.gitignore')) {
+          try {
+            const content = entry.getData().toString('utf8');
+            const rules = content.split('\n')
+              .map(line => line.trim())
+              .filter(line => line && !line.startsWith('#'));
+
+            const dirName = path.dirname(normalized);
+            const relativeRules = rules.map(rule => {
+              if (dirName === '.' || dirName === '') {
+                return rule;
+              }
+              if (rule.startsWith('/')) {
+                return `${dirName}${rule}`;
+              }
+              return `${dirName}/**/${rule}`;
+            });
+
+            ig.add(relativeRules);
+          } catch (e: any) {
+            console.error(`[ProjectProcessor]: Failed to parse gitignore ${entryName}:`, e.message);
+          }
+        }
+      }
+
       const filesToProcess: { relativePath: string; content: string; extension: string; size: number }[] = [];
 
       for (const entry of zipEntries) {
         if (entry.isDirectory) continue;
 
         const entryName = entry.entryName;
+        const normalizedPath = entryName.replace(/\\/g, '/');
         
         // 1. Prevent Zip-Slip (Directory Traversal)
-        if (entryName.includes('..') || entryName.startsWith('/') || entryName.startsWith('\\')) {
+        if (normalizedPath.includes('..') || normalizedPath.startsWith('/') || normalizedPath.startsWith('\\')) {
           console.warn(`[ProjectProcessor]: Blocked potential Zip-Slip entry: ${entryName}`);
           continue;
         }
 
-        // 2. Filter out ignored folders
-        const pathParts = entryName.split(/[/\\]/);
-        const isIgnored = pathParts.some(part => this.ignoredFolders.includes(part));
-        if (isIgnored) continue;
+        // 2. Filter out using the .gitignore and default ignore rules
+        if (ig.ignores(normalizedPath)) {
+          continue;
+        }
 
-        // 3. Filter out unsupported files
-        const ext = entryName.split('.').pop()?.toLowerCase() || '';
+        // 3. Fallback: Filter out standard ignored folders directly
+        const pathParts = normalizedPath.split('/');
+        const isIgnoredFolder = pathParts.some(part => this.ignoredFolders.includes(part));
+        if (isIgnoredFolder) {
+          continue;
+        }
+
+        // 4. Filter out unsupported files
+        const ext = normalizedPath.split('.').pop()?.toLowerCase() || '';
         if (!this.supportedExtensions.includes(ext)) continue;
 
         // Extract buffer and safely save
@@ -82,7 +140,7 @@ class ProjectProcessorService {
         const size = fileContentBuffer.length;
 
         filesToProcess.push({
-          relativePath: entryName,
+          relativePath: normalizedPath,
           content: contentStr,
           extension: ext,
           size

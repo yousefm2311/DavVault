@@ -28,3 +28,23 @@ export const validateEmail = (req: Request, res: Response, next: NextFunction) =
 
   next();
 };
+
+export const validatePassword = (req: Request, res: Response, next: NextFunction) => {
+  const password = req.body.password || req.body.newPassword;
+  if (!password) return next();
+
+  if (
+    typeof password !== 'string' ||
+    password.length < 10 ||
+    !/[a-z]/.test(password) ||
+    !/[A-Z]/.test(password) ||
+    !/\d/.test(password) ||
+    !/[^A-Za-z0-9]/.test(password)
+  ) {
+    return res.status(400).json({
+      error: 'Password must be at least 10 characters and include uppercase, lowercase, number, and symbol.',
+    });
+  }
+
+  next();
+};

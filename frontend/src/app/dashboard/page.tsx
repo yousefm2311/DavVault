@@ -8,6 +8,8 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Sidebar } from '@/components/Sidebar';
 import { CommandPalette } from '@/components/CommandPalette';
 import { AppPageSkeleton, SectionSkeleton } from '@/components/LoadingStates';
+import { motion } from 'framer-motion';
+import { AnimatedCounter } from '@/components/AnimatedCounter';
 import {
   FolderCode,
   FileText,
@@ -208,14 +210,14 @@ export default function DashboardPage() {
             <div className="rounded-[28px] border border-card-border bg-card-bg/50 p-8 glass">
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">{t('dashboardHealthDna')}</p>
               <div className="flex flex-wrap items-end gap-4">
-                <span className="text-6xl font-extrabold tracking-tight text-white">{avgHealth || 0}<span className="text-[#9DBDFF]">%</span></span>
+                <span className="text-6xl font-extrabold tracking-tight text-white"><AnimatedCounter value={avgHealth || 0} /> <span className="text-[#9DBDFF]">%</span></span>
                 <span className="mb-3 text-xs font-semibold text-success">{t('indexedFromRepos')}</span>
                 <span className="mb-3 text-xs text-text-muted">{t('highEngineeringMemory')}</span>
               </div>
             </div>
             <div className="rounded-[28px] border border-card-border bg-card-bg/50 p-7 glass">
               <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">{t('dashboardActiveProjects')}</p>
-              <span className="text-5xl font-extrabold">{stats.projectsCount}</span>
+              <span className="text-5xl font-extrabold"><AnimatedCounter value={stats.projectsCount} /></span>
               <div className="mt-6 flex -space-x-2">
                 {projects.slice(0, 4).map((project, index) => (
                   <div key={project._id} className="flex h-8 w-8 items-center justify-center rounded-full border border-bg-primary bg-[#9DBDFF] text-[10px] font-bold text-bg-primary">
@@ -231,10 +233,16 @@ export default function DashboardPage() {
             </div>
             <div className="rounded-[28px] border border-card-border bg-card-bg/50 p-7 glass">
               <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">{t('dashboardAiInsights')}</p>
-              <span className="text-5xl font-extrabold">{stats.aiQueriesCount}</span>
-              <div className="mt-6 flex items-end gap-2">
+              <span className="text-5xl font-extrabold"><AnimatedCounter value={stats.aiQueriesCount} /></span>
+              <div className="mt-6 flex items-end gap-2 h-[58px]">
                 {[30, 44, 38, 58, 42, 28].map((height, index) => (
-                  <span key={index} className={`block w-7 rounded bg-[#9DBDFF]/45 ${index === 3 ? 'bg-[#9DBDFF]' : ''}`} style={{ height }} />
+                  <motion.span
+                    key={index}
+                    className={`block w-7 rounded bg-[#9DBDFF]/45 ${index === 3 ? 'bg-[#9DBDFF]' : ''}`}
+                    initial={{ height: 0 }}
+                    animate={{ height }}
+                    transition={{ duration: 1.2, ease: 'easeOut', delay: index * 0.05 }}
+                  />
                 ))}
               </div>
             </div>
@@ -269,7 +277,7 @@ export default function DashboardPage() {
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-2xl font-bold font-mono tracking-tight">{card.value}</span>
+                    <span className="text-2xl font-bold font-mono tracking-tight"><AnimatedCounter value={card.value} /></span>
                     <span className="text-[10px] text-text-secondary font-medium tracking-wide uppercase mt-0.5">
                       {card.title}
                     </span>

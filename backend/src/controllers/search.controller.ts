@@ -34,17 +34,27 @@ export const searchHybrid = async (req: AuthenticatedRequest, res: Response) => 
 
     const userId = req.user.id;
     const limit = Number(req.body.limit) || 15;
+    const ownedProjects = await Project.find({ userId }, '_id').lean();
+    const ownedProjectIds = ownedProjects.map((project) => project._id);
+
+    if (projectId && !ownedProjectIds.some((id) => id.toString() === String(projectId))) {
+      return res.status(404).json({ error: 'Project not found.' });
+    }
 
     // 1. Keyword search (regex match content and titles)
     const queryRegex = new RegExp(escapeRegex(query), 'i');
     
     // Project filter
-    const projectFilter: any = projectId ? { projectId } : {};
+    const projectFilter: any = projectId
+      ? { projectId }
+      : { projectId: { $in: ownedProjectIds } };
     
     // Search DB models for keywords
     const [matchingFiles, matchingEntities, matchingSnippets, matchingErrors] = await Promise.all([
       DBFile.find({ userId, ...projectFilter, $or: [{ fileName: queryRegex }, { content: queryRegex }] }).limit(5),
-      CodeEntity.find({ ...projectFilter, name: queryRegex }).populate('fileId').limit(5),
+      CodeEntity.find({ ...projectFilter, name: queryRegex })
+        .populate({ path: 'fileId', match: { userId } })
+        .limit(5),
       Snippet.find({ userId, $or: [{ title: queryRegex }, { code: queryRegex }] }).limit(5),
       ErrorSolution.find({ userId, $or: [{ title: queryRegex }, { errorMessage: queryRegex }, { solution: queryRegex }] }).limit(5)
     ]);
@@ -65,7 +75,7 @@ export const searchHybrid = async (req: AuthenticatedRequest, res: Response) => 
       });
     });
 
-    matchingEntities.forEach((e: any) => {
+    matchingEntities.filter((e: any) => e.fileId).forEach((e: any) => {
       keywordResults.push({
         id: e._id,
         name: `${e.type}: ${e.name}`,
@@ -167,27 +177,41 @@ export const searchHybrid = async (req: AuthenticatedRequest, res: Response) => 
 
       // Fetch name and details depending on source type
       if (candidate.sourceType === 'file') {
-        const file = await DBFile.findById(candidate.sourceId, 'fileName path').lean();
+        const file = await DBFile.findOne(
+          { _id: candidate.sourceId, userId },
+          'fileName path'
+        ).lean();
         if (file) {
           name = file.fileName;
           pathStr = file.path;
           fileId = file._id;
         }
       } else if (candidate.sourceType === 'codeEntity') {
-        const entity = await CodeEntity.findById(candidate.sourceId).populate('fileId').lean();
+        const entity = await CodeEntity.findOne({
+          _id: candidate.sourceId,
+          projectId: { $in: ownedProjectIds },
+        })
+          .populate({ path: 'fileId', match: { userId } })
+          .lean();
         if (entity) {
           name = `${entity.type}: ${entity.name}`;
           pathStr = (entity.fileId as any)?.path || '';
           fileId = (entity.fileId as any)?._id;
         }
       } else if (candidate.sourceType === 'snippet') {
-        const snippet = await Snippet.findById(candidate.sourceId, 'title').lean();
+        const snippet = await Snippet.findOne(
+          { _id: candidate.sourceId, userId },
+          'title'
+        ).lean();
         if (snippet) {
           name = snippet.title;
           pathStr = 'Snippet Library';
         }
       } else if (candidate.sourceType === 'errorSolution') {
-        const err = await ErrorSolution.findById(candidate.sourceId, 'title').lean();
+        const err = await ErrorSolution.findOne(
+          { _id: candidate.sourceId, userId },
+          'title'
+        ).lean();
         if (err) {
           name = err.title;
           pathStr = 'Error Library';
@@ -237,7 +261,7 @@ export const searchHybrid = async (req: AuthenticatedRequest, res: Response) => 
     const finalResultsWithProjects = await Promise.all(
       finalResults.map(async r => {
         if (r.projectId) {
-          const project = await Project.findById(r.projectId, 'name');
+          const project = await Project.findOne({ _id: r.projectId, userId }, 'name');
           return { ...r, projectName: project ? project.name : 'Unknown' };
         }
         return { ...r, projectName: 'General' };

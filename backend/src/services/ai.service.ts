@@ -10,13 +10,28 @@ export interface IAIService {
     history: { role: 'user' | 'assistant'; content: string }[],
     contextChunks: { path: string; content: string; score?: number }[]
   ): Promise<string>;
+  chatWithAgentContext(
+    agentName: string,
+    agentRole: string,
+    agentPrompt: string,
+    question: string,
+    history: { role: 'user' | 'assistant'; senderName?: string; content: string }[],
+    contextChunks: { path: string; content: string; score?: number }[],
+    modelProvider?: 'gemini' | 'openai',
+    customApiKey?: string,
+    modelName?: string
+  ): Promise<string>;
 }
 
 class AIService implements IAIService {
   private geminiGenAI: GoogleGenerativeAI | null = null;
   private openAI: OpenAI | null = null;
+  private initialized = false;
 
-  constructor() {
+  private init() {
+    if (this.initialized) return;
+    this.initialized = true;
+
     const geminiKey = process.env.GEMINI_API_KEY;
     if (geminiKey) {
       console.log('[AI Service]: Gemini API Key detected. Initializing Gemini SDK...');
@@ -37,6 +52,7 @@ class AIService implements IAIService {
   }
 
   async generateEmbedding(text: string): Promise<number[]> {
+    this.init();
     const cleanText = text.substring(0, 8000); // Truncate to safety limits
 
     // 1. OpenAI Option
@@ -81,6 +97,7 @@ class AIService implements IAIService {
   }
 
   async generateSummary(fileName: string, content: string, language?: string): Promise<string> {
+    this.init();
     const systemPrompt = `You are DevVault AI engineering memory. Summarize the content of the file "${fileName}" (${language || 'unknown language'}). Describe its purpose, main functions, export values, and architectural role. Keep it concise (1-3 paragraphs).`;
 
     // 1. OpenAI Option
@@ -121,6 +138,7 @@ class AIService implements IAIService {
   }
 
   async explainCode(fileName: string, code: string, language?: string): Promise<string> {
+    this.init();
     const systemPrompt = `You are a Senior Full Stack Engineer. Analyze the code in file "${fileName}" (${language || 'unknown language'}).
 Provide an explanation including:
 1. What does the code do?
@@ -171,6 +189,7 @@ Format in beautiful markdown.`;
     history: { role: 'user' | 'assistant'; content: string }[],
     contextChunks: { path: string; content: string; score?: number }[]
   ): Promise<string> {
+    this.init();
     const formattedContext = contextChunks
       .map((chunk, index) => `--- SOURCE #${index + 1} (File: ${chunk.path}) ---\n${chunk.content}`)
       .join('\n\n');
@@ -237,6 +256,87 @@ ${contextChunks.map((c) => `- \`${c.path}\` (Score: ${(c.score ? c.score * 100 :
 
 Please set up a \`GEMINI_API_KEY\` or \`OPENAI_API_KEY\` in your \`.env\` file to enable real conversational RAG answers.`;
   }
+
+  async chatWithAgentContext(
+    agentName: string,
+    agentRole: string,
+    agentPrompt: string,
+    question: string,
+    history: { role: 'user' | 'assistant'; senderName?: string; content: string }[],
+    contextChunks: { path: string; content: string; score?: number }[],
+    modelProvider?: 'gemini' | 'openai',
+    customApiKey?: string,
+    modelName?: string
+  ): Promise<string> {
+    this.init();
+    const formattedContext = contextChunks
+      .map((chunk, index) => `--- SOURCE #${index + 1} (File: ${chunk.path}) ---\n${chunk.content}`)
+      .join('\n\n');
+
+    const systemPrompt = `You are ${agentName}, a virtual AI teammate acting as ${agentRole}.
+Your core instruction is: ${agentPrompt}
+
+Answer the user's question or react to the ongoing discussion using the provided codebase context and previous chat history.
+Always refer to the file names and paths when discussing code.
+If other agents have spoken before you in the history, review their suggestions, debate points, or build on top of them as a team.
+
+CONTEXT FROM USER CODEBASE:
+${formattedContext}
+
+INSTRUCTIONS:
+- Answer in the same language as the user's question (e.g., if asked in Arabic, reply in Arabic, though technical terms and code remain in their standard format).
+- Provide clean code blocks or refactoring suggestions when appropriate.`;
+
+    const chatMessages = [
+      { role: 'system', content: systemPrompt },
+      ...history.map((h) => ({
+        role: h.role,
+        content: h.senderName ? `[${h.senderName}]: ${h.content}` : h.content,
+      })),
+      { role: 'user', content: question },
+    ];
+
+    const provider = modelProvider || 'gemini';
+
+    if (provider === 'openai') {
+      const openAIClient = customApiKey ? new OpenAI({ apiKey: customApiKey }) : this.openAI;
+      if (openAIClient) {
+        try {
+          const completion = await openAIClient.chat.completions.create({
+            model: modelName || 'gpt-4o-mini',
+            messages: chatMessages as any,
+          });
+          return completion.choices[0].message.content || '';
+        } catch (err) {
+          console.error(`[AI Service]: OpenAI Chat for agent ${agentName} failed, trying fallback...`, err);
+        }
+      }
+    } else {
+      // Gemini
+      const geminiClient = customApiKey ? new GoogleGenerativeAI(customApiKey) : this.geminiGenAI;
+      if (geminiClient) {
+        try {
+          const model = geminiClient.getGenerativeModel({ model: modelName || 'gemini-1.5-flash' });
+          const formattedPrompt = `${systemPrompt}\n\nChat History:\n${history
+            .map((h) => `${h.senderName || (h.role === 'user' ? 'User' : 'AI')}: ${h.content}`)
+            .join('\n')}\n\nUser Question/Next Step: ${question}\n[${agentName} Answer]:`;
+          const result = await model.generateContent(formattedPrompt);
+          return result.response.text() || '';
+        } catch (err) {
+          console.error(`[AI Service]: Gemini Chat for agent ${agentName} failed, trying fallback...`, err);
+        }
+      }
+    }
+
+    // Mock Answer Fallback
+    const isArabic = question.includes('فين') || question.includes('ازاي') || question.includes('كود') || /[\u0600-\u06FF]/.test(question);
+    if (isArabic) {
+      return `[رد محاكاة من ${agentName} - وضع خامل]: بصفتي ${agentRole}، قمت بمراجعة سؤالك بخصوص الكود والملفات المتاحة. أرى أنه يمكن تحسين جودة الكود وتجنب المشاكل في الملفات المحددة. (يرجى إدخال مفاتيح API في ملف البيئة أو للوكيل لتفعيل الإجابات الحية).`;
+    }
+
+    return `[Mock response from ${agentName} - Offline Mode]: As a ${agentRole}, I have reviewed your request. Based on the files in this scope, I recommend structuring clean, modular interfaces and keeping dependencies well-contained. (Configure API key for this agent to see active responses).`;
+  }
 }
+
 
 export const aiService = new AIService();

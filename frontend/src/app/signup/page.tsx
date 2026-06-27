@@ -22,7 +22,6 @@ export default function SignupPage() {
   // Verification states
   const [requiresVerification, setRequiresVerification] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
-  const [devCode, setDevCode] = useState('');
   
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,9 +51,6 @@ export default function SignupPage() {
       const data = await register(name, email, password);
       if (data.requiresVerification) {
         setRequiresVerification(true);
-        if (data.devCode) {
-          setDevCode(data.devCode);
-        }
       }
     } catch (err: any) {
       setError(err.message || t('signupFailed'));
@@ -84,9 +80,6 @@ export default function SignupPage() {
     try {
       const data = await resendCode(email);
       setResendMessage(t('codeResentSuccess'));
-      if (data.devCode) {
-        setDevCode(data.devCode);
-      }
     } catch (err: any) {
       setError(err.message || t('errorVerification'));
     } finally {
@@ -151,12 +144,6 @@ export default function SignupPage() {
                 required
               />
             </div>
-
-            {devCode && (
-              <div className="p-3 bg-white/5 border border-card-border rounded-2xl text-[10px] text-center font-mono">
-                {t('devCodeLabel')}: <span className="text-accent-blue font-bold">{devCode}</span>
-              </div>
-            )}
 
             <button
               type="submit"

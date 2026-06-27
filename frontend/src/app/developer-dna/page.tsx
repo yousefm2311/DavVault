@@ -7,6 +7,8 @@ import { Sidebar } from '@/components/Sidebar';
 import { CommandPalette } from '@/components/CommandPalette';
 import { AppPageSkeleton, SectionSkeleton } from '@/components/LoadingStates';
 import { useLanguage } from '@/context/LanguageContext';
+import { motion } from 'framer-motion';
+import { AnimatedCounter } from '@/components/AnimatedCounter';
 import {
   Brain,
   Sparkles,
@@ -188,27 +190,29 @@ export default function DeveloperDNAPage() {
                     <div className="relative w-56 h-56 flex items-center justify-center">
                       <svg className="w-full h-full ring-progress">
                         <circle cx="112" cy="112" fill="transparent" r="96" stroke="rgba(255, 255, 255, 0.04)" strokeWidth="12"></circle>
-                        <circle
+                        <motion.circle
                           cx="112"
                           cy="112"
                           fill="transparent"
                           r="96"
                           stroke="url(#gradientScore)"
                           strokeDasharray="603"
-                          strokeDashoffset={603 - (603 * (dna.productivityScore || 0)) / 100}
+                          initial={{ strokeDashoffset: 603 }}
+                          animate={{ strokeDashoffset: 603 - (603 * (dna.productivityScore || 0)) / 100 }}
+                          transition={{ duration: 1.5, ease: 'easeOut' }}
                           strokeLinecap="round"
                           strokeWidth="12"
-                        ></circle>
+                        ></motion.circle>
                         <defs>
                           <linearGradient id="gradientScore" x1="0%" x2="100%" y1="0%" y2="100%">
-                            <stop offset="0%" style={{ stopColor: '#3e90ff', stopOpacity: 1 }}></stop>
-                            <stop offset="100%" style={{ stopColor: '#0A84FF', stopOpacity: 1 }}></stop>
+                            <stop offset="0%" style={{ stopColor: '#3e90ff', stopOpacity: 1 }} />
+                            <stop offset="100%" style={{ stopColor: '#0A84FF', stopOpacity: 1 }} />
                           </linearGradient>
                         </defs>
                       </svg>
                       <div className="absolute flex flex-col items-center">
                         <span className="font-bold text-text-primary text-[72px] leading-none select-text">
-                          {dna.productivityScore || 0}
+                          <AnimatedCounter value={dna.productivityScore || 0} />
                         </span>
                         <span className="text-[11px] text-success flex items-center gap-1 mt-1 font-bold">
                           <TrendingUp className="w-3.5 h-3.5" /> {dna.productivityGrowth || '+0%'}
@@ -235,9 +239,9 @@ export default function DeveloperDNAPage() {
                           <circle cx="100" cy="100" r="44" fill="transparent" stroke="rgba(255, 255, 255, 0.03)" strokeWidth="10" />
                           <circle cx="100" cy="100" r="26" fill="transparent" stroke="rgba(255, 255, 255, 0.03)" strokeWidth="10" />
 
-                          {/* Nested Activity Rings */}
+                          {/* Nested Activity Rings with Framer Motion animations */}
                           {/* Web Engine - Outer (Purple #e9b3ff) */}
-                          <circle
+                          <motion.circle
                             cx="100"
                             cy="100"
                             r="80"
@@ -245,11 +249,13 @@ export default function DeveloperDNAPage() {
                             stroke="#e9b3ff"
                             strokeWidth="10"
                             strokeDasharray="502"
-                            strokeDashoffset={502 - (502 * (dna.technologyBreakdown?.webEngine || 0)) / 100}
+                            initial={{ strokeDashoffset: 502 }}
+                            animate={{ strokeDashoffset: 502 - (502 * (dna.technologyBreakdown?.webEngine || 0)) / 100 }}
+                            transition={{ duration: 1.5, ease: 'easeOut' }}
                             strokeLinecap="round"
                           />
                           {/* Cloud Native - Middle Outer (Blue #3e90ff) */}
-                          <circle
+                          <motion.circle
                             cx="100"
                             cy="100"
                             r="62"
@@ -257,11 +263,13 @@ export default function DeveloperDNAPage() {
                             stroke="#3e90ff"
                             strokeWidth="10"
                             strokeDasharray="389"
-                            strokeDashoffset={389 - (389 * (dna.technologyBreakdown?.cloudNative || 0)) / 100}
+                            initial={{ strokeDashoffset: 389 }}
+                            animate={{ strokeDashoffset: 389 - (389 * (dna.technologyBreakdown?.cloudNative || 0)) / 100 }}
+                            transition={{ duration: 1.5, ease: 'easeOut' }}
                             strokeLinecap="round"
                           />
                           {/* Machine Learning - Middle Inner (Orange #FF9F0A) */}
-                          <circle
+                          <motion.circle
                             cx="100"
                             cy="100"
                             r="44"
@@ -269,11 +277,13 @@ export default function DeveloperDNAPage() {
                             stroke="#FF9F0A"
                             strokeWidth="10"
                             strokeDasharray="276"
-                            strokeDashoffset={276 - (276 * (dna.technologyBreakdown?.machineLearning || 0)) / 100}
+                            initial={{ strokeDashoffset: 276 }}
+                            animate={{ strokeDashoffset: 276 - (276 * (dna.technologyBreakdown?.machineLearning || 0)) / 100 }}
+                            transition={{ duration: 1.5, ease: 'easeOut' }}
                             strokeLinecap="round"
                           />
                           {/* Legacy Support - Innermost (Gray #71717A) */}
-                          <circle
+                          <motion.circle
                             cx="100"
                             cy="100"
                             r="26"
@@ -281,7 +291,9 @@ export default function DeveloperDNAPage() {
                             stroke="#71717A"
                             strokeWidth="10"
                             strokeDasharray="163"
-                            strokeDashoffset={163 - (163 * (dna.technologyBreakdown?.legacySupport || 0)) / 100}
+                            initial={{ strokeDashoffset: 163 }}
+                            animate={{ strokeDashoffset: 163 - (163 * (dna.technologyBreakdown?.legacySupport || 0)) / 100 }}
+                            transition={{ duration: 1.5, ease: 'easeOut' }}
                             strokeLinecap="round"
                           />
                         </svg>
@@ -294,7 +306,7 @@ export default function DeveloperDNAPage() {
                             <span className="text-text-primary text-xs font-semibold">{t('webEngine')}</span>
                           </div>
                           <span className="font-mono text-xs text-text-secondary select-text">
-                            {dna.technologyBreakdown?.webEngine || 0}%
+                            <AnimatedCounter value={dna.technologyBreakdown?.webEngine || 0} />%
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -303,7 +315,7 @@ export default function DeveloperDNAPage() {
                             <span className="text-text-primary text-xs font-semibold">{t('cloudNative')}</span>
                           </div>
                           <span className="font-mono text-xs text-text-secondary select-text">
-                            {dna.technologyBreakdown?.cloudNative || 0}%
+                            <AnimatedCounter value={dna.technologyBreakdown?.cloudNative || 0} />%
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -312,7 +324,7 @@ export default function DeveloperDNAPage() {
                             <span className="text-text-primary text-xs font-semibold">{t('machineLearning')}</span>
                           </div>
                           <span className="font-mono text-xs text-text-secondary select-text">
-                            {dna.technologyBreakdown?.machineLearning || 0}%
+                            <AnimatedCounter value={dna.technologyBreakdown?.machineLearning || 0} />%
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -321,7 +333,7 @@ export default function DeveloperDNAPage() {
                             <span className="text-text-primary text-xs font-semibold">{t('legacySupport')}</span>
                           </div>
                           <span className="font-mono text-xs text-text-secondary select-text">
-                            {dna.technologyBreakdown?.legacySupport || 0}%
+                            <AnimatedCounter value={dna.technologyBreakdown?.legacySupport || 0} />%
                           </span>
                         </div>
                       </div>
@@ -339,12 +351,16 @@ export default function DeveloperDNAPage() {
                         <div key={lang.name} className="space-y-2 select-text">
                           <div className="flex justify-between items-center text-xs">
                             <span className="font-mono font-bold text-text-primary">{lang.name}</span>
-                            <span className="text-text-secondary">{formatLOC(lang.loc)}</span>
+                            <span className="text-text-secondary">
+                              <AnimatedCounter value={lang.loc} /> LOC
+                            </span>
                           </div>
                           <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-accent-blue/80 to-accent-blue"
-                              style={{ width: `${lang.pct}%` }}
+                            <motion.div
+                              className="h-full rounded-full bg-gradient-to-r from-accent-blue/80 to-accent-blue"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${lang.pct}%` }}
+                              transition={{ duration: 1.2, ease: 'easeOut' }}
                             />
                           </div>
                         </div>
@@ -362,9 +378,24 @@ export default function DeveloperDNAPage() {
                       <div className="flex-1 flex flex-col justify-between mt-4">
                         <div className="h-44 w-full flex items-end">
                           <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 800 200">
-                            {/* Smooth dynamic curve path */}
-                            <path d={growthPath} fill="none" stroke="#3e90ff" strokeWidth="4" strokeLinecap="round" />
-                            <path d={growthAreaPath} fill="url(#graphGradient)" />
+                            {/* Smooth dynamic curve path with Framer Motion drawing animation */}
+                            <motion.path
+                              d={growthPath}
+                              fill="none"
+                              stroke="#3e90ff"
+                              strokeWidth="4"
+                              strokeLinecap="round"
+                              initial={{ pathLength: 0 }}
+                              animate={{ pathLength: 1 }}
+                              transition={{ duration: 1.5, ease: 'easeOut' }}
+                            />
+                            <motion.path
+                              d={growthAreaPath}
+                              fill="url(#graphGradient)"
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              transition={{ delay: 0.8, duration: 0.8 }}
+                            />
                             <defs>
                               <linearGradient id="graphGradient" x1="0%" x2="0%" y1="0%" y2="100%">
                                 <stop offset="0%" style={{ stopColor: '#3e90ff', stopOpacity: 0.15 }}></stop>
@@ -372,12 +403,15 @@ export default function DeveloperDNAPage() {
                               </linearGradient>
                             </defs>
                             {/* Indicator Dot on the last point */}
-                            <circle
+                            <motion.circle
                               cx={5 * 160}
                               cy={190 - (dna.skillGrowthCurve[5] * 1.6)}
                               fill="#FFFFFF"
                               r="6"
                               className="shadow-lg shadow-black"
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ delay: 1.2, type: 'spring' }}
                             />
                           </svg>
                         </div>

@@ -8,26 +8,54 @@ import apiRouter from './routes';
 import { errorHandler } from './middleware/error';
 import { queueService } from './services/queue.service';
 import { stripeWebhook } from './controllers/subscription.controller';
+import { assertTokenSecrets } from './services/token.service';
+import jwt from 'jsonwebtoken';
+import { Project, User } from './models';
 
 // Load environment variables
 dotenv.config();
+assertTokenSecrets();
 
 const app = express();
 const server = http.createServer(app);
 
 // Setup Socket.io
+const allowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin: allowedOrigins,
+  credentials: true,
+};
+
 const io = new Server(server, {
   cors: {
-    origin: '*', // Allow all origins for dev/local testing
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
+    credentials: true,
   },
 });
 
 // Configure CORS and JSON Parser
-app.use(cors());
+app.use(cors(corsOptions));
 app.post('/api/subscription/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use((req, res, next) => {
+  const sendJson = res.json.bind(res);
+  res.json = ((body: any) => {
+    if (res.statusCode >= 500 && process.env.NODE_ENV !== 'development') {
+      return sendJson({
+        error: 'An unexpected server error occurred.',
+        code: 'INTERNAL_SERVER_ERROR',
+      });
+    }
+    return sendJson(body);
+  }) as typeof res.json;
+  next();
+});
 
 // Health Check Endpoint
 app.get('/health', (req, res) => {
@@ -50,11 +78,36 @@ app.use('/api', apiRouter);
 app.use(errorHandler);
 
 // Socket.io Connection Event Handler
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error('Unauthorized.'));
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+      id: string;
+      tokenVersion?: number;
+    };
+    const user = await User.findById(decoded.id, 'tokenVersion status');
+    if (
+      !user ||
+      user.status === 'suspended' ||
+      (decoded.tokenVersion || 0) !== (user.tokenVersion || 0)
+    ) {
+      return next(new Error('Unauthorized.'));
+    }
+    socket.data.userId = user._id.toString();
+    next();
+  } catch {
+    next(new Error('Unauthorized.'));
+  }
+});
+
 io.on('connection', (socket) => {
   console.log(`[Socket.io]: Client connected: ${socket.id}`);
 
   // Client joins a channel to receive real-time indexing logs for a specific project
-  socket.on('join_project', (projectId: string) => {
+  socket.on('join_project', async (projectId: string) => {
+    const project = await Project.findOne({ _id: projectId, userId: socket.data.userId }, '_id');
+    if (!project) return;
     socket.join(`project_${projectId}`);
     console.log(`[Socket.io]: Client ${socket.id} joined channel project_${projectId}`);
   });

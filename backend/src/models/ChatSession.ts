@@ -9,6 +9,7 @@ export interface ICitation {
 
 export interface IMessage {
   sender: 'user' | 'assistant';
+  senderName?: string;
   text: string;
   citations?: ICitation[];
   createdAt: Date;
@@ -31,6 +32,7 @@ const ChatSessionSchema = new Schema<IChatSession>(
     messages: [
       {
         sender: { type: String, enum: ['user', 'assistant'], required: true },
+        senderName: { type: String },
         text: { type: String, required: true },
         citations: [
           {

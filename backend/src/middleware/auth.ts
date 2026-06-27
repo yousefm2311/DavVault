@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models';
+import { assertTokenSecrets } from '../services/token.service';
 
 // Extend Express Request type to include user information
 export interface AuthenticatedRequest extends Request {
@@ -22,20 +23,25 @@ export const authenticate = async (req: AuthenticatedRequest, res: Response, nex
   const token = authHeader.split(' ')[1];
 
   try {
-    const secret = process.env.JWT_SECRET || 'devvault_secret_access_token_key_2026';
+    assertTokenSecrets();
+    const secret = process.env.JWT_SECRET!;
     const decoded = jwt.verify(token, secret) as {
       id: string;
       email: string;
       plan: 'free' | 'pro' | 'team' | 'enterprise';
       role?: 'user' | 'admin' | 'superadmin';
+      tokenVersion?: number;
     };
 
-    const user = await User.findById(decoded.id, 'email plan role status');
+    const user = await User.findById(decoded.id, 'email plan role status tokenVersion');
     if (!user) {
       return res.status(401).json({ error: 'Invalid token user.' });
     }
     if (user.status === 'suspended') {
       return res.status(403).json({ error: 'Account suspended. Contact support.' });
+    }
+    if ((decoded.tokenVersion || 0) !== (user.tokenVersion || 0)) {
+      return res.status(401).json({ error: 'Session revoked.' });
     }
 
     req.user = {

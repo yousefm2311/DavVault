@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { AnimatedCounter } from '@/components/AnimatedCounter';
 import { Sidebar } from '@/components/Sidebar';
 import { CommandPalette } from '@/components/CommandPalette';
 import { AppPageSkeleton, SectionSkeleton } from '@/components/LoadingStates';
@@ -43,6 +44,9 @@ interface ProjectItem {
   healthScore?: number;
   createdAt?: string;
   uploadedAt?: string;
+  processingStatus?: ProjectUploadStatus['status'];
+  processingProgress?: number;
+  processingMessage?: string;
 }
 
 const MAX_ZIP_SIZE = 50 * 1024 * 1024;
@@ -63,7 +67,7 @@ const getHealthTone = (score = 100) => {
 const statusSteps: ProjectUploadStatus['status'][] = ['pending', 'extracting', 'parsing', 'embedding', 'completed'];
 
 function ProjectsPageContent() {
-  const { user, loading, apiFetch } = useAuth();
+  const { user, loading, apiFetch, accessToken } = useAuth();
   const { t, dir } = useLanguage();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -140,6 +144,19 @@ function ProjectsPageContent() {
     try {
       const data = await apiFetch('/projects');
       setProjects(data.projects || []);
+      const processingProject = (data.projects || []).find(
+        (project: ProjectItem) =>
+          project.processingStatus &&
+          !['completed', 'failed'].includes(project.processingStatus)
+      );
+      if (processingProject) {
+        setActiveJob({
+          projectId: processingProject._id,
+          status: processingProject.processingStatus,
+          progress: processingProject.processingProgress || 0,
+          message: processingProject.processingMessage || t('preparingIndexing'),
+        });
+      }
     } catch (err) {
       console.error('[Projects]: Failed to fetch:', err);
     } finally {
@@ -159,7 +176,7 @@ function ProjectsPageContent() {
     const projectId = activeJob.projectId;
 
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5001';
-    const socket = io(socketUrl);
+    const socket = io(socketUrl, { auth: { token: accessToken } });
 
     socket.on('connect', () => {
       console.log('[Socket]: Connected to index server, joining room project_' + projectId);
@@ -189,7 +206,7 @@ function ProjectsPageContent() {
     return () => {
       socket.disconnect();
     };
-  }, [activeJob?.projectId]);
+  }, [activeJob?.projectId, accessToken]);
 
   const selectUploadFile = (file?: File) => {
     if (file) {
@@ -307,10 +324,10 @@ function ProjectsPageContent() {
 
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
           {[
-            { label: isRtl ? 'إجمالي المشاريع' : 'Total Projects', value: projectStats.total, icon: FolderCode, tone: 'text-accent-blue' },
-            { label: isRtl ? 'متوسط الصحة' : 'Average Health', value: `${projectStats.averageHealth}%`, icon: CheckCircle2, tone: projectStats.averageHealth >= 80 ? 'text-success' : 'text-warning' },
-            { label: isRtl ? 'اللغة الأكثر استخدامًا' : 'Top Language', value: projectStats.topLanguage, icon: FileArchive, tone: 'text-warning' },
-            { label: isRtl ? 'عمليات جارية' : 'Active Jobs', value: projectStats.active, icon: Clock3, tone: projectStats.active ? 'text-accent-blue' : 'text-text-secondary' },
+            { label: isRtl ? 'إجمالي المشاريع' : 'Total Projects', value: <AnimatedCounter value={projectStats.total} />, icon: FolderCode, tone: 'text-accent-blue' },
+            { label: isRtl ? 'متوسط الصحة' : 'Average Health', value: <span><AnimatedCounter value={projectStats.averageHealth} />%</span>, icon: CheckCircle2, tone: projectStats.averageHealth >= 80 ? 'text-success' : 'text-warning' },
+            { label: isRtl ? 'اللغة الأكثر استخدامًا' : 'Top Language', value: <span className="select-text">{projectStats.topLanguage}</span>, icon: FileArchive, tone: 'text-warning' },
+            { label: isRtl ? 'عمليات جارية' : 'Active Jobs', value: <AnimatedCounter value={projectStats.active} />, icon: Clock3, tone: projectStats.active ? 'text-accent-blue' : 'text-text-secondary' },
           ].map((stat) => {
             const Icon = stat.icon;
             return (
@@ -532,7 +549,10 @@ function ProjectsPageContent() {
               {filteredProjects.map((p) => (
                 <div
                   key={p._id}
-                  onClick={() => router.push(`/projects/${p._id}`)}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('button')) return;
+                    router.push(`/projects/${p._id}`);
+                  }}
                   className="group relative flex min-h-[210px] cursor-pointer flex-col justify-between overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.04] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent-blue/35 hover:bg-white/[0.07]"
                 >
                   <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-accent-blue/10 blur-3xl transition group-hover:bg-accent-blue/20" />
@@ -552,8 +572,8 @@ function ProjectsPageContent() {
                       
                       <button
                         onClick={(e) => handleDeleteProject(e, p._id)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 bg-danger/10 hover:bg-danger/25 text-danger rounded-lg transition-all"
-                        title={t('cancel')}
+                        className="opacity-60 lg:opacity-0 lg:group-hover:opacity-100 p-1.5 bg-danger/10 hover:bg-danger/25 text-danger rounded-lg transition-all"
+                        title={t('deleteProjectBtn')}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

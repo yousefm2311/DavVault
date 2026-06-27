@@ -2,29 +2,7 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { User, Workspace } from '../models';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-
-const ACCESS_TOKEN_EXPIRY = '15m';
-const REFRESH_TOKEN_EXPIRY = '7d';
-
-const generateTokens = (user: any) => {
-  const accessSecret = process.env.JWT_SECRET || 'devvault_secret_access_token_key_2026';
-  const refreshSecret = process.env.JWT_REFRESH_SECRET || 'devvault_secret_refresh_token_key_2026';
-
-  const accessToken = jwt.sign(
-    { id: user._id, email: user.email, plan: user.plan, role: user.role || 'user' },
-    accessSecret,
-    { expiresIn: ACCESS_TOKEN_EXPIRY }
-  );
-
-  const refreshToken = jwt.sign(
-    { id: user._id },
-    refreshSecret,
-    { expiresIn: REFRESH_TOKEN_EXPIRY }
-  );
-
-  return { accessToken, refreshToken };
-};
+import { clearRefreshCookie } from '../services/token.service';
 
 const serializeUser = (user: any) => ({
   id: user._id,
@@ -87,6 +65,10 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response) =>
         return res.status(400).json({ error: 'Email address is already in use by another account.' });
       }
       user.email = emailLower;
+      user.isVerified = false;
+      user.verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      user.verificationCodeExpires = new Date(Date.now() + 15 * 60 * 1000);
+      user.tokenVersion = (user.tokenVersion || 0) + 1;
       emailChanged = true;
     }
 
@@ -109,16 +91,15 @@ export const updateProfile = async (req: AuthenticatedRequest, res: Response) =>
 
     await user.save();
 
-    // Generate fresh tokens if email changed
-    let tokens = null;
     if (emailChanged) {
-      tokens = generateTokens(user);
+      clearRefreshCookie(res);
+      console.log(`[EMAIL OUTBOX] Verification code for ${user.email}: ${user.verificationCode}`);
     }
 
     return res.status(200).json({
       message: 'Profile updated successfully.',
       user: serializeUser(user),
-      ...(tokens ? { tokens } : {})
+      requiresVerification: emailChanged,
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });

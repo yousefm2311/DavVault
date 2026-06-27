@@ -14,6 +14,7 @@ import {
   getFileContent,
   getProjectHealth,
   getProjectGraph,
+  downloadProjectZip,
 } from '../controllers/project.controller';
 
 const router = Router();
@@ -41,6 +42,7 @@ router.post('/upload', authenticate, checkPlanLimits('project'), upload.single('
 router.get('/', authenticate, getProjects);
 router.get('/:id', authenticate, getProjectById);
 router.delete('/:id', authenticate, deleteProject);
+router.get('/:id/download', authenticate, downloadProjectZip);
 router.get('/:id/overview', authenticate, getProjectOverview);
 router.get('/:id/files', authenticate, getProjectFiles);
 router.get('/:projectId/files/:fileId', authenticate, getFileContent);

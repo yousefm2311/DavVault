@@ -34,6 +34,39 @@ class ParserService {
         return 'php';
       case 'java':
         return 'java';
+      case 'go':
+        return 'go';
+      case 'rs':
+        return 'rust';
+      case 'c':
+      case 'h':
+        return 'c';
+      case 'cpp':
+      case 'hpp':
+      case 'cc':
+      case 'cxx':
+        return 'cpp';
+      case 'cs':
+        return 'csharp';
+      case 'rb':
+        return 'ruby';
+      case 'swift':
+        return 'swift';
+      case 'kt':
+      case 'kts':
+        return 'kotlin';
+      case 'html':
+        return 'html';
+      case 'css':
+      case 'scss':
+      case 'sass':
+      case 'less':
+        return 'css';
+      case 'sql':
+        return 'sql';
+      case 'sh':
+      case 'bash':
+        return 'shell';
       case 'json':
         return 'json';
       case 'md':

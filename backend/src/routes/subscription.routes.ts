@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
-import { createCheckoutSession, getSubscription, upgradeSubscription } from '../controllers/subscription.controller';
+import {
+  createBillingPortalSession,
+  createCheckoutSession,
+  getSubscription,
+} from '../controllers/subscription.controller';
 
 const router = Router();
 
 router.get('/', authenticate, getSubscription);
-router.post('/upgrade', authenticate, upgradeSubscription);
 router.post('/checkout', authenticate, createCheckoutSession);
+router.post('/portal', authenticate, createBillingPortalSession);
 
 export default router;

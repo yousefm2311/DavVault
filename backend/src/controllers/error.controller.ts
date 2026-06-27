@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { ErrorSolution, Embedding, Activity } from '../models';
+import { ErrorSolution, Embedding, Activity, Project } from '../models';
 import { aiService } from '../services/ai.service';
 
 export const createErrorSolution = async (req: AuthenticatedRequest, res: Response) => {
@@ -10,6 +10,10 @@ export const createErrorSolution = async (req: AuthenticatedRequest, res: Respon
 
     if (!title || !errorMessage || !cause || !solution) {
       return res.status(400).json({ error: 'Title, errorMessage, cause, and solution are required.' });
+    }
+    if (projectId) {
+      const project = await Project.findOne({ _id: projectId, userId: req.user.id }, '_id');
+      if (!project) return res.status(400).json({ error: 'Invalid project reference.' });
     }
 
     const errorSolution = await ErrorSolution.create({

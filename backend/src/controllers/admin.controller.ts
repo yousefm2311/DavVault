@@ -171,7 +171,20 @@ export const updateUserRole = async (req: AuthenticatedRequest, res: Response) =
       link: '/profile',
     });
 
-    return res.status(200).json({ user: target });
+    return res.status(200).json({
+      user: {
+        _id: target._id,
+        name: target.name,
+        email: target.email,
+        avatar: target.avatar,
+        plan: target.plan,
+        role: target.role,
+        status: target.status,
+        isVerified: target.isVerified,
+        createdAt: target.createdAt,
+        updatedAt: target.updatedAt,
+      },
+    });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
@@ -205,7 +218,20 @@ export const updateUserStatus = async (req: AuthenticatedRequest, res: Response)
       link: '/profile',
     });
 
-    return res.status(200).json({ user: target });
+    return res.status(200).json({
+      user: {
+        _id: target._id,
+        name: target.name,
+        email: target.email,
+        avatar: target.avatar,
+        plan: target.plan,
+        role: target.role,
+        status: target.status,
+        isVerified: target.isVerified,
+        createdAt: target.createdAt,
+        updatedAt: target.updatedAt,
+      },
+    });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }

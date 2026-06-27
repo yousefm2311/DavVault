@@ -50,7 +50,7 @@ const avatarPresets = [
 ];
 
 export default function ProfilePage() {
-  const { user, loading, apiFetch, updateUserState } = useAuth();
+  const { user, loading, apiFetch, updateUserState, logout } = useAuth();
   const { t, dir, language } = useLanguage();
   const router = useRouter();
 
@@ -131,6 +131,12 @@ export default function ProfilePage() {
       
       const storedAccent = localStorage.getItem('accentColor') || 'blue';
       setAccentColor(storedAccent);
+      const weekly = localStorage.getItem('notifWeeklyEmail');
+      const insights = localStorage.getItem('notifAIInsights');
+      const security = localStorage.getItem('notifSecurity');
+      if (weekly !== null) setNotifWeeklyEmail(JSON.parse(weekly));
+      if (insights !== null) setNotifAIInsights(JSON.parse(insights));
+      if (security !== null) setNotifSecurity(JSON.parse(security));
       
       fetchProfile();
       fetchSubscription();
@@ -157,10 +163,9 @@ export default function ProfilePage() {
         bio: res.user.bio
       });
 
-      // Update tokens if returned
-      if (res.tokens?.accessToken) {
-        localStorage.setItem('accessToken', res.tokens.accessToken);
-        localStorage.setItem('refreshToken', res.tokens.refreshToken);
+      if (res.requiresVerification) {
+        await logout();
+        return;
       }
 
       setSuccess(t('saveSuccess'));

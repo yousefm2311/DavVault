@@ -93,3 +93,26 @@ export const addWorkspaceMember = async (req: AuthenticatedRequest, res: Respons
     return res.status(500).json({ error: error.message });
   }
 };
+
+export const removeWorkspaceMember = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
+    const workspace = await Workspace.findOne({ ownerId: req.user.id });
+    if (!workspace) return res.status(403).json({ error: 'Only workspace owners can remove members.' });
+
+    const member = workspace.members.find(
+      (entry) => entry.userId.toString() === req.params.userId
+    );
+    if (!member || member.role === 'owner') {
+      return res.status(400).json({ error: 'Workspace member cannot be removed.' });
+    }
+
+    workspace.members = workspace.members.filter(
+      (entry) => entry.userId.toString() !== req.params.userId
+    );
+    await workspace.save();
+    return res.status(200).json({ message: 'Workspace member removed.' });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+};

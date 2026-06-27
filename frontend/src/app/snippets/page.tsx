@@ -7,6 +7,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { Sidebar } from '@/components/Sidebar';
 import { CommandPalette } from '@/components/CommandPalette';
 import { AppPageSkeleton, SectionSkeleton } from '@/components/LoadingStates';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Code,
   Plus,
@@ -138,7 +139,12 @@ function SnippetsPageContent() {
     <div className="flex min-h-screen bg-bg-primary text-white select-none" dir={dir}>
       <Sidebar />
 
-      <main className="flex-1 p-10 overflow-y-auto max-w-5xl mx-auto flex flex-col">
+      <motion.main
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="flex-1 p-10 overflow-y-auto max-w-5xl mx-auto flex flex-col"
+      >
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">{t('snippetsVault')}</h2>
@@ -154,94 +160,102 @@ function SnippetsPageContent() {
         </div>
 
         {/* Add Snippet Panel */}
-        {showAddForm && (
-          <div className="mb-8 bg-card-bg/60 border border-card-border p-6 rounded-[28px] glass">
-            <h3 className="font-bold text-sm mb-4">{t('addNewSnippet')}</h3>
-            <form onSubmit={handleAddSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <AnimatePresence>
+          {showAddForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="mb-8 bg-card-bg/60 border border-card-border p-6 rounded-[28px] glass overflow-hidden"
+            >
+              <h3 className="font-bold text-sm mb-4">{t('addNewSnippet')}</h3>
+              <form onSubmit={handleAddSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('snippetTitle')}</label>
+                    <input
+                      type="text"
+                      placeholder={t('exampleSupabaseAuth')}
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('language')}</label>
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
+                    >
+                      <option value="javascript">JavaScript</option>
+                      <option value="typescript">TypeScript</option>
+                      <option value="dart">Dart</option>
+                      <option value="python">Python</option>
+                      <option value="php">PHP</option>
+                      <option value="json">JSON</option>
+                      <option value="yaml">YAML</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('snippetTitle')}</label>
-                  <input
-                    type="text"
-                    placeholder={t('exampleSupabaseAuth')}
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
+                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('snippetCode')}</label>
+                  <textarea
+                    placeholder={t('pasteReusableCode')}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    rows={6}
+                    className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs font-mono text-white outline-none focus:border-accent-blue/50"
                     required
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('language')}</label>
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('explanation')}</label>
+                    <input
+                      type="text"
+                      placeholder={t('shortExplanation')}
+                      value={explanation}
+                      onChange={(e) => setExplanation(e.target.value)}
+                      className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('tagsCommaSeparated')}</label>
+                    <input
+                      type="text"
+                      placeholder="supabase, auth, upload"
+                      value={tagsStr}
+                      onChange={(e) => setTagsStr(e.target.value)}
+                      className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddForm(false)}
+                    className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-2xl text-xs font-semibold"
                   >
-                    <option value="javascript">JavaScript</option>
-                    <option value="typescript">TypeScript</option>
-                    <option value="dart">Dart</option>
-                    <option value="python">Python</option>
-                    <option value="php">PHP</option>
-                    <option value="json">JSON</option>
-                    <option value="yaml">YAML</option>
-                  </select>
+                    {t('cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-5 py-2.5 bg-accent-blue hover:bg-accent-blue/90 disabled:bg-accent-blue/50 text-white rounded-2xl text-xs font-semibold"
+                  >
+                    {submitting ? t('savingSnippet') : t('saveSnippet')}
+                  </button>
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('snippetCode')}</label>
-                <textarea
-                  placeholder={t('pasteReusableCode')}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  rows={6}
-                  className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs font-mono text-white outline-none focus:border-accent-blue/50"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('explanation')}</label>
-                  <input
-                    type="text"
-                    placeholder={t('shortExplanation')}
-                    value={explanation}
-                    onChange={(e) => setExplanation(e.target.value)}
-                    className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">{t('tagsCommaSeparated')}</label>
-                  <input
-                    type="text"
-                    placeholder="supabase, auth, upload"
-                    value={tagsStr}
-                    onChange={(e) => setTagsStr(e.target.value)}
-                    className="w-full bg-bg-primary/50 border border-card-border rounded-2xl py-3 px-4 text-xs text-white outline-none focus:border-accent-blue/50"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-2xl text-xs font-semibold"
-                >
-                  {t('cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2.5 bg-accent-blue hover:bg-accent-blue/90 disabled:bg-accent-blue/50 text-white rounded-2xl text-xs font-semibold"
-                >
-                  {submitting ? t('savingSnippet') : t('saveSnippet')}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Filter Input */}
         <div className="mb-6 relative max-w-sm">
@@ -262,10 +276,27 @@ function SnippetsPageContent() {
             {loadingSnippets ? (
               <SectionSkeleton rows={4} />
             ) : filteredSnippets.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0 },
+                  show: {
+                    opacity: 1,
+                    transition: {
+                      staggerChildren: 0.08
+                    }
+                  }
+                }}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+              >
                 {filteredSnippets.map((snippet) => (
-                  <div
+                  <motion.div
                     key={snippet._id}
+                    variants={{
+                      hidden: { opacity: 0, y: 15 },
+                      show: { opacity: 1, y: 0 }
+                    }}
                     onClick={() => setSelectedSnippet(snippet)}
                     className={`p-5 rounded-[24px] border transition-all duration-150 cursor-pointer flex flex-col justify-between h-[160px] hover:bg-white/5 ${
                       selectedSnippet?._id === snippet._id
@@ -294,9 +325,9 @@ function SnippetsPageContent() {
                       <div className="flex gap-1 overflow-hidden max-w-[70%]">
                         {(snippet.tags || []).slice(0, 2).map((tagItem: string) => (
                           <span
-                            key={tagItem}
-                            className="text-[9px] bg-white/5 px-2 py-0.5 rounded-md text-text-secondary truncate"
-                          >
+                              key={tagItem}
+                              className="text-[9px] bg-white/5 px-2 py-0.5 rounded-md text-text-secondary truncate"
+                            >
                             {tagItem}
                           </span>
                         ))}
@@ -328,9 +359,9 @@ function SnippetsPageContent() {
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ) : (
               <div className="py-20 text-center text-xs text-text-secondary flex flex-col items-center justify-center space-y-4 bg-card-bg/25 border border-card-border rounded-[28px]">
                 <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center">
@@ -342,60 +373,75 @@ function SnippetsPageContent() {
           </div>
 
           {/* Details preview panel (1/3 width) */}
-          <div className="bg-card-bg/40 border border-card-border p-6 rounded-[28px] glass min-h-[300px] flex flex-col justify-between">
-            {selectedSnippet ? (
-              <div className="space-y-5 flex-1 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-sm text-white">{selectedSnippet.title}</h3>
-                    <span className="text-[9px] font-mono text-accent-blue bg-accent-blue/10 px-2 py-0.5 rounded-full uppercase">
-                      {selectedSnippet.language}
-                    </span>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">{t('aiExplanation')}</span>
-                      <p className="text-xs text-text-secondary leading-relaxed bg-white/5 p-3 rounded-xl">
-                        {selectedSnippet.explanation || t('noSummary')}
-                      </p>
-                    </div>
-
-                    <div className="space-y-1 flex-1">
-                      <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">{t('codePreview')}</span>
-                      <pre className="p-3 bg-bg-primary rounded-xl overflow-x-auto text-[10px] font-mono text-[#E0E0E0] max-h-[180px]" dir="ltr">
-                        <code>{selectedSnippet.code}</code>
-                      </pre>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleCopy(selectedSnippet._id, selectedSnippet.code)}
-                  className="w-full py-3 bg-accent-blue hover:bg-accent-blue/90 text-white rounded-2xl text-xs font-semibold transition-colors cursor-pointer flex justify-center items-center"
+          <div className="bg-card-bg/40 border border-card-border p-6 rounded-[28px] glass min-h-[300px] flex flex-col justify-between overflow-hidden">
+            <AnimatePresence mode="wait">
+              {selectedSnippet ? (
+                <motion.div
+                  key={selectedSnippet._id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="space-y-5 flex-1 flex flex-col justify-between"
                 >
-                  {copiedId === selectedSnippet._id ? (
-                    <>
-                      <Check className={`w-4 h-4 ${isRtl ? 'ml-1.5' : 'mr-1.5'} text-success`} />
-                      {t('copied')}
-                    </>
-                  ) : (
-                    <>
-                      <Copy className={`w-4 h-4 ${isRtl ? 'ml-1.5' : 'mr-1.5'}`} />
-                      {t('copyCode')}
-                    </>
-                  )}
-                </button>
-              </div>
-            ) : (
-              <div className="py-20 text-center text-xs text-text-secondary flex flex-col items-center justify-center space-y-3 h-full justify-center">
-                <Info className="w-5 h-5 text-accent-blue opacity-50" />
-                <span>{t('chooseSnippetToPreview')}</span>
-              </div>
-            )}
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-sm text-white">{selectedSnippet.title}</h3>
+                      <span className="text-[9px] font-mono text-accent-blue bg-accent-blue/10 px-2 py-0.5 rounded-full uppercase">
+                        {selectedSnippet.language}
+                      </span>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">{t('aiExplanation')}</span>
+                        <p className="text-xs text-text-secondary leading-relaxed bg-white/5 p-3 rounded-xl">
+                          {selectedSnippet.explanation || t('noSummary')}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1 flex-1">
+                        <span className="text-[9px] text-text-secondary uppercase tracking-wider font-semibold">{t('codePreview')}</span>
+                        <pre className="p-3 bg-bg-primary rounded-xl overflow-x-auto text-[10px] font-mono text-[#E0E0E0] max-h-[180px]" dir="ltr">
+                          <code>{selectedSnippet.code}</code>
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleCopy(selectedSnippet._id, selectedSnippet.code)}
+                    className="w-full py-3 bg-accent-blue hover:bg-accent-blue/90 text-white rounded-2xl text-xs font-semibold transition-colors cursor-pointer flex justify-center items-center"
+                  >
+                    {copiedId === selectedSnippet._id ? (
+                      <>
+                        <Check className={`w-4 h-4 ${isRtl ? 'ml-1.5' : 'mr-1.5'} text-success`} />
+                        {t('copied')}
+                      </>
+                    ) : (
+                      <>
+                        <Copy className={`w-4 h-4 ${isRtl ? 'ml-1.5' : 'mr-1.5'}`} />
+                        {t('copyCode')}
+                      </>
+                    )}
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.5 }}
+                  exit={{ opacity: 0 }}
+                  className="py-20 text-center text-xs text-text-secondary flex flex-col items-center justify-center space-y-3 h-full justify-center"
+                >
+                  <Info className="w-5 h-5 text-accent-blue opacity-50" />
+                  <span>{t('chooseSnippetToPreview')}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
-      </main>
+      </motion.main>
 
       <CommandPalette />
     </div>

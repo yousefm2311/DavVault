@@ -7,6 +7,8 @@ import { AppPageSkeleton } from '@/components/LoadingStates';
 import { CreditCard, Check, Zap, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
+import { motion } from 'framer-motion';
+import { AnimatedCounter } from '@/components/AnimatedCounter';
 
 type Plan = 'free' | 'pro' | 'team';
 
@@ -27,10 +29,7 @@ type SubscriptionData = {
 
 type CheckoutResponse = {
   checkoutUrl?: string;
-};
-
-type UpgradeResponse = {
-  message?: string;
+  portalUrl?: string;
 };
 
 export default function BillingPage() {
@@ -71,36 +70,21 @@ export default function BillingPage() {
     setSuccess(null);
     setUpgradingPlan(plan);
     try {
-      if (plan !== 'free') {
-        try {
-          const checkout = await apiFetch('/subscription/checkout', {
-            method: 'POST',
-            body: JSON.stringify({ plan }),
-          }) as CheckoutResponse;
-          if (checkout.checkoutUrl) {
-            window.location.assign(checkout.checkoutUrl);
-            return;
-          }
-        } catch (checkoutErr: unknown) {
-          const message = checkoutErr instanceof Error ? checkoutErr.message : t('stripeInitFailed');
-          if (!message.toLowerCase().includes('stripe')) {
-            throw checkoutErr;
-          }
-          setSuccess(t('stripeNotConfigured'));
-        }
+      if (plan === 'free') {
+        const portal = await apiFetch('/subscription/portal', { method: 'POST' }) as CheckoutResponse;
+        if (!portal.portalUrl) throw new Error(t('stripeInitFailed'));
+        window.location.assign(portal.portalUrl);
+        return;
       }
 
-      const res = await apiFetch('/subscription/upgrade', {
+      const checkout = await apiFetch('/subscription/checkout', {
         method: 'POST',
         body: JSON.stringify({ plan }),
-      }) as UpgradeResponse;
-      setSuccess(res.message || t('upgradePlanSuccess', { plan: plan.toUpperCase() }));
-      // Reload sub data and trigger context update by reload (or state sync)
-      await fetchSubscription();
-      // Simple page refresh or context update to let the header show the new plan
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      }) as CheckoutResponse;
+      if (!checkout.checkoutUrl) {
+        throw new Error(t('stripeInitFailed'));
+      }
+      window.location.assign(checkout.checkoutUrl);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('upgradePlanFailed'));
     } finally {
@@ -119,8 +103,8 @@ export default function BillingPage() {
   };
 
   // Convert bytes to MB
-  const storageMB = (usage.storageBytes / (1024 * 1024)).toFixed(1);
-  const limitMB = (limits.storageBytes / (1024 * 1024)).toFixed(1);
+  const storageMB = usage.storageBytes / (1024 * 1024);
+  const limitMB = limits.storageBytes / (1024 * 1024);
 
   // Compute percentages for usage bars
   const projectPct = Math.min(100, (usage.projectsCount / limits.projectsCount) * 100);
@@ -133,6 +117,7 @@ export default function BillingPage() {
       name: t('pricingFreeStarter'),
       description: t('pricingFreeStarterDesc'),
       price: '$0',
+      priceVal: 0,
       period: t('pricingFreeStarterPeriod'),
       icon: Zap,
       accentColor: 'text-text-secondary',
@@ -150,6 +135,7 @@ export default function BillingPage() {
       name: t('pricingProName'),
       description: t('pricingProDesc'),
       price: '$15',
+      priceVal: 15,
       period: t('pricingProPeriod'),
       icon: Sparkles,
       accentColor: 'text-accent-blue',
@@ -168,6 +154,7 @@ export default function BillingPage() {
       name: t('pricingTeamName'),
       description: t('pricingTeamDesc'),
       price: '$49',
+      priceVal: 49,
       period: t('pricingTeamPeriod'),
       icon: ShieldCheck,
       accentColor: 'text-success',
@@ -189,7 +176,12 @@ export default function BillingPage() {
       <Sidebar />
 
       {/* Main Container */}
-      <main className="flex-1 overflow-y-auto p-8 relative">
+      <motion.main
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="flex-1 overflow-y-auto p-8 relative"
+      >
         {/* Dynamic ambient lights */}
         <div className="absolute top-1/4 right-1/4 w-96 h-96 rounded-full bg-accent-blue/5 blur-[120px] pointer-events-none"></div>
 
@@ -223,70 +215,130 @@ export default function BillingPage() {
         )}
 
         {/* Quotas / Usage Meters Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <motion.div
+          variants={{
+            hidden: { opacity: 0 },
+            show: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.1
+              }
+            }
+          }}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10"
+        >
           {/* Meter 1: Projects Count */}
-          <div className="bg-card-bg/40 border border-card-border p-6 rounded-[24px] glass">
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 15 },
+              show: { opacity: 1, y: 0 }
+            }}
+            className="bg-card-bg/40 border border-card-border p-6 rounded-[24px] glass"
+          >
             <div className="flex justify-between items-center mb-3">
               <span className="text-xs font-semibold text-text-secondary uppercase">{t('activeReposLabel')}</span>
-              <span className="text-xs font-bold text-white">{usage.projectsCount} / {limits.projectsCount}</span>
+              <span className="text-xs font-bold text-white select-all">
+                <AnimatedCounter value={usage.projectsCount} /> / <AnimatedCounter value={limits.projectsCount} />
+              </span>
             </div>
             <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-2">
-              <div
-                className="bg-accent-blue h-full rounded-full transition-all duration-500"
-                style={{ width: `${projectPct}%` }}
-              ></div>
+              <motion.div
+                className="bg-accent-blue h-full rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${projectPct}%` }}
+                transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+              ></motion.div>
             </div>
             <p className="text-[10px] text-text-secondary">
               {t('reposIndexedDesc')}
             </p>
-          </div>
+          </motion.div>
 
           {/* Meter 2: Cloud Storage */}
-          <div className="bg-card-bg/40 border border-card-border p-6 rounded-[24px] glass">
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 15 },
+              show: { opacity: 1, y: 0 }
+            }}
+            className="bg-card-bg/40 border border-card-border p-6 rounded-[24px] glass"
+          >
             <div className="flex justify-between items-center mb-3">
               <span className="text-xs font-semibold text-text-secondary uppercase">{t('indexedCodeStorage')}</span>
-              <span className="text-xs font-bold text-white">{storageMB} MB / {limitMB} MB</span>
+              <span className="text-xs font-bold text-white select-all">
+                <AnimatedCounter value={storageMB} decimals={1} /> MB / <AnimatedCounter value={limitMB} decimals={1} /> MB
+              </span>
             </div>
             <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-2">
-              <div
-                className="bg-accent-blue h-full rounded-full transition-all duration-500"
-                style={{ width: `${storagePct}%` }}
-              ></div>
+              <motion.div
+                className="bg-accent-blue h-full rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${storagePct}%` }}
+                transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
+              ></motion.div>
             </div>
             <p className="text-[10px] text-text-secondary">
               {t('fileSizeExtractedDesc')}
             </p>
-          </div>
+          </motion.div>
 
           {/* Meter 3: AI Questions */}
-          <div className="bg-card-bg/40 border border-card-border p-6 rounded-[24px] glass">
+          <motion.div
+            variants={{
+              hidden: { opacity: 0, y: 15 },
+              show: { opacity: 1, y: 0 }
+            }}
+            className="bg-card-bg/40 border border-card-border p-6 rounded-[24px] glass"
+          >
             <div className="flex justify-between items-center mb-3">
               <span className="text-xs font-semibold text-text-secondary uppercase">{t('monthlyQueriesLabel')}</span>
-              <span className="text-xs font-bold text-white">{usage.aiQuestionsUsed} / {limits.aiQuestionsPerMonth}</span>
+              <span className="text-xs font-bold text-white select-all">
+                <AnimatedCounter value={usage.aiQuestionsUsed} /> / <AnimatedCounter value={limits.aiQuestionsPerMonth} />
+              </span>
             </div>
             <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden mb-2">
-              <div
-                className="bg-accent-blue h-full rounded-full transition-all duration-500"
-                style={{ width: `${aiPct}%` }}
-              ></div>
+              <motion.div
+                className="bg-accent-blue h-full rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${aiPct}%` }}
+                transition={{ duration: 1.2, ease: 'easeOut', delay: 0.4 }}
+              ></motion.div>
             </div>
             <p className="text-[10px] text-text-secondary">
               {t('queriesRagDesc')}
             </p>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
         {/* Plan Tiers Grid */}
         <h2 className="text-lg font-bold mb-6">{t('choosePlan')}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <motion.div
+          variants={{
+            hidden: { opacity: 0 },
+            show: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.15
+              }
+            }
+          }}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+        >
           {planTiers.map((tier) => {
             const TierIcon = tier.icon;
             const isCurrent = plan === tier.id;
             const canUpgrade = !isCurrent && (plan === 'free' || (plan === 'pro' && tier.id === 'team'));
 
             return (
-              <div
+              <motion.div
                 key={tier.id}
+                variants={{
+                  hidden: { opacity: 0, y: 25 },
+                  show: { opacity: 1, y: 0 }
+                }}
                 className={`bg-card-bg/40 border p-8 rounded-[28px] glass flex flex-col justify-between relative hover-scale transition-all duration-300 ${
                   isCurrent ? 'border-accent-blue shadow-lg shadow-accent-blue/5' : 'border-card-border'
                 }`}
@@ -305,8 +357,8 @@ export default function BillingPage() {
 
                   <p className="text-xs text-text-secondary mb-6 min-h-[32px]">{tier.description}</p>
 
-                  <div className="flex items-baseline mb-8">
-                    <span className="text-4xl font-extrabold tracking-tight text-white">{tier.price}</span>
+                  <div className="flex items-baseline mb-8 select-all">
+                    <span className="text-4xl font-extrabold tracking-tight text-white">$<AnimatedCounter value={tier.priceVal} /></span>
                     <span className="text-text-secondary text-xs mr-1">/{tier.period}</span>
                   </div>
 
@@ -345,11 +397,11 @@ export default function BillingPage() {
                     )}
                   </button>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
-        </div>
-      </main>
+        </motion.div>
+      </motion.main>
     </div>
   );
 }

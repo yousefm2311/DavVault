@@ -1,30 +1,15 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { User, Workspace, Subscription } from '../models';
-
-const ACCESS_TOKEN_EXPIRY = '15m';
-const REFRESH_TOKEN_EXPIRY = '7d';
-
-const generateTokens = (user: any) => {
-  const accessSecret = process.env.JWT_SECRET || 'devvault_secret_access_token_key_2026';
-  const refreshSecret = process.env.JWT_REFRESH_SECRET || 'devvault_secret_refresh_token_key_2026';
-
-  const accessToken = jwt.sign(
-    { id: user._id, email: user.email, plan: user.plan, role: user.role || 'user' },
-    accessSecret,
-    { expiresIn: ACCESS_TOKEN_EXPIRY }
-  );
-
-  const refreshToken = jwt.sign(
-    { id: user._id },
-    refreshSecret,
-    { expiresIn: REFRESH_TOKEN_EXPIRY }
-  );
-
-  return { accessToken, refreshToken };
-};
+import {
+  clearRefreshCookie,
+  generateTokens,
+  readCookie,
+  REFRESH_COOKIE_NAME,
+  setRefreshCookie,
+  verifyRefreshToken,
+} from '../services/token.service';
 
 const serializeUser = (user: any) => ({
   id: user._id,
@@ -41,7 +26,7 @@ const serializeUser = (user: any) => ({
 const getFrontendUrl = () => process.env.FRONTEND_URL || 'http://localhost:3000';
 
 const signOAuthState = (provider: 'google' | 'github') => {
-  const secret = process.env.JWT_SECRET || 'devvault-secret';
+  const secret = process.env.JWT_SECRET!;
   const payload = Buffer.from(
     JSON.stringify({
       provider,
@@ -58,7 +43,7 @@ const verifyOAuthState = (state: string | undefined, provider: 'google' | 'githu
   const [payload, signature] = state.split('.');
   if (!payload || !signature) return false;
 
-  const secret = process.env.JWT_SECRET || 'devvault-secret';
+  const secret = process.env.JWT_SECRET!;
   const expected = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
   if (
     Buffer.byteLength(signature) !== Buffer.byteLength(expected) ||
@@ -99,22 +84,6 @@ const ensureUserDefaults = async (user: any) => {
   );
 
   return workspace;
-};
-
-const buildOAuthCallbackRedirect = (user: any, workspaceId: string) => {
-  const { accessToken, refreshToken } = generateTokens(user);
-  const payload = Buffer.from(
-    JSON.stringify({
-      user: {
-        ...serializeUser(user),
-      },
-      workspaceId,
-      accessToken,
-      refreshToken,
-    })
-  ).toString('base64url');
-
-  return `${getFrontendUrl()}/auth/oauth/callback#payload=${payload}`;
 };
 
 const upsertOAuthUser = async ({
@@ -161,9 +130,10 @@ const upsertOAuthUser = async ({
 export const register = async (req: Request, res: Response) => {
   try {
     const { name, email, password } = req.body;
+    const normalizedEmail = email.toLowerCase().trim();
 
     // Check if user exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ error: 'Email already registered.' });
     }
@@ -179,7 +149,7 @@ export const register = async (req: Request, res: Response) => {
     // Create user (unverified)
     const newUser = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       passwordHash,
       plan: 'free',
       isVerified: false,
@@ -201,8 +171,7 @@ export const register = async (req: Request, res: Response) => {
     return res.status(201).json({
       message: 'Registration successful. A verification code has been sent to your email.',
       email: newUser.email,
-      requiresVerification: true,
-      devCode: code // Returned for smooth developer sandboxing
+      requiresVerification: true
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
@@ -242,13 +211,13 @@ export const verifyCode = async (req: Request, res: Response) => {
     const defaultWorkspace = await ensureUserDefaults(user);
 
     const { accessToken, refreshToken } = generateTokens(user);
+    setRefreshCookie(res, refreshToken);
 
     return res.status(200).json({
       message: 'Account verified successfully.',
       user: serializeUser(user),
       workspaceId: defaultWorkspace._id,
       accessToken,
-      refreshToken,
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
@@ -290,11 +259,44 @@ export const resendCode = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       message: 'A new verification code has been sent to your email.',
-      devCode: code, // return in dev mode to make testing super smooth
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
+};
+
+export const requestPasswordReset = async (req: Request, res: Response) => {
+  const email = String(req.body.email || '').toLowerCase().trim();
+  const user = await User.findOne({ email }).select('+passwordResetTokenHash +passwordResetExpires');
+  if (user) {
+    const token = crypto.randomBytes(32).toString('hex');
+    user.passwordResetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    user.passwordResetExpires = new Date(Date.now() + 30 * 60 * 1000);
+    await user.save();
+    console.log(`[EMAIL OUTBOX] Password reset URL: ${getFrontendUrl()}/reset-password?email=${encodeURIComponent(email)}&token=${token}`);
+  }
+  return res.status(200).json({
+    message: 'If the account exists, a password reset link has been sent.',
+  });
+};
+
+export const resetPassword = async (req: Request, res: Response) => {
+  const email = String(req.body.email || '').toLowerCase().trim();
+  const tokenHash = crypto.createHash('sha256').update(String(req.body.token || '')).digest('hex');
+  const user = await User.findOne({
+    email,
+    passwordResetTokenHash: tokenHash,
+    passwordResetExpires: { $gt: new Date() },
+  }).select('+passwordResetTokenHash +passwordResetExpires');
+  if (!user) return res.status(400).json({ error: 'Invalid or expired password reset link.' });
+
+  user.passwordHash = await bcrypt.hash(req.body.password, 10);
+  user.passwordResetTokenHash = undefined;
+  user.passwordResetExpires = undefined;
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
+  await user.save();
+  clearRefreshCookie(res);
+  return res.status(200).json({ message: 'Password reset successfully.' });
 };
 
 export const login = async (req: Request, res: Response) => {
@@ -327,8 +329,7 @@ export const login = async (req: Request, res: Response) => {
       return res.status(403).json({
         error: 'Account not verified. Please verify your email first.',
         requiresVerification: true,
-        email: user.email,
-        devCode: code
+        email: user.email
       });
     }
 
@@ -336,13 +337,13 @@ export const login = async (req: Request, res: Response) => {
     const workspace = await Workspace.findOne({ ownerId: user._id });
 
     const { accessToken, refreshToken } = generateTokens(user);
+    setRefreshCookie(res, refreshToken);
 
     return res.status(200).json({
       message: 'Login successful.',
       user: serializeUser(user),
       workspaceId: workspace?._id || null,
       accessToken,
-      refreshToken,
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
@@ -351,13 +352,14 @@ export const login = async (req: Request, res: Response) => {
 
 export const refresh = async (req: Request, res: Response) => {
   try {
-    const { token } = req.body;
+    const token =
+      readCookie(req.headers.cookie, REFRESH_COOKIE_NAME) ||
+      (process.env.NODE_ENV !== 'production' ? req.body?.token : undefined);
     if (!token) {
       return res.status(400).json({ error: 'Refresh token is required.' });
     }
 
-    const refreshSecret = process.env.JWT_REFRESH_SECRET || 'devvault_secret_refresh_token_key_2026';
-    const decoded = jwt.verify(token, refreshSecret) as { id: string };
+    const decoded = verifyRefreshToken(token);
 
     const user = await User.findById(decoded.id);
     if (!user) {
@@ -366,8 +368,13 @@ export const refresh = async (req: Request, res: Response) => {
     if (user.status === 'suspended') {
       return res.status(403).json({ error: 'Account suspended. Contact support.' });
     }
+    if (decoded.tokenVersion !== (user.tokenVersion || 0)) {
+      clearRefreshCookie(res);
+      return res.status(401).json({ error: 'Session revoked.' });
+    }
 
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
+    setRefreshCookie(res, newRefreshToken);
     const workspace = await Workspace.findOne({
       $or: [{ ownerId: user._id }, { 'members.userId': user._id }],
     }).select('_id');
@@ -376,53 +383,9 @@ export const refresh = async (req: Request, res: Response) => {
       user: serializeUser(user),
       workspaceId: workspace?._id || null,
       accessToken,
-      refreshToken: newRefreshToken,
     });
   } catch (error: any) {
     return res.status(403).json({ error: 'Token refresh failed. Invalid refresh token.' });
-  }
-};
-
-// Social login stub endpoints for dev environment
-export const socialLoginStub = async (req: Request, res: Response) => {
-  try {
-    const { name, email, avatar, provider, providerId } = req.body;
-
-    if (!email || !name) {
-      return res.status(400).json({ error: 'Name and email are required for social login stub.' });
-    }
-
-    let user = await User.findOne({ email });
-    let isNew = false;
-
-    if (!user) {
-      isNew = true;
-      user = await User.create({
-        name,
-        email,
-        avatar,
-        plan: 'free',
-        isVerified: true, // Social logins are auto-verified
-        ...(provider === 'google' ? { googleId: providerId } : { githubId: providerId }),
-      });
-
-    }
-    if (user.status === 'suspended') {
-      return res.status(403).json({ error: 'Account suspended. Contact support.' });
-    }
-
-    const workspace = await ensureUserDefaults(user);
-    const { accessToken, refreshToken } = generateTokens(user);
-
-    return res.status(isNew ? 201 : 200).json({
-      message: `Logged in via ${provider} successfully.`,
-      user: serializeUser(user),
-      workspaceId: workspace?._id || null,
-      accessToken,
-      refreshToken,
-    });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -514,7 +477,9 @@ export const oauthCallback = async (req: Request, res: Response) => {
         return res.redirect(`${getFrontendUrl()}/login?oauth_error=account_suspended`);
       }
 
-      return res.redirect(buildOAuthCallbackRedirect(user, workspace._id.toString()));
+      const { refreshToken } = generateTokens(user);
+      setRefreshCookie(res, refreshToken);
+      return res.redirect(`${getFrontendUrl()}/auth/oauth/callback`);
     }
 
     if (provider === 'github') {
@@ -555,7 +520,9 @@ export const oauthCallback = async (req: Request, res: Response) => {
         return res.redirect(`${getFrontendUrl()}/login?oauth_error=account_suspended`);
       }
 
-      return res.redirect(buildOAuthCallbackRedirect(user, workspace._id.toString()));
+      const { refreshToken } = generateTokens(user);
+      setRefreshCookie(res, refreshToken);
+      return res.redirect(`${getFrontendUrl()}/auth/oauth/callback`);
     }
 
     return res.redirect(`${getFrontendUrl()}/login?oauth_error=unsupported_provider`);
@@ -566,5 +533,15 @@ export const oauthCallback = async (req: Request, res: Response) => {
 };
 
 export const logout = async (req: Request, res: Response) => {
+  const token = readCookie(req.headers.cookie, REFRESH_COOKIE_NAME);
+  if (token) {
+    try {
+      const decoded = verifyRefreshToken(token);
+      await User.findByIdAndUpdate(decoded.id, { $inc: { tokenVersion: 1 } });
+    } catch {
+      // Invalid or expired cookies are cleared below.
+    }
+  }
+  clearRefreshCookie(res);
   return res.status(200).json({ message: 'Logout successful.' });
 };
