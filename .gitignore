@@ -1,0 +1,20 @@
+# Secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Dependencies and generated output
+**/node_modules/
+backend/dist/
+frontend/.next/
+**/*.tsbuildinfo
+
+# Runtime and user-uploaded data
+backend/uploads/
+
+# Local tooling
+.DS_Store
+coverage/
