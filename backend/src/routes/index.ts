@@ -14,11 +14,16 @@ import subscriptionRoutes from './subscription.routes';
 import userRoutes from './user.routes';
 import notificationRoutes from './notification.routes';
 import adminRoutes from './admin.routes';
+import memoryRoutes from './memory.routes';
+import knowledgeGraphRoutes from './knowledge-graph.routes';
+
+
 
 const router = Router();
 
 router.use('/auth', authRoutes);
 router.use('/projects', projectRoutes);
+router.use('/codebases', projectRoutes);
 router.use('/search', searchRoutes);
 router.use('/ai', aiRoutes);
 router.use('/snippets', snippetRoutes);
@@ -32,5 +37,9 @@ router.use('/subscription', subscriptionRoutes);
 router.use('/user', userRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/admin', adminRoutes);
+router.use('/memory', memoryRoutes);
+router.use('/knowledge-graph', knowledgeGraphRoutes);
+
+
 
 export default router;

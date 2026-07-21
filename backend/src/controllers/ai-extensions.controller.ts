@@ -1,16 +1,34 @@
 import { Response } from 'express';
+import mongoose from 'mongoose';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { File as DBFile, Project, Activity, CodeEntity, ErrorSolution, ReusableSystem } from '../models';
+import { File as DBFile, Project, Activity, CodeEntity, ErrorSolution, ReusableSystem, Workspace } from '../models';
+
+const accessibleProjectFilter = async (userId: string, projectId: string) => {
+  const workspaces = await Workspace.find({ 'members.userId': userId }, '_id').lean();
+  return {
+    _id: projectId,
+    $or: [
+      { userId },
+      { workspaceId: { $in: workspaces.map((workspace) => workspace._id) } },
+    ],
+  };
+};
 
 export const getProjectReplay = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        error: 'Invalid projectId.',
+        code: 'INVALID_OBJECT_ID',
+      });
+    }
 
-    const project = await Project.findOne({ _id: id, userId: req.user.id });
+    const project = await Project.findOne(await accessibleProjectFilter(req.user.id, id));
     if (!project) return res.status(404).json({ error: 'Project not found.' });
 
-    const files = await DBFile.find({ projectId: id, userId: req.user.id }).sort({ createdAt: 1 });
+    const files = await DBFile.find({ projectId: id }).sort({ createdAt: 1 });
     const errors = await ErrorSolution.find({ projectId: id, userId: req.user.id }).sort({ createdAt: 1 });
 
     const timeline: any[] = [];
@@ -61,8 +79,11 @@ export const getProjectReplay = async (req: AuthenticatedRequest, res: Response)
     }
 
     return res.status(200).json({ timeline });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return res.status(500).json({
+      error: 'An unexpected project replay error occurred.',
+      code: 'PROJECT_REPLAY_FAILED',
+    });
   }
 };
 

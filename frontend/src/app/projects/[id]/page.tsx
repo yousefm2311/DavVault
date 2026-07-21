@@ -32,7 +32,8 @@ import {
   ShieldCheck,
   Maximize2,
   Trash2,
-  Download
+  Download,
+  AlertTriangle
 } from 'lucide-react';
 
 interface FileNode {
@@ -43,6 +44,60 @@ interface FileNode {
   size: number;
   summary?: string;
   language?: string;
+}
+
+interface KnowledgeRelationship {
+  id?: string;
+  sourceType: string;
+  sourceId: string;
+  targetType: string;
+  targetId: string;
+  relationshipType?: string;
+  displayName?: string;
+  displayType?: string;
+  displaySubtitle?: string;
+  sourceDisplayName?: string;
+  targetDisplayName?: string;
+  sourceDisplayType?: string;
+  targetDisplayType?: string;
+  sourceDisplaySubtitle?: string;
+  targetDisplaySubtitle?: string;
+  sourcePath?: string;
+  targetPath?: string;
+  confidence?: number;
+  evidence?: {
+    filePath?: string;
+    sourceLine?: number;
+    targetLine?: number;
+    snippet?: string;
+    reason?: string;
+  };
+  metadata?: Record<string, unknown>;
+}
+
+interface Citation {
+  id?: string;
+  type?: string;
+  domainType?: string;
+  title?: string;
+  subtitle?: string;
+  path?: string;
+  relationshipType?: string;
+  confidence?: number;
+  source?: 'code' | 'search' | 'memory' | 'debugging_lesson' | 'architecture_blueprint' | 'knowledge_relationship';
+  navigation?: {
+    route?: string;
+    projectId?: string;
+    fileId?: string;
+    entityId?: string;
+  };
+  fileName?: string;
+  score?: number;
+}
+
+interface EntityRelationships {
+  incoming: KnowledgeRelationship[];
+  outgoing: KnowledgeRelationship[];
 }
 
 const formatBytes = (bytes = 0) => {
@@ -69,6 +124,82 @@ const getHealthTone = (score = 100) => {
   if (score >= 70) return 'text-warning bg-warning/10 border-warning/20';
   return 'text-danger bg-danger/10 border-danger/20';
 };
+
+const formatConfidence = (confidence?: number) => {
+  if (typeof confidence !== 'number') return '70%';
+  return `${Math.round(confidence * 100)}%`;
+};
+
+const humanizeRelationshipType = (relationshipType?: string) => {
+  const labels: Record<string, string> = {
+    contains: 'Contains',
+    defines: 'Defines',
+    imports: 'Imports',
+    exports: 'Exports',
+    calls: 'Calls',
+    uses: 'Uses',
+    depends_on: 'Depends on',
+    extends: 'Extends',
+    implements: 'Implements',
+    similar_to: 'Similar to',
+    solves: 'Solves',
+    documents: 'Documents',
+    mentioned_in: 'Mentioned in',
+    generated_from: 'Generated from',
+    related_to: 'Related to',
+  };
+  if (!relationshipType) return 'Related to';
+  return labels[relationshipType] || relationshipType.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const humanizeCitationLabel = (value?: string) => {
+  if (!value) return 'Source';
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const citationTitle = (citation: Citation) => (
+  citation.title || citation.fileName || citation.path || 'Source'
+);
+
+const citationConfidence = (citation: Citation) => {
+  const value = typeof citation.confidence === 'number' ? citation.confidence : citation.score;
+  return typeof value === 'number' ? `${Math.round(value * 100)}%` : undefined;
+};
+
+const isSourceAssetCitation = (citation: Citation) => (
+  citation.domainType === 'source_asset' ||
+  citation.type === 'file' ||
+  citation.source === 'code'
+);
+
+const RELATIONSHIP_FILTERS = [
+  { value: 'all', label: 'All' },
+  { value: 'contains', label: 'Contains' },
+  { value: 'defines', label: 'Defines' },
+  { value: 'imports', label: 'Imports' },
+  { value: 'exports', label: 'Exports' },
+  { value: 'calls', label: 'Calls' },
+  { value: 'uses', label: 'Uses' },
+  { value: 'depends_on', label: 'Depends on' },
+  { value: 'extends', label: 'Extends' },
+  { value: 'implements', label: 'Implements' },
+  { value: 'similar_to', label: 'Similar to' },
+  { value: 'solves', label: 'Solves' },
+  { value: 'documents', label: 'Documents' },
+  { value: 'related_to', label: 'Related to' },
+] as const;
+
+const isValidObjectIdString = (value?: string) => (
+  typeof value === 'string' && /^[a-f\d]{24}$/i.test(value)
+);
+
+const isSafeCitationRoute = (route?: string): route is string => (
+  typeof route === 'string' &&
+  (
+    /^\/projects\/[a-f\d]{24}(\?fileId=[a-f\d]{24})?$/i.test(route) ||
+    /^\/(snippets|errors|systems)(\?id=[a-f\d]{24})?$/i.test(route)
+  )
+);
 
 // Custom file tree node component helper
 const FileTreeItem: React.FC<{
@@ -146,31 +277,191 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
   const [stats, setStats] = useState<any>(null);
   const [files, setFiles] = useState<FileNode[]>([]);
   const [loadingProject, setLoadingProject] = useState(true);
+  const [projectError, setProjectError] = useState<string | null>(null);
 
   // File tree states
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [selectedFileContent, setSelectedFileContent] = useState('');
   const [loadingFileContent, setLoadingFileContent] = useState(false);
+  const [fileContentError, setFileContentError] = useState<string | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [fileQuery, setFileQuery] = useState('');
 
   // AI explanation state
   const [explanation, setExplanation] = useState<string | null>(null);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
+  const [explanationError, setExplanationError] = useState<string | null>(null);
+  const [explanationRelationships, setExplanationRelationships] = useState<KnowledgeRelationship[]>([]);
+  const [explanationCitations, setExplanationCitations] = useState<Citation[]>([]);
 
   // Scoped chat states
   const [projectMessages, setProjectMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [sendingChat, setSendingChat] = useState(false);
+  const [projectChatError, setProjectChatError] = useState<string | null>(null);
 
   // React Flow graph states
   const [graphNodes, setGraphNodes] = useState<Node[]>([]);
   const [graphEdges, setGraphEdges] = useState<Edge[]>([]);
   const [selectedGraphNode, setSelectedGraphNode] = useState<Node | null>(null);
+  const [graphView, setGraphView] = useState<'dependency' | 'knowledge'>('dependency');
+  const [activeRelationshipFilter, setActiveRelationshipFilter] = useState<string>('all');
+  const [relationshipSearchQuery, setRelationshipSearchQuery] = useState('');
+  const [showKnowledgeLegend, setShowKnowledgeLegend] = useState(false);
+  const [knowledgeRelationships, setKnowledgeRelationships] = useState<KnowledgeRelationship[]>([]);
+  const [loadingKnowledgeGraph, setLoadingKnowledgeGraph] = useState(false);
+  const [knowledgeGraphError, setKnowledgeGraphError] = useState<string | null>(null);
+  const [selectedKnowledgeNode, setSelectedKnowledgeNode] = useState<Node | null>(null);
+  const [selectedEntityRelationships, setSelectedEntityRelationships] = useState<EntityRelationships | null>(null);
+  const [loadingEntityRelationships, setLoadingEntityRelationships] = useState(false);
+  const [entityRelationshipsError, setEntityRelationshipsError] = useState<string | null>(null);
 
   // Code Copy state
   const [codeCopied, setCodeCopied] = useState(false);
   const isRtl = dir === 'rtl';
+
+  const getKnowledgeNodeLabel = (entityType: string, entityId: string, displayName?: string) => {
+    if (displayName) return displayName;
+    if (entityType === 'codebase') return project?.name || 'Codebase';
+    if (entityType === 'source_asset') {
+      const file = files.find((item) => item._id === entityId);
+      return file?.fileName || `File ${entityId.slice(-6)}`;
+    }
+    if (entityType === 'logical_entity') return `Entity ${entityId.slice(-6)}`;
+    return `${entityType.replace(/_/g, ' ')} ${entityId.slice(-6)}`;
+  };
+
+  const getKnowledgeNodePath = (entityType: string, entityId: string, displaySubtitle?: string, displayPath?: string) => {
+    if (displayPath) return displayPath;
+    if (displaySubtitle) return displaySubtitle;
+    if (entityType !== 'source_asset') return entityType;
+    const file = files.find((item) => item._id === entityId);
+    return file?.path || entityType;
+  };
+
+  const filterRelationshipsByType = (relationships: KnowledgeRelationship[]) => {
+    if (activeRelationshipFilter === 'all') return relationships;
+    return relationships.filter((relationship) => relationship.relationshipType === activeRelationshipFilter);
+  };
+
+  const filteredKnowledgeRelationships = useMemo(
+    () => filterRelationshipsByType(knowledgeRelationships),
+    [knowledgeRelationships, activeRelationshipFilter]
+  );
+
+  const relationshipSearchTerm = relationshipSearchQuery.trim().toLowerCase();
+
+  const searchedKnowledgeRelationships = useMemo(() => {
+    if (!relationshipSearchTerm) return filteredKnowledgeRelationships;
+    return filteredKnowledgeRelationships.filter((relationship) => {
+      const searchableText = [
+        relationship.sourceDisplayName,
+        relationship.targetDisplayName,
+        relationship.displayName,
+        relationship.sourcePath,
+        relationship.targetPath,
+        relationship.relationshipType,
+        relationship.evidence?.reason,
+        relationship.evidence?.snippet,
+        relationship.displaySubtitle,
+        relationship.sourceDisplaySubtitle,
+        relationship.targetDisplaySubtitle,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchableText.includes(relationshipSearchTerm);
+    });
+  }, [filteredKnowledgeRelationships, relationshipSearchTerm]);
+
+  const relationshipFilterCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: knowledgeRelationships.length };
+    knowledgeRelationships.forEach((relationship) => {
+      if (!relationship.relationshipType) return;
+      counts[relationship.relationshipType] = (counts[relationship.relationshipType] || 0) + 1;
+    });
+    return counts;
+  }, [knowledgeRelationships]);
+
+  const hasActiveRelationshipFilters = activeRelationshipFilter !== 'all' || relationshipSearchQuery.trim().length > 0;
+
+  const resetRelationshipFilters = () => {
+    setActiveRelationshipFilter('all');
+    setRelationshipSearchQuery('');
+  };
+
+  const knowledgeGraphElements = useMemo(() => {
+    const nodeMap = new Map<string, Node>();
+    const relationshipEdges: Edge[] = [];
+    const addNode = (entityType: string, entityId: string, displayName?: string, displaySubtitle?: string, displayPath?: string) => {
+      const key = `${entityType}:${entityId}`;
+      if (nodeMap.has(key)) return;
+
+      const file = entityType === 'source_asset' ? files.find((item) => item._id === entityId) : undefined;
+      const index = nodeMap.size;
+      const angle = index === 0 ? 0 : (index / Math.max(knowledgeRelationships.length, 1)) * Math.PI * 2;
+      const radius = entityType === 'codebase' ? 0 : 260;
+
+      nodeMap.set(key, {
+        id: key,
+        type: entityType === 'source_asset' ? 'fileNode' : 'default',
+        position: {
+          x: entityType === 'codebase' ? 0 : Math.round(Math.cos(angle) * radius),
+          y: entityType === 'codebase' ? 0 : Math.round(Math.sin(angle) * radius),
+        },
+        data: {
+          label: getKnowledgeNodeLabel(entityType, entityId, displayName),
+          path: getKnowledgeNodePath(entityType, entityId, displaySubtitle, displayPath),
+          entityType,
+          entityId,
+          language: file?.language,
+          extension: file?.extension,
+          size: file?.size,
+          summary: file?.summary,
+        },
+        style: entityType === 'source_asset' ? undefined : {
+          border: '1px solid rgba(157,189,255,0.35)',
+          borderRadius: 14,
+          background: entityType === 'codebase' ? 'rgba(10,132,255,0.16)' : 'rgba(28,28,30,0.95)',
+          color: '#fff',
+          fontSize: 11,
+          padding: 12,
+          minWidth: 150,
+        },
+      });
+    };
+
+    searchedKnowledgeRelationships.forEach((relationship, index) => {
+      addNode(
+        relationship.sourceType,
+        relationship.sourceId,
+        relationship.sourceDisplayName,
+        relationship.sourceDisplaySubtitle,
+        relationship.sourcePath
+      );
+      addNode(
+        relationship.targetType,
+        relationship.targetId,
+        relationship.targetDisplayName,
+        relationship.targetDisplaySubtitle,
+        relationship.targetPath
+      );
+      relationshipEdges.push({
+        id: relationship.id || `knowledge-${index}`,
+        source: `${relationship.sourceType}:${relationship.sourceId}`,
+        target: `${relationship.targetType}:${relationship.targetId}`,
+        label: relationship.displayType || humanizeRelationshipType(relationship.relationshipType),
+        animated: false,
+        data: relationship,
+        style: { stroke: '#30D158', strokeWidth: 1.6, opacity: 0.8 },
+        labelStyle: { fill: '#D1D5DB', fontSize: 10, fontWeight: 700 },
+        labelBgStyle: { fill: 'rgba(8,11,18,0.88)' },
+      });
+    });
+
+    return { nodes: Array.from(nodeMap.values()), edges: relationshipEdges };
+  }, [searchedKnowledgeRelationships, files, project?.name]);
 
   const filteredFiles = useMemo(() => {
     const query = fileQuery.trim().toLowerCase();
@@ -203,19 +494,52 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
   }, [user, loading]);
 
   const loadProjectDetails = async () => {
+    if (!isValidObjectIdString(id)) {
+      setProject(null);
+      setStats(null);
+      setFiles([]);
+      setGraphNodes([]);
+      setGraphEdges([]);
+      setProjectError(isRtl ? 'معرّف المشروع غير صالح.' : 'Invalid project id.');
+      setLoadingProject(false);
+      return;
+    }
+
+    setLoadingProject(true);
+    setProjectError(null);
     try {
-      const [overviewData, filesData, graphData, replayData, healthData] = await Promise.all([
+      const [overviewData, filesData] = await Promise.all([
         apiFetch(`/projects/${id}/overview`),
         apiFetch(`/projects/${id}/files`),
+      ]);
+
+      setProject(overviewData.project);
+      setStats(overviewData.stats);
+      setFiles(filesData.files || []);
+
+      const [graphResult, replayResult, healthResult] = await Promise.allSettled([
         apiFetch(`/projects/${id}/graph`),
         apiFetch(`/ai-extensions/projects/${id}/replay`),
         apiFetch(`/projects/${id}/health`),
       ]);
 
-      setProject({ ...overviewData.project, healthScore: healthData.healthScore });
-      setStats(overviewData.stats);
-      setFiles(filesData.files || []);
-      setReplayTimeline(replayData.timeline || []);
+      if (healthResult.status === 'fulfilled') {
+        setProject((current: any) => current ? { ...current, healthScore: healthResult.value.healthScore } : current);
+      } else {
+        console.warn('[ProjectDetail]: Optional health load failed:', healthResult.reason);
+      }
+
+      if (replayResult.status === 'fulfilled') {
+        setReplayTimeline(replayResult.value.timeline || []);
+      } else {
+        console.warn('[ProjectDetail]: Optional replay load failed:', replayResult.reason);
+        setReplayTimeline([]);
+      }
+
+      const graphData = graphResult.status === 'fulfilled' ? graphResult.value : { nodes: [], edges: [] };
+      if (graphResult.status === 'rejected') {
+        console.warn('[ProjectDetail]: Optional dependency graph load failed:', graphResult.reason);
+      }
 
       // Format React Flow Nodes and Edges
       setGraphNodes((graphData.nodes || []).map((node: Node) => ({
@@ -244,6 +568,12 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
       }
     } catch (err) {
       console.error('[ProjectDetail]: Load failed:', err);
+      setProject(null);
+      setStats(null);
+      setFiles([]);
+      setGraphNodes([]);
+      setGraphEdges([]);
+      setProjectError(isRtl ? 'تعذر تحميل المشروع أو ربما تم حذفه.' : 'Unable to load this project. It may have been deleted or you may not have access.');
     } finally {
       setLoadingProject(false);
     }
@@ -254,6 +584,57 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
     loadProjectDetails();
   }, [user, id]);
 
+  const loadKnowledgeGraph = async () => {
+    setLoadingKnowledgeGraph(true);
+    setKnowledgeGraphError(null);
+    try {
+      const data = await apiFetch(`/knowledge-graph/neighborhood?entityType=codebase&entityId=${id}&depth=1`);
+      setKnowledgeRelationships(Array.isArray(data.relationships)
+        ? data.relationships
+        : [...(data.outgoing || []), ...(data.incoming || [])]
+      );
+    } catch (err) {
+      console.error('[ProjectDetail]: Knowledge graph load failed:', err);
+      setKnowledgeGraphError(isRtl ? 'تعذر تحميل علاقات المعرفة' : 'Unable to load knowledge relationships.');
+      setKnowledgeRelationships([]);
+    } finally {
+      setLoadingKnowledgeGraph(false);
+    }
+  };
+
+  const loadEntityRelationships = async (node: Node) => {
+    const entityType = node.data?.entityType;
+    const entityId = node.data?.entityId;
+    setSelectedKnowledgeNode(node);
+    setSelectedEntityRelationships(null);
+    setEntityRelationshipsError(null);
+
+    if (!entityType || !entityId) {
+      setEntityRelationshipsError(isRtl ? 'لا توجد بيانات كافية لهذه العقدة' : 'No relationship lookup available for this node.');
+      return;
+    }
+
+    setLoadingEntityRelationships(true);
+    try {
+      const data = await apiFetch(`/knowledge-graph/entity/${entityType}/${entityId}/relationships`);
+      setSelectedEntityRelationships({
+        incoming: Array.isArray(data.incoming) ? data.incoming : [],
+        outgoing: Array.isArray(data.outgoing) ? data.outgoing : [],
+      });
+    } catch (err) {
+      console.error('[ProjectDetail]: Entity relationships load failed:', err);
+      setEntityRelationshipsError(isRtl ? 'تعذر تحميل علاقات هذه العقدة' : 'Unable to load relationships for this node.');
+    } finally {
+      setLoadingEntityRelationships(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user || activeTab !== 'graph' || graphView !== 'knowledge') return;
+    if (knowledgeRelationships.length > 0 || loadingKnowledgeGraph) return;
+    loadKnowledgeGraph();
+  }, [user, activeTab, graphView, id]);
+
   useEffect(() => {
     if (fileQuery.trim()) {
       expandAllFolders();
@@ -263,12 +644,25 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
   async function handleFileSelect(file: FileNode) {
     setSelectedFile(file);
     setLoadingFileContent(true);
+    setFileContentError(null);
     setExplanation(null);
+    setExplanationError(null);
+    setExplanationRelationships([]);
+    setExplanationCitations([]);
+    if (!isValidObjectIdString(id) || !isValidObjectIdString(file?._id)) {
+      setSelectedFileContent('');
+      setFileContentError(isRtl ? 'لا يمكن تحميل هذا الملف.' : 'Unable to load this file.');
+      setLoadingFileContent(false);
+      return;
+    }
+
     try {
       const data = await apiFetch(`/projects/${id}/files/${file._id}`);
-      setSelectedFileContent(data.content);
+      setSelectedFileContent(data.content || '');
     } catch (err) {
       console.error('[ProjectDetail]: File load failed:', err);
+      setSelectedFileContent('');
+      setFileContentError(isRtl ? 'تعذر تحميل محتوى الملف.' : 'Unable to load file content.');
     } finally {
       setLoadingFileContent(false);
     }
@@ -277,6 +671,8 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
   const handleExplainCode = async () => {
     if (!selectedFile || !selectedFileContent || loadingExplanation) return;
     setLoadingExplanation(true);
+    setExplanationError(null);
+    setExplanationCitations([]);
     try {
       const data = await apiFetch('/ai/explain-code', {
         method: 'POST',
@@ -284,11 +680,16 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
           code: selectedFileContent,
           fileName: selectedFile.fileName,
           language: selectedFile.language,
+          projectId: id,
+          fileId: selectedFile._id,
         }),
       });
-      setExplanation(data.explanation);
+      setExplanation(data.explanation || (isRtl ? 'لم يتم إرجاع شرح من خدمة الذكاء الاصطناعي.' : 'The AI service did not return an explanation.'));
+      setExplanationRelationships(Array.isArray(data.relatedRelationships) ? data.relatedRelationships : []);
+      setExplanationCitations(Array.isArray(data.citations) ? data.citations : []);
     } catch (err) {
       console.error('[ProjectDetail]: Explain failed:', err);
+      setExplanationError(isRtl ? 'تعذر شرح هذا الملف حالياً.' : 'Unable to explain this file right now.');
     } finally {
       setLoadingExplanation(false);
     }
@@ -301,6 +702,7 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
     const msgText = chatInput;
     setChatInput('');
     setSendingChat(true);
+    setProjectChatError(null);
 
     setProjectMessages(prev => [...prev, { sender: 'user', text: msgText }]);
 
@@ -315,16 +717,30 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
 
       setProjectMessages(prev => [
         ...prev,
-        { sender: 'assistant', text: data.answer, citations: data.citations || [] },
+        {
+          sender: 'assistant',
+          text: data.answer || (isRtl ? 'لم يتم إرجاع إجابة من خدمة الذكاء الاصطناعي.' : 'The AI service did not return an answer.'),
+          citations: data.citations || [],
+          relatedRelationships: Array.isArray(data.relatedRelationships) ? data.relatedRelationships : [],
+        },
       ]);
     } catch (err) {
       console.error('[ProjectDetail/Chat]: Message failed:', err);
+      const message = isRtl ? 'تعذر إرسال الرسالة حالياً.' : 'Unable to send this message right now.';
+      setProjectChatError(message);
+      setProjectMessages(prev => [...prev, { sender: 'assistant', text: message }]);
     } finally {
       setSendingChat(false);
     }
   };
 
   const handleDeleteProject = async () => {
+    // Only the project owner can delete. Guard before the API call to avoid
+    // confusing error messages for workspace members who can view but not destroy.
+    if (project?.userId && user?.id && project.userId.toString() !== user.id) {
+      setProjectError(isRtl ? 'فقط مالك المشروع يمكنه حذفه.' : 'Only the project owner can delete this project.');
+      return;
+    }
     if (!confirm(t('confirmDeleteProject'))) {
       return;
     }
@@ -333,10 +749,16 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
       router.push('/projects');
     } catch (err) {
       console.error('[ProjectDetail]: Delete failed:', err);
+      setProjectError(isRtl ? 'تعذر حذف المشروع.' : 'Unable to delete project.');
     }
   };
 
   const handleDownloadZip = async () => {
+    if (!isValidObjectIdString(id)) {
+      setProjectError(isRtl ? 'معرّف المشروع غير صالح.' : 'Invalid project id.');
+      return;
+    }
+
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
       const res = await fetch(`${apiBase}/projects/${id}/download`, {
@@ -353,7 +775,7 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${project.name || 'project'}.zip`;
+      a.download = `${project?.name || 'project'}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -436,8 +858,201 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
     });
   };
 
+  const renderRelationshipRow = (relationship: KnowledgeRelationship, mode: 'incoming' | 'outgoing') => {
+    const counterpartType = mode === 'incoming' ? relationship.sourceType : relationship.targetType;
+    const counterpartId = mode === 'incoming' ? relationship.sourceId : relationship.targetId;
+    const counterpartName = mode === 'incoming'
+      ? relationship.sourceDisplayName
+      : relationship.targetDisplayName;
+    const counterpartPath = mode === 'incoming'
+      ? relationship.sourcePath || relationship.sourceDisplaySubtitle
+      : relationship.targetPath || relationship.targetDisplaySubtitle;
+    const evidence = relationship.evidence || {};
+
+    return (
+      <div
+        key={relationship.id || `${mode}-${relationship.sourceType}-${relationship.sourceId}-${relationship.targetType}-${relationship.targetId}-${relationship.relationshipType}`}
+        className="rounded-xl border border-card-border bg-bg-primary/45 p-3"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold text-white">
+              {relationship.displayType || humanizeRelationshipType(relationship.relationshipType)}
+            </div>
+            <div className="mt-1 truncate text-[9px] font-mono text-text-secondary">
+              {counterpartName || `${counterpartType} ${counterpartId.slice(-8)}`}
+            </div>
+            {counterpartPath && (
+              <div className="mt-1 truncate text-[9px] font-mono text-text-muted">
+                {counterpartPath}
+              </div>
+            )}
+          </div>
+          <span className="shrink-0 rounded-full bg-success/10 px-2 py-1 text-[9px] font-bold text-success">
+            {formatConfidence(relationship.confidence)}
+          </span>
+        </div>
+        {(evidence.reason || evidence.filePath || evidence.sourceLine || evidence.snippet) && (
+          <div className="mt-2 space-y-1 text-[10px] leading-relaxed text-text-secondary">
+            {evidence.reason && <p>{evidence.reason}</p>}
+            {evidence.filePath && (
+              <p className="font-mono text-[9px] text-text-muted">
+                {evidence.filePath}{evidence.sourceLine ? `:${evidence.sourceLine}` : ''}
+              </p>
+            )}
+            {evidence.snippet && (
+              <p className="line-clamp-2 rounded-lg bg-white/5 p-2 font-mono text-[9px] text-text-secondary">
+                {evidence.snippet}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderRelatedKnowledge = (relationships?: KnowledgeRelationship[]) => {
+    if (!relationships || relationships.length === 0) return null;
+    return (
+      <div className="mt-3 rounded-2xl border border-card-border bg-bg-primary/45 p-3">
+        <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+          <GitBranch className="h-3.5 w-3.5 text-success" />
+          Related Knowledge
+        </div>
+        <div className="space-y-2">
+          {relationships.slice(0, 6).map((relationship) => renderRelationshipRow(relationship, 'outgoing'))}
+        </div>
+      </div>
+    );
+  };
+
+  const isCitationClickable = (citation: Citation) => {
+    if (isSourceAssetCitation(citation)) {
+      return Boolean(
+        files.some((file) =>
+          file._id === citation.navigation?.fileId ||
+          file.path === citation.path ||
+          file.fileName === citation.fileName ||
+          file.fileName === citation.title
+        )
+      );
+    }
+    return isSafeCitationRoute(citation.navigation?.route);
+  };
+
+  const handleCitationClick = (citation: Citation) => {
+    if (isSourceAssetCitation(citation)) {
+      const matchedFile = files.find((file) =>
+        file._id === citation.navigation?.fileId ||
+        file.path === citation.path ||
+        file.fileName === citation.fileName ||
+        file.fileName === citation.title
+      );
+      if (matchedFile) {
+        handleFileSelect(matchedFile);
+        setActiveTab('files');
+      }
+      return;
+    }
+
+    if (citation.navigation?.route) {
+      const route = citation.navigation.route;
+      if (isSafeCitationRoute(route)) {
+        router.push(route);
+      }
+    }
+  };
+
+  const renderCitations = (citations?: Citation[]) => {
+    if (!citations || citations.length === 0) return null;
+    return (
+      <div className="mt-3 rounded-2xl border border-card-border bg-bg-primary/45 p-3">
+        <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+          <FileCode className="h-3.5 w-3.5 text-accent-blue" />
+          Sources
+        </div>
+        <div className="space-y-2">
+          {citations.slice(0, 8).map((citation, index) => (
+            <div
+              key={citation.id || `${citation.source || 'source'}-${index}`}
+              onClick={() => handleCitationClick(citation)}
+              onKeyDown={(event) => {
+                if (isCitationClickable(citation) && (event.key === 'Enter' || event.key === ' ')) {
+                  event.preventDefault();
+                  handleCitationClick(citation);
+                }
+              }}
+              role={isCitationClickable(citation) ? 'button' : undefined}
+              tabIndex={isCitationClickable(citation) ? 0 : undefined}
+              title={isCitationClickable(citation) ? `Open source: ${citationTitle(citation)}` : citationTitle(citation)}
+              aria-label={isCitationClickable(citation) ? `Open source ${citationTitle(citation)}` : undefined}
+              className={`rounded-xl border border-card-border bg-bg-primary/45 p-3 transition ${
+                isCitationClickable(citation) ? 'cursor-pointer hover:border-accent-blue/40 hover:bg-white/5' : ''
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-[10px] font-bold text-white">{citationTitle(citation)}</div>
+                  {citation.path && (
+                    <div className="mt-1 truncate font-mono text-[9px] text-text-muted">{citation.path}</div>
+                  )}
+                </div>
+                {citationConfidence(citation) && (
+                  <span className="shrink-0 rounded-full bg-success/10 px-2 py-1 text-[9px] font-bold text-success">
+                    {citationConfidence(citation)}
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <span className="rounded-full bg-accent-blue/10 px-2 py-1 text-[9px] font-bold text-accent-blue">
+                  {humanizeCitationLabel(citation.domainType || citation.type || citation.source)}
+                </span>
+                {citation.relationshipType && (
+                  <span className="rounded-full bg-success/10 px-2 py-1 text-[9px] font-bold text-success">
+                    {humanizeRelationshipType(citation.relationshipType)}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   if (loading || !user || loadingProject) {
     return <AppPageSkeleton label={t('loadingProjectMetrics')} />;
+  }
+
+  if (projectError || !project) {
+    return (
+      <div className="flex min-h-screen bg-bg-primary text-white" dir={dir}>
+        <Sidebar />
+        <main className="flex-1 px-5 py-10 lg:px-10">
+          <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center justify-center">
+            <div className="w-full rounded-[28px] border border-danger/25 bg-danger/10 p-6 text-center glass">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-danger/20 bg-danger/10">
+                <AlertTriangle className="h-6 w-6 text-danger" />
+              </div>
+              <h2 className="text-lg font-bold text-white">
+                {isRtl ? 'تعذر فتح المشروع' : 'Unable to open project'}
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+                {projectError || (isRtl ? 'المشروع غير متاح.' : 'This project is unavailable.')}
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push('/projects')}
+                className="mt-5 rounded-2xl bg-accent-blue px-5 py-3 text-xs font-semibold text-white transition hover:bg-accent-blue/90"
+              >
+                {isRtl ? 'العودة إلى المشاريع' : 'Back to projects'}
+              </button>
+            </div>
+          </div>
+        </main>
+        <CommandPalette />
+      </div>
+    );
   }
 
   return (
@@ -486,13 +1101,16 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
               <RefreshCw className="h-4 w-4" />
               {isRtl ? 'تحديث' : 'Refresh'}
             </button>
-            <button
-              onClick={handleDeleteProject}
-              className="inline-flex items-center gap-2 rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-xs font-semibold text-danger transition hover:bg-danger/25 cursor-pointer"
-            >
-              <Trash2 className="h-4 w-4" />
-              {t('deleteProjectBtn')}
-            </button>
+            {/* Only the project owner sees the delete button */}
+            {(!project?.userId || !user?.id || project.userId.toString() === user.id) && (
+              <button
+                onClick={handleDeleteProject}
+                className="inline-flex items-center gap-2 rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-xs font-semibold text-danger transition hover:bg-danger/25 cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+                {t('deleteProjectBtn')}
+              </button>
+            )}
           </div>
         </div>
 
@@ -684,7 +1302,7 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
                       <div className="flex items-center gap-2">
                         <button
                           onClick={handleExplainCode}
-                          disabled={loadingExplanation}
+                          disabled={loadingExplanation || loadingFileContent || Boolean(fileContentError)}
                           className="flex items-center px-3 py-1.5 bg-accent-blue/10 hover:bg-accent-blue/20 text-[10px] font-bold text-accent-blue rounded-xl transition-colors cursor-pointer"
                         >
                           <Sparkles className={`w-3.5 h-3.5 ${isRtl ? 'ml-1' : 'mr-1'}`} />
@@ -706,6 +1324,11 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
                         <div className="absolute inset-0 flex items-center justify-center text-xs text-text-secondary">
                           <div className="w-5 h-5 border-2 border-accent-blue/30 border-t-accent-blue rounded-full animate-spin mr-2"></div>
                           {t('loadingFile')}
+                        </div>
+                      ) : fileContentError ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center text-xs text-text-secondary">
+                          <AlertTriangle className="h-8 w-8 text-danger" />
+                          <span>{fileContentError}</span>
                         </div>
                       ) : (
                         <Editor
@@ -745,9 +1368,17 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
                       <div className="w-5 h-5 border-2 border-accent-blue/30 border-t-accent-blue rounded-full animate-spin"></div>
                       <span>{t('analyzingFileLogic')}</span>
                     </div>
+                  ) : explanationError ? (
+                    <div className="rounded-2xl border border-danger/25 bg-danger/10 p-4 text-xs leading-relaxed text-danger">
+                      {explanationError}
+                    </div>
                   ) : explanation ? (
-                    <div className="text-xs text-[#E0E0E0] leading-relaxed whitespace-pre-wrap font-sans bg-bg-primary p-4 rounded-2xl border border-card-border">
-                      {explanation}
+                    <div>
+                      <div className="text-xs text-[#E0E0E0] leading-relaxed whitespace-pre-wrap font-sans bg-bg-primary p-4 rounded-2xl border border-card-border">
+                        {explanation}
+                      </div>
+                      {renderCitations(explanationCitations)}
+                      {renderRelatedKnowledge(explanationRelationships)}
                     </div>
                   ) : selectedFile.summary ? (
                     <div className="space-y-4">
@@ -779,6 +1410,11 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
             <div className="h-full flex border border-card-border rounded-[28px] bg-bg-secondary overflow-hidden animate-fade-in">
               <div className="flex-1 flex flex-col justify-between bg-bg-primary h-full">
                 <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                  {projectChatError && (
+                    <div className="rounded-2xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs font-semibold text-danger">
+                      {projectChatError}
+                    </div>
+                  )}
                   {projectMessages.length > 0 ? (
                     projectMessages.map((m, i) => (
                       <div
@@ -796,6 +1432,8 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
                           m.sender === 'user' ? 'bg-accent-blue text-white' : 'bg-card-bg/40 border border-card-border text-[#E0E0E0]'
                         }`}>
                           {m.text}
+                          {m.sender === 'assistant' && renderCitations(m.citations)}
+                          {m.sender === 'assistant' && renderRelatedKnowledge(m.relatedRelationships)}
                         </div>
                       </div>
                     ))
@@ -838,21 +1476,135 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
           {activeTab === 'graph' && (
             <div className="h-full border border-card-border rounded-[28px] overflow-hidden bg-[#080B12] relative animate-fade-in">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(10,132,255,0.22),transparent_28%),radial-gradient(circle_at_80%_70%,rgba(48,209,88,0.12),transparent_24%),linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:100%_100%,100%_100%,30px_30px,30px_30px] pointer-events-none"></div>
+              <div className="absolute left-1/2 top-4 z-20 flex -translate-x-1/2 gap-1 rounded-2xl border border-card-border bg-card-bg/90 p-1 text-[10px] font-bold glass">
+                {(['dependency', 'knowledge'] as const).map((view) => (
+                  <button
+                    key={view}
+                    type="button"
+                    onClick={() => {
+                      setGraphView(view);
+                      setSelectedGraphNode(null);
+                      setSelectedKnowledgeNode(null);
+                    }}
+                    className={`rounded-xl px-3 py-2 transition ${
+                      graphView === view ? 'bg-accent-blue text-white' : 'text-text-secondary hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    {view === 'dependency' ? 'Dependency Graph' : 'Knowledge Relationships'}
+                  </button>
+                ))}
+              </div>
+              {graphView === 'knowledge' && (
+                <div className="absolute left-1/2 top-16 z-20 w-[min(860px,78%)] -translate-x-1/2 rounded-2xl border border-card-border bg-card-bg/90 p-2 text-[10px] font-bold glass">
+                  <div className="relative mb-2">
+                    <Search className={`absolute top-2.5 h-3.5 w-3.5 text-text-secondary ${isRtl ? 'right-3' : 'left-3'}`} />
+                    <input
+                      value={relationshipSearchQuery}
+                      onChange={(event) => setRelationshipSearchQuery(event.target.value)}
+                      placeholder="Search relationships..."
+                      className={`w-full rounded-xl border border-card-border bg-bg-primary/60 py-2 text-[11px] text-white outline-none transition focus:border-success/40 ${isRtl ? 'pr-9 pl-3' : 'pl-9 pr-3'}`}
+                    />
+                    {hasActiveRelationshipFilters && (
+                      <button
+                        type="button"
+                        onClick={resetRelationshipFilters}
+                        className={`absolute top-1.5 rounded-lg border border-card-border bg-white/5 px-2 py-1 text-[9px] font-bold text-text-secondary transition hover:bg-white/10 hover:text-white ${isRtl ? 'left-2' : 'right-2'}`}
+                      >
+                        Reset filters
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-1.5">
+                    {RELATIONSHIP_FILTERS.map((filter) => (
+                      <button
+                        key={filter.value}
+                        type="button"
+                        onClick={() => setActiveRelationshipFilter(filter.value)}
+                        className={`rounded-xl px-2.5 py-1.5 transition ${
+                          activeRelationshipFilter === filter.value
+                            ? 'bg-success/20 text-success ring-1 ring-success/30'
+                            : 'bg-white/5 text-text-secondary hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span>{filter.label}</span>
+                        {relationshipFilterCounts[filter.value] > 0 && (
+                          <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] ${
+                            activeRelationshipFilter === filter.value
+                              ? 'bg-success/20 text-success'
+                              : 'bg-white/10 text-text-muted'
+                          }`}>
+                            {relationshipFilterCounts[filter.value]}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setShowKnowledgeLegend((value) => !value)}
+                      className={`rounded-xl px-2.5 py-1.5 transition ${
+                        showKnowledgeLegend
+                          ? 'bg-accent-blue/20 text-accent-blue ring-1 ring-accent-blue/30'
+                          : 'bg-white/5 text-text-secondary hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      Legend
+                    </button>
+                  </div>
+                  {showKnowledgeLegend && (
+                    <div className="mt-2 grid gap-2 rounded-xl border border-card-border bg-bg-primary/70 p-3 text-[10px] leading-relaxed text-text-secondary md:grid-cols-2">
+                      <div>
+                        <div className="mb-1 font-bold text-white">Node types</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {['Codebase', 'Source Asset', 'Logical Entity', 'Code Asset', 'Debugging Lesson', 'Architecture Blueprint', 'Memory'].map((label) => (
+                            <span key={label} className="rounded-full bg-accent-blue/10 px-2 py-1 text-accent-blue">
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="mb-1 font-bold text-white">Relationship labels</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {['Contains', 'Defines', 'Imports', 'Exports', 'Calls', 'Uses', 'Depends on', 'Similar to', 'Solves', 'Documents', 'Related to'].map((label) => (
+                            <span key={label} className="rounded-full bg-success/10 px-2 py-1 text-success">
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-white/5 p-2">
+                        <span className="font-bold text-white">Confidence badge</span>
+                        <span className="block">Shows how strongly DevVault inferred the relationship.</span>
+                      </div>
+                      <div className="rounded-lg bg-white/5 p-2">
+                        <span className="font-bold text-white">Evidence text/path</span>
+                        <span className="block">Shows the reason, snippet, file path, or source line used for the relationship.</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className={`absolute top-4 ${isRtl ? 'right-4' : 'left-4'} z-10 max-w-sm rounded-2xl border border-card-border bg-card-bg/90 px-4 py-3 text-[10px] leading-relaxed text-text-secondary shadow-2xl shadow-black/30 glass`}>
                 <div className="mb-1 flex items-center gap-2">
                   <GitBranch className="h-4 w-4 text-accent-blue" />
-                  <span className="font-semibold text-white">{t('graphExplorer')}</span>
+                  <span className="font-semibold text-white">
+                    {graphView === 'dependency' ? t('graphExplorer') : 'Knowledge Relationships'}
+                  </span>
                 </div>
-                <span>{t('graphNodesDesc')}</span>
+                <span>
+                  {graphView === 'dependency'
+                    ? t('graphNodesDesc')
+                    : (isRtl ? 'علاقات MongoDB المباشرة لهذا المشروع.' : 'Direct MongoDB knowledge relationships for this project.')}
+                </span>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <span className="rounded-full bg-accent-blue/10 px-2 py-1 text-accent-blue">
                     {t('nodesCount', { count: 'COUNT' }).split('COUNT').map((part, idx) => (
-                      idx === 0 ? <React.Fragment key={idx}>{part}<AnimatedCounter value={graphNodes.length} /></React.Fragment> : part
+                      idx === 0 ? <React.Fragment key={idx}>{part}<AnimatedCounter value={graphView === 'dependency' ? graphNodes.length : knowledgeGraphElements.nodes.length} /></React.Fragment> : part
                     ))}
                   </span>
                   <span className="rounded-full bg-success/10 px-2 py-1 text-success">
                     {t('edgesCount', { count: 'COUNT' }).split('COUNT').map((part, idx) => (
-                      idx === 0 ? <React.Fragment key={idx}>{part}<AnimatedCounter value={graphEdges.length} /></React.Fragment> : part
+                      idx === 0 ? <React.Fragment key={idx}>{part}<AnimatedCounter value={graphView === 'dependency' ? graphEdges.length : knowledgeGraphElements.edges.length} /></React.Fragment> : part
                     ))}
                   </span>
                   <span className="rounded-full bg-white/5 px-2 py-1 text-text-secondary">{isRtl ? 'اضغط على ملف لعرض التفاصيل' : 'Click a file for details'}</span>
@@ -863,7 +1615,7 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
                 {t('graphInteractInstruction')}
               </div>
 
-              {selectedGraphNode && (
+              {graphView === 'dependency' && selectedGraphNode && (
                 <div className={`absolute bottom-4 ${isRtl ? 'right-4' : 'left-4'} z-10 w-[320px] rounded-2xl border border-card-border bg-card-bg/95 p-4 shadow-2xl shadow-black/40 glass`}>
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -895,8 +1647,72 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
                   )}
                 </div>
               )}
+
+              {graphView === 'knowledge' && selectedKnowledgeNode && (
+                <div className={`absolute bottom-4 ${isRtl ? 'right-4' : 'left-4'} z-10 max-h-[70%] w-[360px] overflow-y-auto rounded-2xl border border-card-border bg-card-bg/95 p-4 shadow-2xl shadow-black/40 glass`}>
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h4 className="truncate text-sm font-bold text-white">{selectedKnowledgeNode.data?.label}</h4>
+                      <p className="mt-1 truncate text-[10px] font-mono text-text-secondary">
+                        {selectedKnowledgeNode.data?.entityType} · {selectedKnowledgeNode.data?.entityId?.slice(-8)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedKnowledgeNode(null);
+                        setSelectedEntityRelationships(null);
+                      }}
+                      className="rounded-lg px-2 py-1 text-[10px] text-text-secondary hover:bg-white/10 hover:text-white"
+                    >
+                      {isRtl ? 'إغلاق' : 'Close'}
+                    </button>
+                  </div>
+
+                  {loadingEntityRelationships ? (
+                    <div className="py-8 text-center text-[11px] text-text-secondary">
+                      {isRtl ? 'جار تحميل العلاقات...' : 'Loading relationships...'}
+                    </div>
+                  ) : entityRelationshipsError ? (
+                    <div className="rounded-xl border border-danger/20 bg-danger/10 p-3 text-[11px] text-danger">
+                      {entityRelationshipsError}
+                    </div>
+                  ) : selectedEntityRelationships ? (
+                    <div className="space-y-4">
+                      <div>
+                        <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+                          {isRtl ? 'العلاقات الواردة' : 'Incoming relationships'}
+                        </div>
+                        <div className="space-y-2">
+                          {filterRelationshipsByType(selectedEntityRelationships.incoming).length > 0
+                            ? filterRelationshipsByType(selectedEntityRelationships.incoming).map((relationship) => renderRelationshipRow(relationship, 'incoming'))
+                            : <div className="rounded-xl bg-white/5 p-3 text-[10px] text-text-secondary">
+                                {activeRelationshipFilter === 'all'
+                                  ? (isRtl ? 'لا توجد علاقات واردة' : 'No incoming relationships')
+                                  : (isRtl ? 'لا توجد علاقات واردة لهذا الفلتر' : 'No incoming relationships for this filter.')}
+                              </div>}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+                          {isRtl ? 'العلاقات الصادرة' : 'Outgoing relationships'}
+                        </div>
+                        <div className="space-y-2">
+                          {filterRelationshipsByType(selectedEntityRelationships.outgoing).length > 0
+                            ? filterRelationshipsByType(selectedEntityRelationships.outgoing).map((relationship) => renderRelationshipRow(relationship, 'outgoing'))
+                            : <div className="rounded-xl bg-white/5 p-3 text-[10px] text-text-secondary">
+                                {activeRelationshipFilter === 'all'
+                                  ? (isRtl ? 'لا توجد علاقات صادرة' : 'No outgoing relationships')
+                                  : (isRtl ? 'لا توجد علاقات صادرة لهذا الفلتر' : 'No outgoing relationships for this filter.')}
+                              </div>}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
               
-              {graphNodes.length > 0 ? (
+              {graphView === 'dependency' && graphNodes.length > 0 ? (
                 <ReactFlow
                   nodes={graphNodes}
                   edges={graphEdges}
@@ -916,10 +1732,69 @@ function ProjectDetailsPageContent({ params: paramsPromise }: { params: Promise<
                   />
                   <Controls className="!bg-card-bg !border !border-card-border !text-white !rounded-2xl !shadow-lg fill-white" />
                 </ReactFlow>
-              ) : (
+              ) : graphView === 'dependency' ? (
                 <div className="h-full flex flex-col items-center justify-center text-xs text-text-secondary space-y-3">
                   <Layers className="w-10 h-10 text-accent-blue opacity-50" />
                   <span>{t('noRelationsExtracted')}</span>
+                </div>
+              ) : loadingKnowledgeGraph ? (
+                <div className="h-full flex flex-col items-center justify-center text-xs text-text-secondary space-y-3">
+                  <div className="h-6 w-6 rounded-full border-2 border-success/30 border-t-success animate-spin"></div>
+                  <span>{isRtl ? 'جار تحميل علاقات المعرفة...' : 'Loading knowledge relationships...'}</span>
+                </div>
+              ) : knowledgeGraphError ? (
+                <div className="h-full flex flex-col items-center justify-center text-xs text-text-secondary space-y-3">
+                  <GitBranch className="w-10 h-10 text-danger opacity-70" />
+                  <span>{knowledgeGraphError}</span>
+                  <button
+                    type="button"
+                    onClick={loadKnowledgeGraph}
+                    className="rounded-xl border border-card-border bg-card-bg/70 px-3 py-2 text-[10px] font-bold text-white hover:bg-white/10"
+                  >
+                    {isRtl ? 'إعادة المحاولة' : 'Retry'}
+                  </button>
+                </div>
+              ) : relationshipSearchTerm && filteredKnowledgeRelationships.length > 0 && searchedKnowledgeRelationships.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-xs text-text-secondary space-y-3">
+                  <Layers className="w-10 h-10 text-success opacity-50" />
+                  <span>{isRtl ? 'لا توجد علاقات تطابق البحث.' : 'No relationships match your search.'}</span>
+                </div>
+              ) : knowledgeRelationships.length > 0 && filteredKnowledgeRelationships.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-xs text-text-secondary space-y-3">
+                  <Layers className="w-10 h-10 text-success opacity-50" />
+                  <span>{isRtl ? 'لا توجد علاقات لهذا الفلتر.' : 'No relationships found for this filter.'}</span>
+                </div>
+              ) : knowledgeGraphElements.nodes.length > 0 ? (
+                <ReactFlow
+                  nodes={knowledgeGraphElements.nodes}
+                  edges={knowledgeGraphElements.edges}
+                  nodeTypes={nodeTypes}
+                  onNodeClick={(_, node) => loadEntityRelationships(node)}
+                  fitView
+                  fitViewOptions={{ padding: 0.28 }}
+                  minZoom={0.35}
+                  maxZoom={1.9}
+                  className="relative z-0"
+                >
+                  <Background color="rgba(48,209,88,0.16)" gap={26} />
+                  <MiniMap
+                    nodeColor={() => '#30D158'}
+                    maskColor="rgba(10,10,10,0.66)"
+                    className="!bg-card-bg !border !border-card-border !rounded-2xl"
+                  />
+                  <Controls className="!bg-card-bg !border !border-card-border !text-white !rounded-2xl !shadow-lg fill-white" />
+                </ReactFlow>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-xs text-text-secondary space-y-3">
+                  <Layers className="w-10 h-10 text-success opacity-50" />
+                  <span>{isRtl ? 'لا توجد علاقات معرفة لهذا المشروع بعد' : 'No knowledge relationships found for this project yet.'}</span>
+                  <button
+                    type="button"
+                    onClick={loadKnowledgeGraph}
+                    className="rounded-xl border border-card-border bg-card-bg/70 px-3 py-2 text-[10px] font-bold text-white hover:bg-white/10"
+                  >
+                    {isRtl ? 'تحديث' : 'Refresh'}
+                  </button>
                 </div>
               )}
             </div>

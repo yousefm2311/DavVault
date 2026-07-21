@@ -14,8 +14,13 @@ import {
   ArrowRight,
   Sparkles,
   Copy,
-  FolderOpen
+  FolderOpen,
+  Boxes
 } from 'lucide-react';
+
+const isValidObjectIdString = (value?: string) => (
+  typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value)
+);
 
 export const CommandPalette: React.FC = () => {
   const { isOpen, setIsOpen } = useCommand();
@@ -27,6 +32,7 @@ export const CommandPalette: React.FC = () => {
   const [results, setResults] = useState<any[]>([]);
   const [activeFilter, setActiveFilter] = useState('all');
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -59,12 +65,14 @@ export const CommandPalette: React.FC = () => {
   useEffect(() => {
     if (!query) {
       setResults([]);
+      setSearchError('');
       return;
     }
 
     const delayDebounce = setTimeout(async () => {
       setLoading(true);
       try {
+        setSearchError('');
         const data = await apiFetch('/search', {
           method: 'POST',
           body: JSON.stringify({ query }),
@@ -72,6 +80,8 @@ export const CommandPalette: React.FC = () => {
         setResults(data.results || []);
       } catch (err) {
         console.error('[CommandPalette]: Search error:', err);
+        setResults([]);
+        setSearchError(err instanceof Error ? err.message : 'Unable to search sources.');
       } finally {
         setLoading(false);
       }
@@ -89,20 +99,35 @@ export const CommandPalette: React.FC = () => {
 
   const handleResultClick = (result: any) => {
     setIsOpen(false);
+    const resultId = typeof result.id === 'string' ? result.id : undefined;
     if (result.type === 'file' || result.type === 'codeEntity') {
-      const fileId = result.type === 'codeEntity' ? result.fileId || result.id : result.id;
-      router.push(`/projects/${result.projectId}?fileId=${fileId}`);
+      const projectId = typeof result.projectId === 'string' ? result.projectId : undefined;
+      const fileId = result.type === 'codeEntity'
+        ? (typeof result.fileId === 'string' ? result.fileId : resultId)
+        : resultId;
+      if (isValidObjectIdString(projectId) && isValidObjectIdString(fileId)) {
+        router.push(`/projects/${projectId}?fileId=${fileId}`);
+      }
     } else if (result.type === 'snippet') {
-      router.push(`/snippets?id=${result.id}`);
+      if (isValidObjectIdString(resultId)) router.push(`/snippets?id=${resultId}`);
     } else if (result.type === 'errorSolution') {
-      router.push(`/errors?id=${result.id}`);
+      if (isValidObjectIdString(resultId)) router.push(`/errors?id=${resultId}`);
+    } else if (result.type === 'reusableSystem') {
+      if (isValidObjectIdString(resultId)) router.push(`/systems?id=${resultId}`);
     }
   };
 
   const handleAskAIClick = (e: React.MouseEvent, result: any) => {
     e.stopPropagation();
     setIsOpen(false);
-    router.push(`/chat?projectId=${result.projectId || ''}&ask=${encodeURIComponent(t('explainCodePart', { name: result.name }))}`);
+    const projectId = typeof result.projectId === 'string' && isValidObjectIdString(result.projectId)
+      ? result.projectId
+      : '';
+    const queryParams = new URLSearchParams({
+      ask: t('explainCodePart', { name: String(result.name || result.title || 'source') }),
+    });
+    if (projectId) queryParams.set('projectId', projectId);
+    router.push(`/chat?${queryParams.toString()}`);
   };
 
   if (!isOpen) return null;
@@ -117,6 +142,8 @@ export const CommandPalette: React.FC = () => {
         return <BookOpen className="w-4 h-4 text-warning" />;
       case 'errorSolution':
         return <Bug className="w-4 h-4 text-danger" />;
+      case 'reusableSystem':
+        return <Boxes className="w-4 h-4 text-purple-400" />;
       default:
         return <FileCode className="w-4 h-4 text-text-secondary" />;
     }
@@ -128,6 +155,7 @@ export const CommandPalette: React.FC = () => {
     { id: 'codeEntity', label: t('codeEntity'), count: results.filter((r) => r.type === 'codeEntity').length },
     { id: 'snippet', label: t('snippet'), count: results.filter((r) => r.type === 'snippet').length },
     { id: 'errorSolution', label: t('errorSolutionFilter'), count: results.filter((r) => r.type === 'errorSolution').length },
+    { id: 'reusableSystem', label: t('systems'), count: results.filter((r) => r.type === 'reusableSystem').length },
   ];
 
   const visibleResults = activeFilter === 'all'
@@ -169,7 +197,7 @@ export const CommandPalette: React.FC = () => {
                       : 'text-text-secondary hover:bg-white/5 hover:text-white'
                   }`}
                 >
-                  <span>{filter.label}</span>
+                    <span>{filter.label}</span>
                   <span className="rounded-full bg-white/5 px-2 py-0.5 font-mono text-[10px] text-text-muted">
                     {filter.count}
                   </span>
@@ -184,7 +212,11 @@ export const CommandPalette: React.FC = () => {
 
           {/* Results List */}
           <div className="max-h-[520px] overflow-y-auto p-4 space-y-1">
-          {visibleResults.length > 0 ? (
+          {searchError ? (
+            <div className="rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-xs text-danger">
+              {searchError}
+            </div>
+          ) : visibleResults.length > 0 ? (
             visibleResults.map((r) => (
               <div
                 key={r.id}
@@ -197,10 +229,10 @@ export const CommandPalette: React.FC = () => {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs font-semibold text-white truncate max-w-[320px]">
-                      {r.name}
+                      {String(r.name || r.title || 'Untitled source')}
                     </span>
                     <span className="text-[10px] text-text-secondary truncate mt-0.5 max-w-[280px]">
-                      {r.projectName} / {r.path}
+                      {String(r.projectName || 'General')} / {String(r.path || r.subtitle || 'Source Library')}
                     </span>
                   </div>
                 </div>

@@ -4,13 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Sidebar } from '@/components/Sidebar';
 import { AppPageSkeleton } from '@/components/LoadingStates';
-import { CreditCard, Check, Zap, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
+import { CreditCard, Check, Zap, Sparkles, ShieldCheck, ArrowRight, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import { motion } from 'framer-motion';
 import { AnimatedCounter } from '@/components/AnimatedCounter';
 
-type Plan = 'free' | 'pro' | 'team';
+type Plan = 'free' | 'pro' | 'team' | 'enterprise';
 
 type SubscriptionData = {
   plan: Plan;
@@ -25,11 +25,21 @@ type SubscriptionData = {
     storageBytes: number;
     aiQuestionsUsed: number;
   };
+  remaining?: {
+    projectsCount: number;
+    storageBytes: number;
+    aiQuestions: number;
+  };
+  resetAt?: string;
+  isLocalSimulation?: boolean;
+  stripeConfigured?: boolean;
 };
 
 type CheckoutResponse = {
   checkoutUrl?: string;
   portalUrl?: string;
+  isLocalSimulation?: boolean;
+  stripeConfigured?: boolean;
 };
 
 export default function BillingPage() {
@@ -50,11 +60,15 @@ export default function BillingPage() {
   }, [user, loading]);
 
   const fetchSubscription = async () => {
+    setLoadingData(true);
+    setError(null);
     try {
       const data = await apiFetch('/subscription') as SubscriptionData;
       setSubData(data);
     } catch (err) {
       console.error('[Billing]: Fetch failed:', err);
+      setError(err instanceof Error ? err.message : 'Unable to load subscription data.');
+      setSubData(null);
     } finally {
       setLoadingData(false);
     }
@@ -72,7 +86,9 @@ export default function BillingPage() {
     try {
       if (plan === 'free') {
         const portal = await apiFetch('/subscription/portal', { method: 'POST' }) as CheckoutResponse;
-        if (!portal.portalUrl) throw new Error(t('stripeInitFailed'));
+        if (!portal.portalUrl) {
+          throw new Error(portal.isLocalSimulation ? 'Stripe billing portal is not configured in this local environment.' : t('stripeInitFailed'));
+        }
         window.location.assign(portal.portalUrl);
         return;
       }
@@ -82,7 +98,7 @@ export default function BillingPage() {
         body: JSON.stringify({ plan }),
       }) as CheckoutResponse;
       if (!checkout.checkoutUrl) {
-        throw new Error(t('stripeInitFailed'));
+        throw new Error(checkout.isLocalSimulation ? 'Stripe checkout is not configured in this local environment.' : t('stripeInitFailed'));
       }
       window.location.assign(checkout.checkoutUrl);
     } catch (err: unknown) {
@@ -96,8 +112,9 @@ export default function BillingPage() {
     return <AppPageSkeleton label={t('loadingBillingData')} />;
   }
 
-  const { plan, limits, usage } = subData || {
+  const { plan, status, limits, usage, isLocalSimulation, resetAt } = subData || {
     plan: 'free',
+    status: 'active',
     limits: { projectsCount: 2, storageBytes: 100 * 1024 * 1024, aiQuestionsPerMonth: 20 },
     usage: { projectsCount: 0, storageBytes: 0, aiQuestionsUsed: 0 }
   };
@@ -107,9 +124,13 @@ export default function BillingPage() {
   const limitMB = limits.storageBytes / (1024 * 1024);
 
   // Compute percentages for usage bars
-  const projectPct = Math.min(100, (usage.projectsCount / limits.projectsCount) * 100);
-  const storagePct = Math.min(100, (usage.storageBytes / limits.storageBytes) * 100);
-  const aiPct = Math.min(100, (usage.aiQuestionsUsed / limits.aiQuestionsPerMonth) * 100);
+  const pct = (used: number, limit: number) => {
+    if (!Number.isFinite(limit) || limit <= 0) return 0;
+    return Math.min(100, Math.max(0, (used / limit) * 100));
+  };
+  const projectPct = pct(usage.projectsCount, limits.projectsCount);
+  const storagePct = pct(usage.storageBytes, limits.storageBytes);
+  const aiPct = pct(usage.aiQuestionsUsed, limits.aiQuestionsPerMonth);
 
   const planTiers = [
     {
@@ -214,6 +235,29 @@ export default function BillingPage() {
           </div>
         )}
 
+        {isLocalSimulation && (
+          <div className="mb-6 p-4 bg-warning/10 border border-warning/25 text-warning rounded-2xl text-xs font-medium">
+            Local billing simulation is active. Stripe checkout and portal actions require Stripe test configuration.
+          </div>
+        )}
+
+        {status && status !== 'active' && (
+          <div className="mb-6 p-4 bg-danger/10 border border-danger/25 text-danger rounded-2xl text-xs font-medium">
+            Subscription status: {status}. Paid limits are not applied until billing returns to an active state.
+          </div>
+        )}
+
+        {!subData && !loadingData && (
+          <button
+            type="button"
+            onClick={fetchSubscription}
+            className="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/5 border border-card-border text-xs font-semibold text-text-secondary hover:text-white hover:bg-white/10 transition"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Retry billing data
+          </button>
+        )}
+
         {/* Quotas / Usage Meters Section */}
         <motion.div
           variants={{
@@ -307,6 +351,9 @@ export default function BillingPage() {
             </div>
             <p className="text-[10px] text-text-secondary">
               {t('queriesRagDesc')}
+              {resetAt && (
+                <span className="block mt-1 text-text-muted">Resets {new Date(resetAt).toLocaleDateString()}</span>
+              )}
             </p>
           </motion.div>
         </motion.div>

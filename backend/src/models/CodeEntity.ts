@@ -11,6 +11,7 @@ export interface ICodeEntity extends Document {
   summary?: string;
   dependencies: string[];
   tags: string[];
+  metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,6 +32,7 @@ const CodeEntitySchema = new Schema<ICodeEntity>(
     summary: { type: String },
     dependencies: [{ type: String }],
     tags: [{ type: String }],
+    metadata: { type: Schema.Types.Mixed },
   },
   { timestamps: true }
 );

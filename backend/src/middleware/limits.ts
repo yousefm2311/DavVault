@@ -1,6 +1,37 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from './auth';
-import { Subscription, Project, Activity } from '../models';
+import { buildSubscriptionPayload, isValidMongoId } from '../utils/billing';
+
+const limitExceededResponse = (
+  res: Response,
+  resource: 'project' | 'aiQuestions',
+  payload: Awaited<ReturnType<typeof buildSubscriptionPayload>>
+) => {
+  const limit = resource === 'project'
+    ? payload.limits.projectsCount
+    : payload.limits.aiQuestionsPerMonth;
+  const current = resource === 'project'
+    ? payload.usage.projectsCount
+    : payload.usage.aiQuestionsUsed;
+  const remaining = resource === 'project'
+    ? payload.remaining.projectsCount
+    : payload.remaining.aiQuestions;
+
+  return res.status(403).json({
+    error: resource === 'project'
+      ? `Your subscription plan (${payload.plan.toUpperCase()}) only allows a maximum of ${limit} projects. Please upgrade your plan.`
+      : `Your subscription plan (${payload.plan.toUpperCase()}) only allows a maximum of ${limit} AI questions per month. Please upgrade your plan.`,
+    code: 'LIMIT_EXCEEDED',
+    resource,
+    plan: payload.plan,
+    status: payload.status,
+    limit,
+    current,
+    remaining,
+    resetAt: payload.resetAt,
+    isLocalSimulation: payload.isLocalSimulation,
+  });
+};
 
 export const checkPlanLimits = (resourceType: 'project' | 'aiQuestions') => {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -10,68 +41,31 @@ export const checkPlanLimits = (resourceType: 'project' | 'aiQuestions') => {
       }
 
       const userId = req.user.id;
-
-      // 1. Fetch user's subscription
-      let subscription = await Subscription.findOne({ userId });
-      if (!subscription) {
-        // Fallback to default free tier if subscription record is missing
-        subscription = await Subscription.create({
-          userId,
-          plan: 'free',
-          status: 'active',
-          limits: {
-            projectsCount: 2,
-            storageBytes: 100 * 1024 * 1024,
-            aiQuestionsPerMonth: 20
-          }
+      if (!isValidMongoId(userId)) {
+        return res.status(400).json({
+          error: 'Invalid user id.',
+          code: 'INVALID_OBJECT_ID',
         });
       }
 
-      if (subscription.status !== 'active') {
-        return res.status(403).json({
-          error: 'Your subscription is inactive or has payment issues. Please update billing.',
-          code: 'BILLING_INACTIVE'
-        });
-      }
+      const payload = await buildSubscriptionPayload(userId);
 
-      // 2. Perform limit checks
       if (resourceType === 'project') {
-        const projectsCount = await Project.countDocuments({ userId });
-        if (projectsCount >= subscription.limits.projectsCount) {
-          return res.status(403).json({
-            error: `Your subscription plan (${subscription.plan.toUpperCase()}) only allows a maximum of ${subscription.limits.projectsCount} projects. Please upgrade your plan.`,
-            code: 'LIMIT_EXCEEDED',
-            resource: 'project',
-            limit: subscription.limits.projectsCount,
-            current: projectsCount
-          });
+        if (payload.usage.projectsCount >= payload.limits.projectsCount) {
+          return limitExceededResponse(res, 'project', payload);
         }
       } else if (resourceType === 'aiQuestions') {
-        // Count AI query activities in the current calendar month
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
-
-        const aiQueriesCount = await Activity.countDocuments({
-          userId,
-          action: 'ai_question',
-          createdAt: { $gte: startOfMonth }
-        });
-
-        if (aiQueriesCount >= subscription.limits.aiQuestionsPerMonth) {
-          return res.status(403).json({
-            error: `Your subscription plan (${subscription.plan.toUpperCase()}) only allows a maximum of ${subscription.limits.aiQuestionsPerMonth} AI questions per month. Please upgrade your plan.`,
-            code: 'LIMIT_EXCEEDED',
-            resource: 'aiQuestions',
-            limit: subscription.limits.aiQuestionsPerMonth,
-            current: aiQueriesCount
-          });
+        if (payload.usage.aiQuestionsUsed >= payload.limits.aiQuestionsPerMonth) {
+          return limitExceededResponse(res, 'aiQuestions', payload);
         }
       }
 
       return next();
-    } catch (error: any) {
-      return res.status(500).json({ error: error.message });
+    } catch {
+      return res.status(500).json({
+        error: 'Unable to verify plan limits.',
+        code: 'PLAN_LIMIT_CHECK_FAILED',
+      });
     }
   };
 };

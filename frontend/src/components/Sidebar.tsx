@@ -41,16 +41,21 @@ export const Sidebar: React.FC = () => {
   const { toggleSearch } = useCommand();
   const { t, dir, language, toggleLanguage } = useLanguage();
   const [storagePercent, setStoragePercent] = useState(0);
+  const [effectivePlan, setEffectivePlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     void apiFetch('/subscription')
       .then((data) => {
         const used = Number(data.usage?.storageBytes || 0);
-        const limit = Number(data.limits?.storageBytes || 1);
-        setStoragePercent(Math.min(100, Math.round((used / limit) * 100)));
+        const limit = Number(data.limits?.storageBytes || 0);
+        setStoragePercent(limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0);
+        if (typeof data.plan === 'string') setEffectivePlan(data.plan);
       })
-      .catch(() => setStoragePercent(0));
+      .catch(() => {
+        setStoragePercent(0);
+        setEffectivePlan(null);
+      });
   }, [user]);
 
   const menuItems: SidebarItem[] = [
@@ -162,7 +167,7 @@ export const Sidebar: React.FC = () => {
                   </span>
                   <span className="text-[10px] text-text-secondary font-mono tracking-wider flex items-center">
                     <span className={`w-1.5 h-1.5 rounded-full bg-success ${isRtl ? 'ml-1' : 'mr-1'}`}></span>
-                    {user.plan.toUpperCase()}
+                    {(effectivePlan || user.plan).toUpperCase()}
                   </span>
                 </div>
               </Link>

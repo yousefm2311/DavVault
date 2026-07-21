@@ -18,6 +18,10 @@ import {
   Cpu
 } from 'lucide-react';
 
+const isValidObjectIdString = (value?: string) => (
+  typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value)
+);
+
 export default function ReusableSystemsPage() {
   const { user, loading, apiFetch } = useAuth();
   const { t, dir } = useLanguage();
@@ -25,6 +29,7 @@ export default function ReusableSystemsPage() {
 
   const [systems, setSystems] = useState<any[]>([]);
   const [loadingSystems, setLoadingSystems] = useState(true);
+  const [systemsError, setSystemsError] = useState('');
 
   // Form State
   const [showForm, setShowForm] = useState(false);
@@ -36,6 +41,7 @@ export default function ReusableSystemsPage() {
   const [dependenciesStr, setDependenciesStr] = useState('');
   const [flow, setFlow] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Selected system for drawer preview
   const [selectedSystem, setSelectedSystem] = useState<any | null>(null);
@@ -49,14 +55,20 @@ export default function ReusableSystemsPage() {
 
   const fetchSystems = async () => {
     try {
+      setLoadingSystems(true);
+      setSystemsError('');
       const data = await apiFetch('/systems');
       setSystems(data.systems || []);
       const requestedId = new URLSearchParams(window.location.search).get('id');
       if (requestedId) {
-        setSelectedSystem((data.systems || []).find((item: any) => item._id === requestedId) || null);
+        const found = isValidObjectIdString(requestedId)
+          ? (data.systems || []).find((item: any) => item._id === requestedId)
+          : null;
+        setSelectedSystem(found || null);
       }
     } catch (err) {
       console.error('[Systems]: Fetch failed:', err);
+      setSystemsError(err instanceof Error ? err.message : 'Unable to load reusable systems.');
     } finally {
       setLoadingSystems(false);
     }
@@ -77,6 +89,7 @@ export default function ReusableSystemsPage() {
     const dependencies = dependenciesStr.split(',').map(d => d.trim()).filter(d => d !== '');
 
     try {
+      setSystemsError('');
       const data = await apiFetch('/systems', {
         method: 'POST',
         body: JSON.stringify({
@@ -101,19 +114,29 @@ export default function ReusableSystemsPage() {
       setFlow('');
     } catch (err) {
       console.error('[Systems]: Save failed:', err);
+      setSystemsError(err instanceof Error ? err.message : 'Unable to save reusable system.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (!isValidObjectIdString(id)) {
+      setSystemsError('Unable to delete reusable system: invalid id.');
+      return;
+    }
     if (!confirm(t('deleteSystemConfirm'))) return;
+    setDeletingId(id);
     try {
+      setSystemsError('');
       await apiFetch(`/systems/${id}`, { method: 'DELETE' });
       setSystems(prev => prev.filter(s => s._id !== id));
       if (selectedSystem?._id === id) setSelectedSystem(null);
     } catch (err) {
       console.error('[Systems]: Delete failed:', err);
+      setSystemsError(err instanceof Error ? err.message : 'Unable to delete reusable system.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -280,6 +303,15 @@ export default function ReusableSystemsPage() {
           )}
         </AnimatePresence>
 
+        {systemsError && (
+          <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-xs text-danger">
+            <span>{systemsError}</span>
+            <button type="button" onClick={fetchSystems} className="rounded-xl border border-danger/20 px-3 py-1 text-[10px] font-semibold">
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Catalog layout */}
         <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {/* Systems grid (2/3 width) */}
@@ -339,10 +371,15 @@ export default function ReusableSystemsPage() {
                           e.stopPropagation();
                           handleDelete(sys._id);
                         }}
+                        disabled={deletingId === sys._id}
                         className="p-1.5 hover:bg-danger/10 rounded-lg text-text-secondary hover:text-danger"
                         title={t('cancel')}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        {deletingId === sys._id ? (
+                          <div className="h-3.5 w-3.5 rounded-full border-2 border-white/20 border-t-danger animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
                       </button>
                     </div>
                   </motion.div>

@@ -19,6 +19,10 @@ import {
   Info
 } from 'lucide-react';
 
+const isValidObjectIdString = (value?: string) => (
+  typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value)
+);
+
 function SnippetsPageContent() {
   const { user, loading, apiFetch } = useAuth();
   const { t, dir } = useLanguage();
@@ -27,6 +31,7 @@ function SnippetsPageContent() {
 
   const [snippets, setSnippets] = useState<any[]>([]);
   const [loadingSnippets, setLoadingSnippets] = useState(true);
+  const [snippetsError, setSnippetsError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form State
@@ -37,6 +42,7 @@ function SnippetsPageContent() {
   const [explanation, setExplanation] = useState('');
   const [tagsStr, setTagsStr] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Copy state
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -53,17 +59,22 @@ function SnippetsPageContent() {
 
   const fetchSnippets = async () => {
     try {
+      setLoadingSnippets(true);
+      setSnippetsError('');
       const data = await apiFetch('/snippets');
       setSnippets(data.snippets || []);
       
       // Auto-open snippet if referenced in URL query parameters
       const urlId = searchParams.get('id');
       if (urlId && data.snippets) {
-        const found = data.snippets.find((s: any) => s._id === urlId);
-        if (found) setSelectedSnippet(found);
+        const found = isValidObjectIdString(urlId)
+          ? data.snippets.find((s: any) => s._id === urlId)
+          : null;
+        setSelectedSnippet(found || null);
       }
     } catch (err) {
       console.error('[Snippets]: Fetch failed:', err);
+      setSnippetsError(err instanceof Error ? err.message : 'Unable to load snippets.');
     } finally {
       setLoadingSnippets(false);
     }
@@ -85,6 +96,7 @@ function SnippetsPageContent() {
       .filter(t => t !== '');
 
     try {
+      setSnippetsError('');
       const data = await apiFetch('/snippets', {
         method: 'POST',
         body: JSON.stringify({
@@ -104,6 +116,7 @@ function SnippetsPageContent() {
       setTagsStr('');
     } catch (err) {
       console.error('[Snippets]: Save failed:', err);
+      setSnippetsError(err instanceof Error ? err.message : 'Unable to save snippet.');
     } finally {
       setSubmitting(false);
     }
@@ -116,13 +129,22 @@ function SnippetsPageContent() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!isValidObjectIdString(id)) {
+      setSnippetsError('Unable to delete snippet: invalid snippet id.');
+      return;
+    }
     if (!confirm(t('deleteSnippetConfirm'))) return;
+    setDeletingId(id);
     try {
+      setSnippetsError('');
       await apiFetch(`/snippets/${id}`, { method: 'DELETE' });
       setSnippets(prev => prev.filter(s => s._id !== id));
       if (selectedSnippet?._id === id) setSelectedSnippet(null);
     } catch (err) {
       console.error('[Snippets]: Delete failed:', err);
+      setSnippetsError(err instanceof Error ? err.message : 'Unable to delete snippet.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -130,8 +152,8 @@ function SnippetsPageContent() {
 
   // Filter snippets locally by keyword
   const filteredSnippets = snippets.filter(s =>
-    s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    s.language.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(s.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(s.language || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (s.tags || []).some((t: string) => t.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -269,6 +291,15 @@ function SnippetsPageContent() {
           />
         </div>
 
+        {snippetsError && (
+          <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-xs text-danger">
+            <span>{snippetsError}</span>
+            <button type="button" onClick={fetchSnippets} className="rounded-xl border border-danger/20 px-3 py-1 text-[10px] font-semibold">
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Snippets layout: Grid + Drawer Split */}
         <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {/* List section */}
@@ -352,10 +383,15 @@ function SnippetsPageContent() {
                             e.stopPropagation();
                             handleDelete(snippet._id);
                           }}
+                          disabled={deletingId === snippet._id}
                           className="p-1.5 hover:bg-danger/10 rounded-lg text-text-secondary hover:text-danger"
                           title={t('cancel')}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          {deletingId === snippet._id ? (
+                            <div className="h-3.5 w-3.5 rounded-full border-2 border-white/20 border-t-danger animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" />
+                          )}
                         </button>
                       </div>
                     </div>

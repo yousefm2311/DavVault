@@ -11,6 +11,8 @@ import { stripeWebhook } from './controllers/subscription.controller';
 import { assertTokenSecrets } from './services/token.service';
 import jwt from 'jsonwebtoken';
 import { Project, User } from './models';
+import { decorateObject } from './utils/domain-mapper';
+import { accessibleProjectFilter } from './utils/access-control';
 
 // Load environment variables
 dotenv.config();
@@ -52,18 +54,47 @@ app.use((req, res, next) => {
         code: 'INTERNAL_SERVER_ERROR',
       });
     }
-    return sendJson(body);
+    
+    // Safety check: Skip decoration for auth routes, webhook calls, health checks, error statuses, or token bodies
+    const skipDecoration = 
+      res.statusCode >= 400 ||
+      req.path.startsWith('/auth') ||
+      req.path.startsWith('/health') ||
+      req.path.startsWith('/subscription/webhook') ||
+      req.path.endsWith('/download') ||
+      (body && (body.error || body.accessToken || body.token));
+
+    if (skipDecoration) {
+      return sendJson(body);
+    }
+
+    // Decorate JSON bodies with non-breaking domainType fields
+    return sendJson(decorateObject(body));
   }) as typeof res.json;
   next();
 });
 
 // Health Check Endpoint
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  const queue = await queueService.getStats().catch(() => ({
+    mode: queueService.getMode(),
+    waiting: 0,
+    active: 0,
+    completed: 0,
+    failed: 0,
+    delayed: 0,
+  }));
+
   res.status(200).json({
     status: 'healthy',
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    queue,
     integrations: {
       ai: Boolean(process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY),
+      aiProviders: {
+        gemini: Boolean(process.env.GEMINI_API_KEY),
+        openai: Boolean(process.env.OPENAI_API_KEY),
+      },
       googleOAuth: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
       githubOAuth: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
       stripe: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRO_PRICE_ID && process.env.STRIPE_TEAM_PRICE_ID),
@@ -76,6 +107,14 @@ app.use('/api', apiRouter);
 
 // Bind Global Error Handler
 app.use(errorHandler);
+
+const normalizeSocketProjectId = (value: unknown): string | null => {
+  return typeof value === 'string' &&
+    /^[a-fA-F0-9]{24}$/.test(value) &&
+    mongoose.Types.ObjectId.isValid(value)
+    ? value
+    : null;
+};
 
 // Socket.io Connection Event Handler
 io.use(async (socket, next) => {
@@ -105,16 +144,40 @@ io.on('connection', (socket) => {
   console.log(`[Socket.io]: Client connected: ${socket.id}`);
 
   // Client joins a channel to receive real-time indexing logs for a specific project
-  socket.on('join_project', async (projectId: string) => {
-    const project = await Project.findOne({ _id: projectId, userId: socket.data.userId }, '_id');
-    if (!project) return;
-    socket.join(`project_${projectId}`);
-    console.log(`[Socket.io]: Client ${socket.id} joined channel project_${projectId}`);
+  socket.on('join_project', async (projectId: unknown) => {
+    if (!normalizeSocketProjectId(socket.data.userId)) {
+      console.warn(`[Socket.io]: Ignoring project join without valid socket user id from ${socket.id}`);
+      return;
+    }
+
+    const normalizedProjectId = normalizeSocketProjectId(projectId);
+    if (!normalizedProjectId) {
+      console.warn(`[Socket.io]: Ignoring invalid project room id from ${socket.id}`);
+      return;
+    }
+
+    try {
+      const project = await Project.findOne(
+        await accessibleProjectFilter(socket.data.userId, normalizedProjectId),
+        '_id'
+      );
+      if (!project) return;
+      socket.join(`project_${normalizedProjectId}`);
+      console.log(`[Socket.io]: Client ${socket.id} joined channel project_${normalizedProjectId}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Socket.io]: Failed to join project room safely - ${msg}`);
+    }
   });
 
-  socket.on('leave_project', (projectId: string) => {
-    socket.leave(`project_${projectId}`);
-    console.log(`[Socket.io]: Client ${socket.id} left channel project_${projectId}`);
+  socket.on('leave_project', (projectId: unknown) => {
+    if (!normalizeSocketProjectId(socket.data.userId)) return;
+
+    const normalizedProjectId = normalizeSocketProjectId(projectId);
+    if (!normalizedProjectId) return;
+
+    socket.leave(`project_${normalizedProjectId}`);
+    console.log(`[Socket.io]: Client ${socket.id} left channel project_${normalizedProjectId}`);
   });
 
   socket.on('disconnect', () => {

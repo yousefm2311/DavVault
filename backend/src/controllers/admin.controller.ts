@@ -14,10 +14,59 @@ import { AuthenticatedRequest } from '../middleware/auth';
 import { queueService } from '../services/queue.service';
 import { storageService } from '../services/storage.service';
 import { notificationService } from '../services/notification.service';
+import { isBillablePlan, planLimits } from '../utils/billing';
 
 const paidPlanPricesCents = {
   pro: Number(process.env.STRIPE_PRO_PRICE_AMOUNT_CENTS || 1500),
   team: Number(process.env.STRIPE_TEAM_PRICE_AMOUNT_CENTS || 4900),
+};
+
+const isValidAdminObjectId = (value: unknown): value is string => (
+  typeof value === 'string' &&
+  /^[a-fA-F0-9]{24}$/.test(value) &&
+  mongoose.Types.ObjectId.isValid(value)
+);
+
+const invalidObjectIdResponse = (res: Response, field = 'id') => res.status(400).json({
+  error: `Invalid ${field}.`,
+  code: 'INVALID_OBJECT_ID',
+});
+
+const adminServerError = (res: Response, code: string) => res.status(500).json({
+  error: 'An unexpected admin API error occurred.',
+  code,
+});
+
+const isSafePlanLimitValue = (value: unknown) => (
+  Number.isFinite(value) &&
+  Number(value) >= 0 &&
+  Number.isInteger(Number(value))
+);
+
+const normalizePlanLimits = (limits: Record<string, any>) => {
+  const normalized: Record<string, typeof planLimits.free> = {};
+  for (const [plan, rawLimits] of Object.entries(limits)) {
+    if (!isBillablePlan(plan)) return null;
+    if (!rawLimits || typeof rawLimits !== 'object') return null;
+    const candidate = {
+      projectsCount: Number(rawLimits.projectsCount),
+      storageBytes: Number(rawLimits.storageBytes),
+      aiQuestionsPerMonth: Number(rawLimits.aiQuestionsPerMonth),
+      teamMembers: rawLimits.teamMembers === undefined
+        ? planLimits[plan].teamMembers
+        : Number(rawLimits.teamMembers),
+    };
+    if (
+      !isSafePlanLimitValue(candidate.projectsCount) ||
+      !isSafePlanLimitValue(candidate.storageBytes) ||
+      !isSafePlanLimitValue(candidate.aiQuestionsPerMonth) ||
+      !isSafePlanLimitValue(candidate.teamMembers)
+    ) {
+      return null;
+    }
+    normalized[plan] = candidate;
+  }
+  return normalized;
 };
 
 export const getAdminStats = async (req: AuthenticatedRequest, res: Response) => {
@@ -93,8 +142,8 @@ export const getAdminStats = async (req: AuthenticatedRequest, res: Response) =>
         topStorageUsers,
       },
     });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return adminServerError(res, 'ADMIN_STATS_FAILED');
   }
 };
 
@@ -135,8 +184,8 @@ export const listAdminUsers = async (req: AuthenticatedRequest, res: Response) =
         pages: Math.ceil(total / limit),
       },
     });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return adminServerError(res, 'ADMIN_USERS_LIST_FAILED');
   }
 };
 
@@ -144,20 +193,23 @@ export const updateUserRole = async (req: AuthenticatedRequest, res: Response) =
   try {
     const { id } = req.params;
     const { role } = req.body as { role: 'user' | 'admin' | 'superadmin' };
+    if (!isValidAdminObjectId(id)) {
+      return invalidObjectIdResponse(res, 'user id');
+    }
     if (!['user', 'admin', 'superadmin'].includes(role)) {
-      return res.status(400).json({ error: 'Invalid role.' });
+      return res.status(400).json({ error: 'Invalid role.', code: 'INVALID_ROLE' });
     }
     if (role === 'superadmin' && req.user?.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Only superadmins can assign superadmin role.' });
+      return res.status(403).json({ error: 'Only superadmins can assign superadmin role.', code: 'SUPERADMIN_REQUIRED' });
     }
 
     const target = await User.findById(id);
-    if (!target) return res.status(404).json({ error: 'User not found.' });
+    if (!target) return res.status(404).json({ error: 'User not found.', code: 'USER_NOT_FOUND' });
     if (target.role === 'superadmin' && req.user?.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Only superadmins can edit superadmin accounts.' });
+      return res.status(403).json({ error: 'Only superadmins can edit superadmin accounts.', code: 'SUPERADMIN_REQUIRED' });
     }
     if (target._id.toString() === req.user?.id && role === 'user') {
-      return res.status(400).json({ error: 'You cannot remove your own admin access.' });
+      return res.status(400).json({ error: 'You cannot remove your own admin access.', code: 'SELF_ADMIN_DOWNGRADE_BLOCKED' });
     }
 
     target.role = role;
@@ -185,8 +237,8 @@ export const updateUserRole = async (req: AuthenticatedRequest, res: Response) =
         updatedAt: target.updatedAt,
       },
     });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return adminServerError(res, 'ADMIN_ROLE_UPDATE_FAILED');
   }
 };
 
@@ -194,17 +246,20 @@ export const updateUserStatus = async (req: AuthenticatedRequest, res: Response)
   try {
     const { id } = req.params;
     const { status } = req.body as { status: 'active' | 'suspended' | 'pending' };
+    if (!isValidAdminObjectId(id)) {
+      return invalidObjectIdResponse(res, 'user id');
+    }
     if (!['active', 'suspended', 'pending'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status.' });
+      return res.status(400).json({ error: 'Invalid status.', code: 'INVALID_STATUS' });
     }
 
     const target = await User.findById(id);
-    if (!target) return res.status(404).json({ error: 'User not found.' });
+    if (!target) return res.status(404).json({ error: 'User not found.', code: 'USER_NOT_FOUND' });
     if (target.role === 'superadmin' && req.user?.role !== 'superadmin') {
-      return res.status(403).json({ error: 'Only superadmins can edit superadmin accounts.' });
+      return res.status(403).json({ error: 'Only superadmins can edit superadmin accounts.', code: 'SUPERADMIN_REQUIRED' });
     }
     if (target._id.toString() === req.user?.id && status === 'suspended') {
-      return res.status(400).json({ error: 'You cannot suspend your own account.' });
+      return res.status(400).json({ error: 'You cannot suspend your own account.', code: 'SELF_SUSPEND_BLOCKED' });
     }
 
     target.status = status;
@@ -232,18 +287,21 @@ export const updateUserStatus = async (req: AuthenticatedRequest, res: Response)
         updatedAt: target.updatedAt,
       },
     });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return adminServerError(res, 'ADMIN_STATUS_UPDATE_FAILED');
   }
 };
 
 export const getUserActivity = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
+    if (!isValidAdminObjectId(id)) {
+      return invalidObjectIdResponse(res, 'user id');
+    }
     const activities = await Activity.find({ userId: id }).sort({ createdAt: -1 }).limit(100);
     return res.status(200).json({ activities });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return adminServerError(res, 'ADMIN_USER_ACTIVITY_FAILED');
   }
 };
 
@@ -274,20 +332,20 @@ export const listAdminProjects = async (req: AuthenticatedRequest, res: Response
         pages: Math.ceil(total / limit),
       },
     });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return adminServerError(res, 'ADMIN_PROJECTS_LIST_FAILED');
   }
 };
 
 export const forceDeleteProject = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { id } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: 'Invalid project id.' });
+    if (!isValidAdminObjectId(id)) {
+      return invalidObjectIdResponse(res, 'project id');
     }
 
     const project = await Project.findByIdAndDelete(id);
-    if (!project) return res.status(404).json({ error: 'Project not found.' });
+    if (!project) return res.status(404).json({ error: 'Project not found.', code: 'PROJECT_NOT_FOUND' });
 
     await Promise.all([
       DBFile.deleteMany({ projectId: id }),
@@ -314,8 +372,8 @@ export const forceDeleteProject = async (req: AuthenticatedRequest, res: Respons
     });
 
     return res.status(200).json({ message: 'Project deleted by admin.' });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return adminServerError(res, 'ADMIN_PROJECT_DELETE_FAILED');
   }
 };
 
@@ -323,12 +381,17 @@ export const updatePlanLimits = async (req: AuthenticatedRequest, res: Response)
   try {
     const { limits } = req.body as { limits: Record<string, any> };
     if (!limits || typeof limits !== 'object') {
-      return res.status(400).json({ error: 'Limits object is required.' });
+      return res.status(400).json({ error: 'Limits object is required.', code: 'INVALID_PLAN_LIMITS' });
+    }
+
+    const normalizedLimits = normalizePlanLimits(limits);
+    if (!normalizedLimits || Object.keys(normalizedLimits).length === 0) {
+      return res.status(400).json({ error: 'Plan limits are invalid.', code: 'INVALID_PLAN_LIMITS' });
     }
 
     const setting = await AdminSetting.findOneAndUpdate(
       { key: 'plan_limits' },
-      { value: limits },
+      { value: normalizedLimits },
       { upsert: true, new: true }
     );
 
@@ -336,11 +399,11 @@ export const updatePlanLimits = async (req: AuthenticatedRequest, res: Response)
       userId: req.user!.id,
       action: 'admin_plan_limits_updated',
       entityType: 'auth',
-      metadata: { limits },
+      metadata: { plans: Object.keys(normalizedLimits) },
     });
 
     return res.status(200).json({ setting });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return adminServerError(res, 'ADMIN_PLAN_LIMITS_UPDATE_FAILED');
   }
 };

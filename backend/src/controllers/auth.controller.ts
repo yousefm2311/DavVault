@@ -77,6 +77,7 @@ const ensureUserDefaults = async (user: any) => {
           projectsCount: 2,
           storageBytes: 100 * 1024 * 1024,
           aiQuestionsPerMonth: 20,
+          teamMembers: 1,
         },
       },
     },

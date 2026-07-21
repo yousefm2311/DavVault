@@ -28,13 +28,25 @@ import {
 
 interface ProjectUploadStatus {
   projectId: string;
-  status: 'pending' | 'extracting' | 'parsing' | 'embedding' | 'completed' | 'failed';
+  status: 'pending' | 'processing' | 'extracting' | 'parsing' | 'embedding' | 'completed' | 'partial' | 'failed' | 'cancelled';
   progress: number;
   message: string;
+  processedFiles?: number;
+  skippedFiles?: number;
+  failedFiles?: number;
+  indexedFiles?: number;
+  embeddingFailures?: number;
+  parserWarnings?: number;
+  totalFiles?: number;
+  warnings?: string[];
+  errorCode?: string;
+  queueMode?: string;
+  updatedAt?: number;
 }
 
 interface ProjectItem {
   _id: string;
+  userId?: string;
   name: string;
   description?: string;
   language?: string;
@@ -47,6 +59,17 @@ interface ProjectItem {
   processingStatus?: ProjectUploadStatus['status'];
   processingProgress?: number;
   processingMessage?: string;
+  processingErrorCode?: string;
+  processingStats?: {
+    processedFiles?: number;
+    skippedFiles?: number;
+    failedFiles?: number;
+    indexedFiles?: number;
+    embeddingFailures?: number;
+    parserWarnings?: number;
+    totalFiles?: number;
+    warnings?: string[];
+  };
 }
 
 const MAX_ZIP_SIZE = 50 * 1024 * 1024;
@@ -64,7 +87,35 @@ const getHealthTone = (score = 100) => {
   return 'bg-danger/10 text-danger border-danger/20';
 };
 
-const statusSteps: ProjectUploadStatus['status'][] = ['pending', 'extracting', 'parsing', 'embedding', 'completed'];
+const statusSteps: ProjectUploadStatus['status'][] = ['pending', 'processing', 'extracting', 'parsing', 'embedding', 'completed'];
+
+// Temporary compatibility for legacy responses that serialized ObjectIds as buffers.
+const normalizeProjectId = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return '';
+
+  const candidate = value as { _id?: unknown; buffer?: Record<string, number> };
+  if (typeof candidate._id === 'string') return candidate._id;
+
+  if (candidate.buffer && typeof candidate.buffer === 'object') {
+    const bytes = Array.from({ length: 12 }, (_, index) => candidate.buffer?.[String(index)]);
+    if (bytes.every((byte): byte is number => typeof byte === 'number' && Number.isInteger(byte) && byte >= 0 && byte <= 255)) {
+      return bytes.map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    }
+  }
+
+  return '';
+};
+
+const isValidObjectIdString = (value?: string) => (
+  typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value)
+);
+
+const clampProgress = (value: unknown) => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.min(100, Math.max(0, Math.round(numeric)));
+};
 
 function ProjectsPageContent() {
   const { user, loading, apiFetch, accessToken } = useAuth();
@@ -74,6 +125,7 @@ function ProjectsPageContent() {
 
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [projectListError, setProjectListError] = useState<string | null>(null);
   const [projectQuery, setProjectQuery] = useState('');
   const [sortMode, setSortMode] = useState<'recent' | 'name' | 'health'>('recent');
 
@@ -124,7 +176,7 @@ function ProjectsPageContent() {
       total: projects.length,
       averageHealth,
       topLanguage,
-      active: activeJob && activeJob.status !== 'completed' && activeJob.status !== 'failed' ? 1 : 0,
+      active: activeJob && !['completed', 'partial', 'failed', 'cancelled'].includes(activeJob.status) ? 1 : 0,
     };
   }, [activeJob, projects]);
 
@@ -142,23 +194,35 @@ function ProjectsPageContent() {
 
   const fetchProjects = async () => {
     try {
+      setProjectListError(null);
       const data = await apiFetch('/projects');
       setProjects(data.projects || []);
       const processingProject = (data.projects || []).find(
         (project: ProjectItem) =>
           project.processingStatus &&
-          !['completed', 'failed'].includes(project.processingStatus)
+          !['completed', 'partial', 'failed', 'cancelled'].includes(project.processingStatus)
       );
       if (processingProject) {
         setActiveJob({
-          projectId: processingProject._id,
+          projectId: normalizeProjectId(processingProject._id),
           status: processingProject.processingStatus,
-          progress: processingProject.processingProgress || 0,
+          progress: clampProgress(processingProject.processingProgress),
           message: processingProject.processingMessage || t('preparingIndexing'),
+          processedFiles: processingProject.processingStats?.processedFiles || 0,
+          skippedFiles: processingProject.processingStats?.skippedFiles || 0,
+          failedFiles: processingProject.processingStats?.failedFiles || 0,
+          indexedFiles: processingProject.processingStats?.indexedFiles || 0,
+          embeddingFailures: processingProject.processingStats?.embeddingFailures || 0,
+          parserWarnings: processingProject.processingStats?.parserWarnings || 0,
+          totalFiles: processingProject.processingStats?.totalFiles || 0,
+          warnings: processingProject.processingStats?.warnings || [],
+          errorCode: processingProject.processingErrorCode,
+          updatedAt: Date.now(),
         });
       }
     } catch (err) {
       console.error('[Projects]: Failed to fetch:', err);
+      setProjectListError(isRtl ? 'تعذر تحميل المشاريع.' : 'Unable to load projects.');
     } finally {
       setLoadingProjects(false);
     }
@@ -171,9 +235,11 @@ function ProjectsPageContent() {
 
   // Connect to Socket.io for active jobs progress
   useEffect(() => {
-    if (!activeJob?.projectId || activeJob.status === 'completed' || activeJob.status === 'failed') return;
+    if (!activeJob?.projectId || ['completed', 'partial', 'failed', 'cancelled'].includes(activeJob.status)) return;
 
-    const projectId = activeJob.projectId;
+    const projectId = normalizeProjectId(activeJob.projectId);
+    if (!projectId) return;
+    if (!isValidObjectIdString(projectId)) return;
 
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5001';
     const socket = io(socketUrl, { auth: { token: accessToken } });
@@ -186,9 +252,18 @@ function ProjectsPageContent() {
     // Listen to processing updates
     socket.on('processing_progress', (data: any) => {
       console.log('[Socket]: Progress update:', data);
-      setActiveJob(prev => prev ? { ...prev, ...data } : null);
+      const eventProjectId = normalizeProjectId(data?.projectId || projectId);
+      if (eventProjectId !== projectId) return;
+      setActiveJob(prev => prev ? {
+        ...prev,
+        ...data,
+        projectId,
+        progress: clampProgress(data?.progress),
+        warnings: Array.isArray(data?.warnings) ? data.warnings : prev.warnings,
+        updatedAt: Date.now(),
+      } : null);
 
-      if (data.status === 'completed' || data.status === 'failed') {
+      if (['completed', 'partial', 'failed', 'cancelled'].includes(data.status)) {
         fetchProjects(); // Reload projects list
         socket.disconnect();
       }
@@ -196,8 +271,17 @@ function ProjectsPageContent() {
 
     // Fallback room matching
     socket.on(`project_${projectId}_progress`, (data: any) => {
-      setActiveJob(prev => prev ? { ...prev, ...data } : null);
-      if (data.status === 'completed' || data.status === 'failed') {
+      const eventProjectId = normalizeProjectId(data?.projectId || projectId);
+      if (eventProjectId !== projectId) return;
+      setActiveJob(prev => prev ? {
+        ...prev,
+        ...data,
+        projectId,
+        progress: clampProgress(data?.progress),
+        warnings: Array.isArray(data?.warnings) ? data.warnings : prev.warnings,
+        updatedAt: Date.now(),
+      } : null);
+      if (['completed', 'partial', 'failed', 'cancelled'].includes(data.status)) {
         fetchProjects();
         socket.disconnect();
       }
@@ -206,7 +290,26 @@ function ProjectsPageContent() {
     return () => {
       socket.disconnect();
     };
-  }, [activeJob?.projectId, accessToken]);
+  }, [activeJob?.projectId, activeJob?.status, accessToken]);
+
+  useEffect(() => {
+    if (!activeJob || ['completed', 'partial', 'failed', 'cancelled'].includes(activeJob.status)) return;
+    const timeout = setTimeout(() => {
+      setActiveJob(prev => {
+        if (!prev || ['completed', 'partial', 'failed', 'cancelled'].includes(prev.status)) return prev;
+        const lastUpdate = prev.updatedAt || Date.now();
+        if (Date.now() - lastUpdate < 120000) return prev;
+        return {
+          ...prev,
+          message: isRtl
+            ? 'لم يصل تحديث جديد منذ فترة. سنعيد تحميل حالة المشروع.'
+            : 'No processing update received recently. Refreshing project status.',
+        };
+      });
+      fetchProjects();
+    }, 125000);
+    return () => clearTimeout(timeout);
+  }, [activeJob?.projectId, activeJob?.status, activeJob?.updatedAt, isRtl]);
 
   const selectUploadFile = (file?: File) => {
     if (file) {
@@ -263,10 +366,12 @@ function ProjectsPageContent() {
 
       // Initialize local progress watcher
       setActiveJob({
-        projectId: data.projectId,
+        projectId: normalizeProjectId(data.projectId),
         status: 'pending',
         progress: 0,
         message: t('preparingIndexing'),
+        queueMode: data.queueMode,
+        updatedAt: Date.now(),
       });
 
       // Clear form
@@ -289,10 +394,12 @@ function ProjectsPageContent() {
     }
 
     try {
+      setProjectListError(null);
       await apiFetch(`/projects/${id}`, { method: 'DELETE' });
-      setProjects(prev => prev.filter(p => p._id !== id));
+      setProjects(prev => prev.filter(p => normalizeProjectId(p._id) !== id));
     } catch (err) {
       console.error('[Projects]: Delete failed:', err);
+      setProjectListError(isRtl ? 'تعذر حذف المشروع.' : 'Unable to delete project.');
     }
   };
 
@@ -344,7 +451,13 @@ function ProjectsPageContent() {
 
         {/* Live Processing progress card */}
         {activeJob && (
-          <div className="mb-8 rounded-[28px] border border-accent-blue/25 bg-accent-blue/[0.06] p-6 glass">
+          <div className={`mb-8 rounded-[28px] border p-6 glass ${
+            activeJob.status === 'failed'
+              ? 'border-danger/25 bg-danger/[0.06]'
+              : activeJob.status === 'partial'
+                ? 'border-warning/25 bg-warning/[0.06]'
+                : 'border-accent-blue/25 bg-accent-blue/[0.06]'
+          }`}>
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent-blue/10 animate-pulse">
                 <FileArchive className="h-6 w-6 text-accent-blue" />
@@ -359,6 +472,11 @@ function ProjectsPageContent() {
                     {activeJob.progress}%
                   </span>
                 </div>
+                {activeJob.queueMode === 'memory' && (
+                  <p className="mt-2 text-[10px] font-semibold text-warning">
+                    {isRtl ? 'يعمل الفهرس في وضع الذاكرة المحلي.' : 'Indexer is running in local memory queue mode.'}
+                  </p>
+                )}
                 <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
                   <div
                     className="h-full rounded-full bg-accent-blue transition-all duration-500"
@@ -367,10 +485,11 @@ function ProjectsPageContent() {
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
                   {statusSteps.map((step) => {
-                    const currentIndex = statusSteps.indexOf(activeJob.status as ProjectUploadStatus['status']);
+                    const visualStatus = activeJob.status === 'partial' ? 'completed' : activeJob.status;
+                    const currentIndex = statusSteps.indexOf(visualStatus as ProjectUploadStatus['status']);
                     const stepIndex = statusSteps.indexOf(step);
-                    const done = activeJob.status === 'completed' || stepIndex < currentIndex;
-                    const active = step === activeJob.status;
+                    const done = ['completed', 'partial'].includes(activeJob.status) || stepIndex < currentIndex;
+                    const active = step === visualStatus;
                     return (
                       <div
                         key={step}
@@ -388,6 +507,30 @@ function ProjectsPageContent() {
                     );
                   })}
                 </div>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-[10px] text-text-secondary md:grid-cols-5">
+                  <span>{isRtl ? 'تمت المعالجة' : 'Processed'}: {activeJob.processedFiles || 0}/{activeJob.totalFiles || 0}</span>
+                  <span>{isRtl ? 'مفهرسة' : 'Indexed'}: {activeJob.indexedFiles || 0}</span>
+                  <span>{isRtl ? 'متخطاة' : 'Skipped'}: {activeJob.skippedFiles || 0}</span>
+                  <span>{isRtl ? 'فشلت' : 'Failed'}: {activeJob.failedFiles || 0}</span>
+                  <span>{isRtl ? 'تحذيرات' : 'Warnings'}: {(activeJob.parserWarnings || 0) + (activeJob.embeddingFailures || 0)}</span>
+                </div>
+                {activeJob.status === 'partial' && (
+                  <div className="mt-4 rounded-2xl border border-warning/20 bg-warning/10 px-4 py-3 text-xs text-warning">
+                    {isRtl ? 'اكتملت الفهرسة مع بعض التحذيرات. المشروع قابل للاستخدام.' : 'Indexing completed with warnings. The project is usable.'}
+                  </div>
+                )}
+                {activeJob.status === 'failed' && (
+                  <div className="mt-4 rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-xs text-danger">
+                    {activeJob.errorCode || (isRtl ? 'فشلت فهرسة المشروع.' : 'Project indexing failed.')}
+                  </div>
+                )}
+                {Array.isArray(activeJob.warnings) && activeJob.warnings.length > 0 && (
+                  <div className="mt-4 space-y-1 rounded-2xl border border-card-border bg-white/[0.03] px-4 py-3 text-[10px] text-text-secondary">
+                    {activeJob.warnings.slice(0, 3).map((warning) => (
+                      <p key={warning}>{warning}</p>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -542,19 +685,31 @@ function ProjectsPageContent() {
             </div>
           </div>
 
+          {projectListError && (
+            <div className="mb-4 rounded-2xl border border-danger/25 bg-danger/10 px-4 py-3 text-xs font-semibold text-danger">
+              {projectListError}
+            </div>
+          )}
+
           {loadingProjects ? (
             <SectionSkeleton rows={4} className="border-0 bg-transparent p-0" />
           ) : filteredProjects.length > 0 ? (
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {filteredProjects.map((p) => (
-                <div
-                  key={p._id}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('button')) return;
-                    router.push(`/projects/${p._id}`);
-                  }}
-                  className="group relative flex min-h-[210px] cursor-pointer flex-col justify-between overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.04] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent-blue/35 hover:bg-white/[0.07]"
-                >
+              {filteredProjects.map((p) => {
+                const projectId = normalizeProjectId(p._id);
+                return (
+                  <div
+                    key={projectId || p.name}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button')) return;
+                      if (!projectId) {
+                        setProjectListError(isRtl ? 'معرّف المشروع غير صالح.' : 'Invalid project id.');
+                        return;
+                      }
+                      router.push(`/projects/${projectId}`);
+                    }}
+                    className="group relative flex min-h-[210px] cursor-pointer flex-col justify-between overflow-hidden rounded-[24px] border border-white/5 bg-white/[0.04] p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent-blue/35 hover:bg-white/[0.07]"
+                  >
                   <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-accent-blue/10 blur-3xl transition group-hover:bg-accent-blue/20" />
                   <div>
                     <div className="flex items-start justify-between">
@@ -570,13 +725,24 @@ function ProjectsPageContent() {
                         </div>
                       </div>
                       
-                      <button
-                        onClick={(e) => handleDeleteProject(e, p._id)}
-                        className="opacity-60 lg:opacity-0 lg:group-hover:opacity-100 p-1.5 bg-danger/10 hover:bg-danger/25 text-danger rounded-lg transition-all"
-                        title={t('deleteProjectBtn')}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Hide delete button ONLY when we can confirm the user is not the owner.
+                           If userId is absent or comparison is uncertain, show it — backend is the final gate. */}
+                      {!(p.userId && user?.id && normalizeProjectId(p.userId) !== user.id) && (
+                        <button
+                          onClick={(e) => {
+                            if (!projectId) {
+                              e.stopPropagation();
+                              setProjectListError(isRtl ? 'معرّف المشروع غير صالح.' : 'Invalid project id.');
+                              return;
+                            }
+                            handleDeleteProject(e, projectId);
+                          }}
+                          className="opacity-60 lg:opacity-0 lg:group-hover:opacity-100 p-1.5 bg-danger/10 hover:bg-danger/25 text-danger rounded-lg transition-all"
+                          title={t('deleteProjectBtn')}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
 
                     <p className="mt-4 line-clamp-3 text-xs leading-relaxed text-text-secondary">
@@ -603,7 +769,8 @@ function ProjectsPageContent() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="py-20 text-center text-xs text-text-secondary flex flex-col items-center justify-center space-y-4">

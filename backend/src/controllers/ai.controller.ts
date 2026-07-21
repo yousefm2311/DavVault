@@ -2,17 +2,66 @@ import { Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import AdmZip from 'adm-zip';
+import { Types } from 'mongoose';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { ChatSession, CodeEntity, Embedding, File as DBFile, Project, Activity, AiAgent, Workspace } from '../models';
 import { aiService } from '../services/ai.service';
+import { aiContextBuilder } from '../services/ai-context-builder.service';
+import type { ContextCitation } from '../services/ai-context-builder.service';
+import { memoryService } from '../services/memory.service';
+
 import {
   decryptSecret,
   encryptSecret,
   isEncryptedSecret,
   isSecretEncryptionConfigured,
 } from '../services/secret-encryption.service';
+
+const isValidObjectId = (value: unknown): value is string => (
+  typeof value === 'string' && Types.ObjectId.isValid(value)
+);
+
+const invalidIdResponse = (res: Response, field = 'id') => (
+  res.status(400).json({
+    error: `Invalid ${field}.`,
+    code: 'INVALID_OBJECT_ID',
+  })
+);
+
+const notFoundResponse = (
+  res: Response,
+  error: 'Project not found.' | 'File not found.' | 'Chat session not found.',
+  code: 'PROJECT_NOT_FOUND' | 'FILE_NOT_FOUND' | 'CHAT_SESSION_NOT_FOUND'
+) => res.status(404).json({ error, code });
+
+const aiServerErrorResponse = (res: Response, code: string) => (
+  res.status(500).json({
+    error: 'An unexpected AI service error occurred.',
+    code,
+  })
+);
+
+const accessibleProjectFilter = async (userId: string, projectId: string) => {
+  const workspaces = await Workspace.find({ 'members.userId': userId }, '_id').lean();
+  return {
+    _id: projectId,
+    $or: [
+      { userId },
+      { workspaceId: { $in: workspaces.map((item) => item._id) } },
+    ],
+  };
+};
+
+const findAccessibleProject = async (userId: string, projectId: string, projection = '_id userId') => (
+  Project.findOne(await accessibleProjectFilter(userId, projectId), projection).lean()
+);
+
+const normalizeCitationId = (value?: string): string | undefined => (
+  isValidObjectId(value) ? value : undefined
+);
+
 
 const calculateCosineSimilarity = (vecA: number[], vecB: number[]): number => {
   if (vecA.length !== vecB.length) return 0;
@@ -31,6 +80,63 @@ const calculateCosineSimilarity = (vecA: number[], vecB: number[]): number => {
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 };
 
+const TRACE_SECRET_PATTERNS = [
+  /\b(password|secret|api[_-]?key|token)\s*[:=]\s*[^\s,;]+/gi,
+  /\bbearer\s+[a-zA-Z0-9._\-]{12,}/gi,
+  /\bsk-[a-zA-Z0-9]{12,}/g,
+  /\bAIza[a-zA-Z0-9_\-]{20,}/g,
+  /process\.env\.\w+/g,
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
+];
+
+const sanitizeTraceText = (value: unknown, maxLength = 240): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  let safe = value;
+  for (const pattern of TRACE_SECRET_PATTERNS) {
+    safe = safe.replace(pattern, '[REDACTED]');
+  }
+  safe = safe.replace(/[\r\n\t]+/g, ' ').trim();
+  if (!safe) return undefined;
+  return safe.length > maxLength ? `${safe.substring(0, maxLength)}...` : safe;
+};
+
+const isContextTraceEnabled = () => (
+  process.env.NODE_ENV !== 'production' ||
+  process.env.AI_DEBUG_CONTEXT_TRACE === 'true'
+);
+
+const normalizeLegacyCitations = (
+  citations: { fileName: string; path: string; score?: number }[],
+  projectId?: string
+): ContextCitation[] => citations.map((citation) => ({
+  id: `legacy:${citation.path || citation.fileName}`,
+  type: 'file',
+  domainType: 'source_asset',
+  title: citation.fileName || citation.path || 'Source file',
+  subtitle: citation.path,
+  path: citation.path,
+  confidence: citation.score,
+  score: citation.score,
+  source: 'code',
+  navigation: normalizeCitationId(projectId) ? { route: `/projects/${projectId}`, projectId } : undefined,
+  fileName: citation.fileName || citation.path,
+}));
+
+const mergeCitations = (
+  contextCitations: ContextCitation[] = [],
+  legacyCitations: { fileName: string; path: string; score?: number }[] = [],
+  projectId?: string
+): ContextCitation[] => {
+  const merged = [...contextCitations, ...normalizeLegacyCitations(legacyCitations, projectId)];
+  const seen = new Set<string>();
+  return merged.filter((citation) => {
+    const key = `${citation.source}:${citation.id || citation.path || citation.title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 30);
+};
+
 export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
@@ -39,17 +145,21 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
     if (!message) {
       return res.status(400).json({ error: 'Message is required.' });
     }
+    if (projectId && !isValidObjectId(projectId)) {
+      return invalidIdResponse(res, 'projectId');
+    }
+    if (sessionId && !isValidObjectId(sessionId)) {
+      return invalidIdResponse(res, 'sessionId');
+    }
 
     const userId = req.user.id;
     let contextOwnerId = userId;
+    let contextWorkspaceId: string | undefined;
     if (projectId) {
-      const workspaces = await Workspace.find({ 'members.userId': userId }, '_id').lean();
-      const project = await Project.findOne({
-        _id: projectId,
-        $or: [{ userId }, { workspaceId: { $in: workspaces.map((item) => item._id) } }],
-      }, 'userId');
-      if (!project) return res.status(404).json({ error: 'Project not found.' });
-      contextOwnerId = project.userId.toString();
+      const project = await findAccessibleProject(userId, projectId, 'userId workspaceId');
+      if (!project) return notFoundResponse(res, 'Project not found.', 'PROJECT_NOT_FOUND');
+      contextOwnerId = (project as any).userId.toString();
+      contextWorkspaceId = (project as any).workspaceId?.toString();
     }
 
     // Log AI query activity
@@ -66,7 +176,7 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
     if (sessionId) {
       session = await ChatSession.findOne({ _id: sessionId, userId });
       if (!session) {
-        return res.status(404).json({ error: 'Chat session not found.' });
+        return notFoundResponse(res, 'Chat session not found.', 'CHAT_SESSION_NOT_FOUND');
       }
       if (String(session.projectId || '') !== String(projectId || '')) {
         return res.status(409).json({
@@ -86,18 +196,44 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
-    // 2. Fetch relevant context (RAG Retrieval)
+    // 2. Fetch relevant context (RAG Retrieval) — compute embedding once
     const queryEmbedding = await aiService.generateEmbedding(message);
-    
+
+    // --- Phase 4: Context Builder (enriched context) -------------------------
+    // Build enriched context. If this fails, we fall back to the legacy path below.
+    let enrichedContext = null;
+    try {
+      enrichedContext = await aiContextBuilder.buildChatContext({
+        userId,
+        contextOwnerId: contextOwnerId,
+        workspaceId: contextWorkspaceId,
+        projectId,
+        message,
+        sessionId: session._id.toString(),
+        queryEmbedding,
+      });
+    } catch (ctxErr) {
+      const msg = ctxErr instanceof Error ? ctxErr.message : String(ctxErr);
+      console.warn(`[AI Controller/handleChat]: Context builder failed, using legacy context. Reason: ${msg}`);
+    }
+    // -------------------------------------------------------------------------
+
+    // Legacy RAG path (always computed as fallback and for citations)
     const filter: any = { userId: contextOwnerId };
     if (projectId) {
       filter.projectId = projectId;
     }
 
-    const candidates = await Embedding.find(filter)
-      .select('vector content sourceType sourceId projectId')
-      .limit(3000)
-      .lean();
+    let candidates: any[] = [];
+    try {
+      candidates = await Embedding.find(filter)
+        .select('vector content sourceType sourceId projectId')
+        .limit(3000)
+        .lean();
+    } catch (embeddingErr) {
+      const msg = embeddingErr instanceof Error ? embeddingErr.message : String(embeddingErr);
+      console.warn(`[AI Controller/handleChat]: Legacy embedding retrieval failed; continuing without legacy context. Reason: ${msg}`);
+    }
     const scoredCandidates = [];
 
     for (const candidate of candidates) {
@@ -114,7 +250,7 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
 
     // Retrieve full files details for references
     const contextChunks: { path: string; content: string; score: number }[] = [];
-    const citations: { fileName: string; path: string; code?: string; score: number }[] = [];
+    const citations: { fileName: string; path: string; score: number }[] = [];
 
     for (const scored of topScored) {
       const c = scored.candidate;
@@ -122,11 +258,14 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
       let fileName = '';
 
       if (c.sourceType === 'file') {
-        const file = await DBFile.findById(c.sourceId, 'fileName path content');
+        if (!isValidObjectId(c.sourceId?.toString())) continue;
+        const fileFilter: any = { _id: c.sourceId, userId: contextOwnerId };
+        if (projectId) fileFilter.projectId = projectId;
+        const file = await DBFile.findOne(fileFilter, 'fileName path content');
         if (file) {
           fileName = file.fileName;
           pathStr = file.path;
-          
+
           contextChunks.push({
             path: file.path,
             content: c.content,
@@ -137,14 +276,16 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
           citations.push({
             fileName,
             path: pathStr,
-            code: c.content.substring(0, 2000),
             score: scored.score,
           });
         }
       } else if (c.sourceType === 'codeEntity') {
-        const entity = await CodeEntity.findOne({ _id: c.sourceId, projectId: c.projectId }).populate('fileId', 'fileName path');
+        if (!isValidObjectId(c.sourceId?.toString()) || !isValidObjectId(c.projectId?.toString())) continue;
+        const entityFilter: any = { _id: c.sourceId, projectId: c.projectId };
+        if (projectId) entityFilter.projectId = projectId;
+        const entity = await CodeEntity.findOne(entityFilter).populate('fileId', 'fileName path userId');
         const file = entity?.fileId as any;
-        if (entity && file) {
+        if (entity && file && file.userId?.toString() === contextOwnerId) {
           fileName = file.fileName;
           pathStr = file.path;
 
@@ -157,7 +298,6 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
           citations.push({
             fileName,
             path: pathStr,
-            code: entity.code || c.content,
             score: scored.score,
           });
         }
@@ -168,6 +308,7 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
     const uniqueCitations = citations.filter(
       (cit, idx, self) => self.findIndex((t) => t.path === cit.path) === idx
     );
+    const responseCitations = mergeCitations(enrichedContext?.citations || [], uniqueCitations, projectId);
 
     // 3. Format chat history
     const history = session.messages.map((m) => ({
@@ -202,6 +343,7 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
         } else {
           // Find in DB
           try {
+            if (!isValidObjectId(agentIdOrName)) continue;
             const dbAgent = await AiAgent.findOne({ _id: agentIdOrName, userId }).select('+apiKey');
             if (dbAgent) {
               resolvedAgents.push({
@@ -233,7 +375,8 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
             agent.systemPrompt,
             message,
             localHistory,
-            contextChunks,
+            // Use enriched context's primary chunks if available, else legacy
+            enrichedContext ? enrichedContext.primaryCodeContext : contextChunks,
             agent.modelProvider,
             agent.apiKey,
             agent.modelName
@@ -243,12 +386,7 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
             sender: 'assistant' as const,
             senderName: agent.name,
             text: agentReply,
-            citations: uniqueCitations.map(c => ({
-              fileName: c.fileName,
-              path: c.path,
-              code: c.code,
-              score: c.score,
-            })),
+            citations: responseCitations,
             createdAt: new Date(),
           };
 
@@ -269,13 +407,24 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
           title: session.title,
           answer: newReplies[newReplies.length - 1].text, // default/last answer
           answers: newReplies, // all agent responses in order
-          citations: uniqueCitations,
+          citations: responseCitations,
         });
       }
     }
 
-    // Default chat fallback (standard single assistant)
-    const answer = await aiService.chatWithContext(message, history, contextChunks);
+    // Default chat — use enriched context if available, else legacy
+    let answer: string;
+    if (enrichedContext) {
+      try {
+        answer = await aiService.chatWithEnrichedContext(message, history, enrichedContext);
+      } catch (enrichedErr) {
+        const msg = enrichedErr instanceof Error ? enrichedErr.message : String(enrichedErr);
+        console.warn(`[AI Controller/handleChat]: Enriched chat failed, falling back to legacy. Reason: ${msg}`);
+        answer = await aiService.chatWithContext(message, history, contextChunks);
+      }
+    } else {
+      answer = await aiService.chatWithContext(message, history, contextChunks);
+    }
 
     session.messages.push({
       sender: 'user',
@@ -286,50 +435,226 @@ export const handleChat = async (req: AuthenticatedRequest, res: Response) => {
     session.messages.push({
       sender: 'assistant',
       text: answer,
-      citations: uniqueCitations.map(c => ({
-        fileName: c.fileName,
-        path: c.path,
-        code: c.code,
-        score: c.score,
-      })),
+      citations: responseCitations,
       createdAt: new Date(),
     });
 
     await session.save();
 
+    // Fire-and-forget memory extraction — must NOT block or delay the chat response.
+    // Only inspects the single user message from this turn.
+    memoryService.extractMemoryCandidatesFromChat({
+      userId,
+      workspaceId: contextWorkspaceId,
+      projectId: projectId || undefined,
+      messages: [{ role: 'user', content: message }],
+    }).catch((memErr: any) => {
+      const msg = memErr instanceof Error ? memErr.message : String(memErr);
+      console.warn(`[AI Controller/handleChat]: Memory extraction failed silently. Reason: ${msg}`);
+    });
+
     return res.status(200).json({
       sessionId: session._id,
       title: session.title,
       answer,
-      citations: uniqueCitations,
+      citations: responseCitations,
     });
   } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+    return aiServerErrorResponse(res, 'AI_CHAT_FAILED');
   }
 };
 
 export const explainCodeFile = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { code, fileName, language } = req.body;
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
+    const { code, fileName, language, projectId, fileId } = req.body;
     if (!code || !fileName) {
       return res.status(400).json({ error: 'Code content and file name are required.' });
     }
+    if (projectId && !isValidObjectId(projectId)) {
+      return invalidIdResponse(res, 'projectId');
+    }
+    if (fileId && !isValidObjectId(fileId)) {
+      return invalidIdResponse(res, 'fileId');
+    }
 
-    if (req.user) {
-      await Activity.create({
-        userId: req.user.id,
-        action: 'ai_question',
-        entityType: 'file',
-        metadata: { fileName }
+    const userId = req.user.id;
+    let contextOwnerId = userId;
+    let contextWorkspaceId: string | undefined;
+    let project = null;
+    if (projectId) {
+      project = await findAccessibleProject(userId, projectId, '_id userId workspaceId');
+      if (!project) return notFoundResponse(res, 'Project not found.', 'PROJECT_NOT_FOUND');
+      contextOwnerId = (project as any).userId.toString();
+      contextWorkspaceId = (project as any).workspaceId?.toString();
+    }
+
+    if (fileId) {
+      const fileFilter: any = { _id: fileId, userId: contextOwnerId };
+      if (projectId) fileFilter.projectId = projectId;
+      const file = await DBFile.findOne(fileFilter, '_id projectId').lean();
+      if (!file) return notFoundResponse(res, 'File not found.', 'FILE_NOT_FOUND');
+    }
+
+    await Activity.create({
+      userId,
+      action: 'ai_question',
+      entityType: 'file',
+      entityId: fileId || undefined,
+      metadata: { fileName }
+    });
+
+    // --- Phase 4: Context Builder for explain-code --------------------------
+    let explanation: string;
+    let explainCitations: ContextCitation[] = [];
+    if (userId) {
+      let explainCtx = null;
+      try {
+        explainCtx = await aiContextBuilder.buildExplainCodeContext({
+          userId,
+          contextOwnerId,
+          workspaceId: contextWorkspaceId,
+          projectId,
+          fileId,
+          code,
+          language,
+        });
+      } catch (ctxErr) {
+        const msg = ctxErr instanceof Error ? ctxErr.message : String(ctxErr);
+        console.warn(`[AI Controller/explainCode]: Context builder failed, using legacy path. Reason: ${msg}`);
+      }
+
+      if (explainCtx) {
+        explainCitations = explainCtx.citations || [];
+        try {
+          explanation = await aiService.explainCodeWithContext(fileName, code, language, explainCtx);
+        } catch (enrichedErr) {
+          const msg = enrichedErr instanceof Error ? enrichedErr.message : String(enrichedErr);
+          console.warn(`[AI Controller/explainCode]: Enriched explain failed, using legacy. Reason: ${msg}`);
+          explanation = await aiService.explainCode(fileName, code, language);
+        }
+      } else {
+        explanation = await aiService.explainCode(fileName, code, language);
+      }
+    } else {
+      // No authenticated user — legacy path
+      explanation = await aiService.explainCode(fileName, code, language);
+    }
+    // -----------------------------------------------------------------------
+
+    return res.status(200).json({
+      explanation,
+      ...(explainCitations.length > 0 ? { citations: explainCitations } : {}),
+    });
+  } catch {
+    return aiServerErrorResponse(res, 'AI_EXPLAIN_FAILED');
+  }
+};
+
+export const debugContextTrace = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
+
+    if (!isContextTraceEnabled()) {
+      return res.status(403).json({
+        error: 'AI context trace debug endpoint is disabled.',
+        code: 'AI_CONTEXT_TRACE_DISABLED',
       });
     }
 
-    const explanation = await aiService.explainCode(fileName, code, language);
-    return res.status(200).json({ explanation });
+    const { projectId, fileId, message, mode } = req.body;
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'message is required.' });
+    }
+    if (mode !== 'chat' && mode !== 'explain') {
+      return res.status(400).json({ error: 'mode must be "chat" or "explain".' });
+    }
+    if (projectId && !isValidObjectId(projectId)) {
+      return invalidIdResponse(res, 'projectId');
+    }
+    if (fileId && !isValidObjectId(fileId)) {
+      return invalidIdResponse(res, 'fileId');
+    }
+
+    const userId = req.user.id;
+    let contextOwnerId = userId;
+    let project = null;
+    if (projectId) {
+      project = await findAccessibleProject(userId, projectId, '_id userId');
+      if (!project) return notFoundResponse(res, 'Project not found.', 'PROJECT_NOT_FOUND');
+      contextOwnerId = (project as any).userId.toString();
+    }
+
+    let file = null;
+    if (fileId) {
+      const fileFilter: any = { _id: fileId, userId: contextOwnerId };
+      if (projectId) fileFilter.projectId = projectId;
+      file = await DBFile.findOne(fileFilter, 'content language path fileName projectId').lean();
+      if (!file) return notFoundResponse(res, 'File not found.', 'FILE_NOT_FOUND');
+    }
+
+    let queryEmbedding: number[] | undefined;
+    if (mode === 'chat') {
+      try {
+        queryEmbedding = await aiService.generateEmbedding(message);
+      } catch (embedErr) {
+        const msg = embedErr instanceof Error ? embedErr.message : String(embedErr);
+        console.warn(`[AI Controller/debugContextTrace]: Embedding generation failed; continuing without embedding. Reason: ${msg}`);
+      }
+    }
+
+    const context = mode === 'chat'
+      ? await aiContextBuilder.buildChatContext({
+          userId,
+          contextOwnerId,
+          projectId,
+          message,
+          queryEmbedding,
+        })
+      : await aiContextBuilder.buildExplainCodeContext({
+          userId,
+          contextOwnerId,
+          projectId: projectId || (file as any)?.projectId?.toString(),
+          fileId,
+          code: ((file as any)?.content || message).substring(0, 15000),
+          language: (file as any)?.language || 'unknown',
+        });
+
+    return res.status(200).json({
+      mode,
+      contextSummary: sanitizeTraceText(context.contextSummary, 800) || '',
+      counts: {
+        codeChunks: context.primaryCodeContext.length,
+        searchResults: context.relatedSearchResults.length,
+        snippets: context.relatedSnippets.length,
+        debuggingLessons: context.relatedDebuggingLessons.length,
+        architectureBlueprints: context.relatedArchitectureBlueprints.length,
+        memory: context.relevantMemory.length,
+        relationships: context.relatedRelationships.length,
+        conversationMessages: context.recentConversation.length,
+      },
+      selectedRelationships: context.relatedRelationships.map((relationship) => ({
+        relationshipType: sanitizeTraceText(relationship.relationshipType, 80),
+        sourceDisplayName: sanitizeTraceText(relationship.sourceDisplayName, 160),
+        targetDisplayName: sanitizeTraceText(relationship.targetDisplayName, 160),
+        sourcePath: sanitizeTraceText(relationship.sourcePath, 240),
+        targetPath: sanitizeTraceText(relationship.targetPath, 240),
+        confidence: relationship.confidence,
+        evidenceReason: sanitizeTraceText(relationship.evidence?.reason, 240),
+      })),
+      selectedMemory: context.relevantMemory.map((memory) => ({
+        type: sanitizeTraceText(memory.type, 80),
+        scope: sanitizeTraceText(memory.scope, 80),
+        title: sanitizeTraceText(memory.title, 160),
+        confidence: memory.confidence,
+      })),
+      warnings: context.warnings.map((warning) => sanitizeTraceText(warning, 300)).filter(Boolean),
+    });
   } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Unable to build AI context trace.' });
   }
 };
+
 
 export const getSessions = async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -337,12 +662,17 @@ export const getSessions = async (req: AuthenticatedRequest, res: Response) => {
     const { projectId } = req.query;
 
     const filter: any = { userId: req.user.id };
-    if (projectId) filter.projectId = projectId;
+    if (projectId) {
+      if (!isValidObjectId(projectId)) return invalidIdResponse(res, 'projectId');
+      const project = await findAccessibleProject(req.user.id, projectId, '_id userId');
+      if (!project) return notFoundResponse(res, 'Project not found.', 'PROJECT_NOT_FOUND');
+      filter.projectId = projectId;
+    }
 
     const sessions = await ChatSession.find(filter, 'title projectId createdAt').sort({ updatedAt: -1 });
     return res.status(200).json({ sessions });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return aiServerErrorResponse(res, 'AI_SESSIONS_LIST_FAILED');
   }
 };
 
@@ -350,13 +680,14 @@ export const getSessionById = async (req: AuthenticatedRequest, res: Response) =
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
     const { id } = req.params;
+    if (!isValidObjectId(id)) return invalidIdResponse(res, 'sessionId');
 
     const session = await ChatSession.findOne({ _id: id, userId: req.user.id });
-    if (!session) return res.status(404).json({ error: 'Chat session not found.' });
+    if (!session) return notFoundResponse(res, 'Chat session not found.', 'CHAT_SESSION_NOT_FOUND');
 
     return res.status(200).json({ session });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return aiServerErrorResponse(res, 'AI_SESSION_READ_FAILED');
   }
 };
 
@@ -364,13 +695,14 @@ export const deleteSession = async (req: AuthenticatedRequest, res: Response) =>
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
     const { id } = req.params;
+    if (!isValidObjectId(id)) return invalidIdResponse(res, 'sessionId');
 
     const session = await ChatSession.findOneAndDelete({ _id: id, userId: req.user.id });
-    if (!session) return res.status(404).json({ error: 'Chat session not found.' });
+    if (!session) return notFoundResponse(res, 'Chat session not found.', 'CHAT_SESSION_NOT_FOUND');
 
     return res.status(200).json({ message: 'Chat session deleted successfully.' });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return aiServerErrorResponse(res, 'AI_SESSION_DELETE_FAILED');
   }
 };
 
@@ -381,10 +713,12 @@ export const simulateTeamDiscussion = async (req: AuthenticatedRequest, res: Res
     if (!projectId || !task) {
       return res.status(400).json({ error: 'projectId and task are required.' });
     }
+    if (!isValidObjectId(projectId)) return invalidIdResponse(res, 'projectId');
 
-    const files = await DBFile.find({ projectId, userId: req.user.id }, 'path fileName summary');
-    const project = await Project.findOne({ _id: projectId, userId: req.user.id });
-    if (!project) return res.status(404).json({ error: 'Project not found.' });
+    const project = await findAccessibleProject(req.user.id, projectId, '_id userId name language');
+    if (!project) return notFoundResponse(res, 'Project not found.', 'PROJECT_NOT_FOUND');
+    const contextOwnerId = (project as any).userId.toString();
+    const files = await DBFile.find({ projectId, userId: contextOwnerId }, 'path fileName summary');
 
     const contextStr = files.map((f, idx) => `File #${idx + 1}: ${f.path}\nSummary: ${f.summary || 'Core code file'}`).join('\n\n');
 
@@ -472,7 +806,7 @@ Answer in the same language as the user's task. If the user's task is in Arabic,
 
     for (const f of files) {
       // Find full file content for static analysis scan
-      const fullFile = await DBFile.findOne({ _id: f._id, userId: req.user.id }, 'content fileName path');
+      const fullFile = await DBFile.findOne({ _id: f._id, projectId, userId: contextOwnerId }, 'content fileName path');
       if (!fullFile || !fullFile.content) continue;
 
       const code = fullFile.content;
@@ -626,8 +960,8 @@ export async function secureAndOptimize(payload) {
     };
 
     return res.status(200).json({ discussion, proposal });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return aiServerErrorResponse(res, 'AI_TEAM_SIMULATION_FAILED');
   }
 };
 
@@ -692,8 +1026,8 @@ export const getAgents = async (req: AuthenticatedRequest, res: Response) => {
     return res.status(200).json({
       agents: [...systemAgents, ...safeCustomAgents]
     });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return aiServerErrorResponse(res, 'AI_AGENTS_LIST_FAILED');
   }
 };
 
@@ -727,8 +1061,8 @@ export const createAgent = async (req: AuthenticatedRequest, res: Response) => {
     delete safeAgent.apiKey;
 
     return res.status(201).json({ message: 'AI Coworker created successfully.', agent: safeAgent });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return aiServerErrorResponse(res, 'AI_AGENT_CREATE_FAILED');
   }
 };
 
@@ -736,6 +1070,7 @@ export const deleteAgent = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized.' });
     const { id } = req.params;
+    if (!isValidObjectId(id)) return invalidIdResponse(res, 'agentId');
 
     const agent = await AiAgent.findOneAndDelete({ _id: id, userId: req.user.id });
     if (!agent) {
@@ -743,7 +1078,7 @@ export const deleteAgent = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     return res.status(200).json({ message: 'AI Coworker deleted successfully.' });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch {
+    return aiServerErrorResponse(res, 'AI_AGENT_DELETE_FAILED');
   }
 };

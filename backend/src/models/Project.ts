@@ -10,9 +10,20 @@ export interface IProject extends Document {
   database?: string;
   architectureType?: string;
   healthScore: number;
-  processingStatus: 'pending' | 'extracting' | 'parsing' | 'embedding' | 'completed' | 'failed';
+  processingStatus: 'pending' | 'processing' | 'extracting' | 'parsing' | 'embedding' | 'completed' | 'partial' | 'failed' | 'cancelled';
   processingProgress: number;
   processingMessage?: string;
+  processingErrorCode?: string;
+  processingStats?: {
+    processedFiles?: number;
+    skippedFiles?: number;
+    failedFiles?: number;
+    indexedFiles?: number;
+    embeddingFailures?: number;
+    parserWarnings?: number;
+    totalFiles?: number;
+    warnings?: string[];
+  };
   uploadedAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -31,11 +42,22 @@ const ProjectSchema = new Schema<IProject>(
     healthScore: { type: Number, default: 100 },
     processingStatus: {
       type: String,
-      enum: ['pending', 'extracting', 'parsing', 'embedding', 'completed', 'failed'],
+      enum: ['pending', 'processing', 'extracting', 'parsing', 'embedding', 'completed', 'partial', 'failed', 'cancelled'],
       default: 'pending',
     },
     processingProgress: { type: Number, default: 0 },
     processingMessage: { type: String },
+    processingErrorCode: { type: String },
+    processingStats: {
+      processedFiles: { type: Number, default: 0 },
+      skippedFiles: { type: Number, default: 0 },
+      failedFiles: { type: Number, default: 0 },
+      indexedFiles: { type: Number, default: 0 },
+      embeddingFailures: { type: Number, default: 0 },
+      parserWarnings: { type: Number, default: 0 },
+      totalFiles: { type: Number, default: 0 },
+      warnings: [{ type: String }],
+    },
     uploadedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }

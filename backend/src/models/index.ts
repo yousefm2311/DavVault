@@ -13,4 +13,5 @@ export * from './Subscription';
 export * from './Notification';
 export * from './AdminSetting';
 export * from './AiAgent';
-
+export * from './Memory';
+export * from './KnowledgeRelationship';

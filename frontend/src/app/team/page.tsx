@@ -55,6 +55,17 @@ export default function TeamBrainPage() {
   const [members, setMembers] = useState<any[]>([]);
   const [workspaceName, setWorkspaceName] = useState('');
   const [loadingTeam, setLoadingTeam] = useState(true);
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [memberLimit, setMemberLimit] = useState<{
+    limit: number;
+    current: number;
+    remaining: number;
+    plan: string;
+    status: string;
+    isLocalSimulation?: boolean;
+  } | null>(null);
+  const [canManageMembers, setCanManageMembers] = useState(false);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
 
   // Invite developer form state
   const [showInvite, setShowInvite] = useState(false);
@@ -107,6 +118,9 @@ export default function TeamBrainPage() {
   }, [user, loading]);
 
   const fetchMembersAndProjects = async () => {
+    setLoadingTeam(true);
+    setLoadingAgents(true);
+    setTeamError(null);
     try {
       const [membersData, projectsData, agentsData] = await Promise.all([
         apiFetch('/workspaces/members'),
@@ -115,6 +129,8 @@ export default function TeamBrainPage() {
       ]);
       setWorkspaceName(membersData.workspace?.name || t('teamWorkspace'));
       setMembers(membersData.workspace?.members || []);
+      setMemberLimit(membersData.memberLimit || null);
+      setCanManageMembers(Boolean(membersData.canManageMembers));
       setProjects(projectsData.projects || []);
       setAiAgents(agentsData.agents || []);
       if (projectsData.projects?.length > 0) {
@@ -122,6 +138,10 @@ export default function TeamBrainPage() {
       }
     } catch (err) {
       console.error('[Team]: Fetch failed:', err);
+      setTeamError(err instanceof Error ? err.message : 'Unable to load workspace.');
+      setMembers([]);
+      setProjects([]);
+      setAiAgents([]);
     } finally {
       setLoadingTeam(false);
       setLoadingAgents(false);
@@ -135,7 +155,7 @@ export default function TeamBrainPage() {
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail) return;
+    if (!inviteEmail || !canManageMembers || (memberLimit && memberLimit.remaining <= 0)) return;
 
     setInviting(true);
     setInviteError(null);
@@ -212,13 +232,22 @@ export default function TeamBrainPage() {
 
   const handleRemoveMember = async (userId: string) => {
     if (!window.confirm(isRtl ? 'هل تريد إزالة هذا العضو؟' : 'Remove this workspace member?')) return;
+    setRemovingMemberId(userId);
+    setInviteError(null);
     try {
       await apiFetch(`/workspaces/members/${userId}`, { method: 'DELETE' });
       setMembers((current) =>
         current.filter((member) => String(member.userId?._id || member.userId?.id) !== userId)
       );
+      setMemberLimit((current) => current ? {
+        ...current,
+        current: Math.max(0, current.current - 1),
+        remaining: current.remaining + 1,
+      } : current);
     } catch (err: any) {
       setInviteError(err.message || t('addMemberFailed'));
+    } finally {
+      setRemovingMemberId(null);
     }
   };
 
@@ -355,6 +384,16 @@ export default function TeamBrainPage() {
               </div>
             )}
 
+            {memberLimit && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-card-border bg-white/5 p-3 text-xs text-text-secondary">
+                <span>{isRtl ? 'أعضاء مساحة العمل' : 'Workspace members'}: {memberLimit.current} / {memberLimit.limit}</span>
+                <span className="font-mono uppercase text-text-muted">
+                  {memberLimit.plan} · {memberLimit.status}
+                  {memberLimit.isLocalSimulation ? ' · local billing' : ''}
+                </span>
+              </div>
+            )}
+
             {inviteType === 'human' ? (
               <form onSubmit={handleInviteSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -398,10 +437,12 @@ export default function TeamBrainPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={inviting || !inviteEmail}
+                    disabled={inviting || !inviteEmail || !canManageMembers || (memberLimit ? memberLimit.remaining <= 0 : false)}
                     className="px-5 py-2.5 bg-accent-blue hover:bg-accent-blue/90 disabled:bg-accent-blue/50 text-white rounded-2xl text-xs font-semibold cursor-pointer"
                   >
-                    {inviting ? t('addingMember') : t('addTeamMember')}
+                    {memberLimit && memberLimit.remaining <= 0
+                      ? (isRtl ? 'تم بلوغ حد الأعضاء' : 'Member limit reached')
+                      : inviting ? t('addingMember') : t('addTeamMember')}
                   </button>
                 </div>
               </form>
@@ -553,6 +594,17 @@ export default function TeamBrainPage() {
 
               {loadingTeam || loadingAgents ? (
                 <SectionSkeleton rows={4} className="border-0 bg-transparent p-0" />
+              ) : teamError ? (
+                <div className="rounded-2xl border border-danger/20 bg-danger/10 p-6 text-center text-xs text-danger">
+                  <p>{teamError}</p>
+                  <button
+                    type="button"
+                    onClick={fetchMembersAndProjects}
+                    className="mt-4 rounded-xl border border-card-border bg-white/5 px-4 py-2 text-text-secondary hover:text-white"
+                  >
+                    {isRtl ? 'إعادة المحاولة' : 'Retry'}
+                  </button>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {/* Virtual AI Agents Rendered at the top of Team list */}
@@ -619,6 +671,7 @@ export default function TeamBrainPage() {
                   {members.map((member, i) => {
                     const u = member.userId;
                     const isOwner = member.role === 'owner';
+                    const memberId = String(u?._id || u?.id || '');
                     return (
                       <div
                         key={i}
@@ -640,19 +693,29 @@ export default function TeamBrainPage() {
                           <span className="inline-flex items-center px-2 py-0.5 bg-card-bg border border-card-border text-[9px] font-mono font-bold text-text-secondary rounded-full uppercase">
                             {member.role}
                           </span>
-                          {!isOwner && (
+                          {!isOwner && canManageMembers && memberId && (
                             <button
-                              onClick={() => handleRemoveMember(String(u._id || u.id))}
-                              className="p-1.5 hover:bg-danger/10 hover:text-danger rounded-lg text-text-secondary transition-colors cursor-pointer"
+                              onClick={() => handleRemoveMember(memberId)}
+                              disabled={removingMemberId === memberId}
+                              className="p-1.5 hover:bg-danger/10 hover:text-danger disabled:opacity-50 rounded-lg text-text-secondary transition-colors cursor-pointer"
                               title={t('removeMember')}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              {removingMemberId === memberId ? (
+                                <div className="h-4 w-4 rounded-full border-2 border-white/20 border-t-danger animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
                             </button>
                           )}
                         </div>
                       </div>
                     );
                   })}
+                  {members.length === 0 && aiAgents.length === 0 && (
+                    <div className="rounded-2xl border border-card-border bg-white/5 p-6 text-center text-xs text-text-secondary">
+                      {isRtl ? 'لا يوجد أعضاء في مساحة العمل.' : 'No workspace members yet.'}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -28,6 +28,7 @@ type Plan = 'free' | 'pro' | 'team';
 
 type SubscriptionData = {
   plan: Plan;
+  status?: string;
   limits: {
     projectsCount: number;
     storageBytes: number;
@@ -38,6 +39,8 @@ type SubscriptionData = {
     storageBytes: number;
     aiQuestionsUsed: number;
   };
+  resetAt?: string;
+  isLocalSimulation?: boolean;
 };
 
 const avatarPresets = [
@@ -59,6 +62,7 @@ export default function ProfilePage() {
   // State
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'preferences' | 'billing'>('profile');
   const [subData, setSubData] = useState<SubscriptionData | null>(null);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   
   // Profile settings state
   const [name, setName] = useState('');
@@ -112,10 +116,13 @@ export default function ProfilePage() {
 
   const fetchSubscription = async () => {
     try {
+      setSubscriptionError(null);
       const data = await apiFetch('/subscription') as SubscriptionData;
       setSubData(data);
     } catch (err) {
       console.error('[Profile/Billing]: Failed to load usage metrics:', err);
+      setSubscriptionError(err instanceof Error ? err.message : 'Unable to load billing usage.');
+      setSubData(null);
     }
   };
 
@@ -239,6 +246,11 @@ export default function ProfilePage() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const usagePercent = (used: number, limit: number) => {
+    if (!Number.isFinite(limit) || limit <= 0) return 0;
+    return Math.min(100, Math.max(0, (used / limit) * 100));
   };
 
   const tabs = [
@@ -584,12 +596,34 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <span className="px-3 py-1 text-[10px] font-extrabold bg-accent-blue/15 text-accent-blue border border-accent-blue/20 rounded-full tracking-wider">
-                      {user.plan.toUpperCase()}
+                      {(subData?.plan || user.plan).toUpperCase()}
                     </span>
                   </div>
 
-                  {subData ? (
+                  {subscriptionError ? (
+                    <div className="text-center py-6 text-xs text-danger flex flex-col items-center justify-center gap-3">
+                      <Database className="w-8 h-8 text-danger opacity-70" />
+                      <span>{subscriptionError}</span>
+                      <button
+                        type="button"
+                        onClick={fetchSubscription}
+                        className="px-4 py-2 rounded-2xl bg-white/5 border border-card-border text-xs font-semibold text-text-secondary hover:text-white hover:bg-white/10 transition"
+                      >
+                        Retry billing usage
+                      </button>
+                    </div>
+                  ) : subData ? (
                     <div className="space-y-6">
+                      {subData.isLocalSimulation && (
+                        <div className="rounded-2xl border border-warning/20 bg-warning/10 px-4 py-3 text-xs text-warning">
+                          Local billing simulation is active.
+                        </div>
+                      )}
+                      {subData.status && subData.status !== 'active' && (
+                        <div className="rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-xs text-danger">
+                          Subscription status: {subData.status}.
+                        </div>
+                      )}
                       {/* Meter 1: Projects count */}
                       <div className="space-y-2">
                         <div className="flex justify-between text-xs">
@@ -601,7 +635,7 @@ export default function ProfilePage() {
                         <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                           <div 
                             className="h-full rounded-full bg-accent-blue transition-all duration-300"
-                            style={{ width: `${Math.min(100, (subData.usage.projectsCount / subData.limits.projectsCount) * 100)}%` }}
+                            style={{ width: `${usagePercent(subData.usage.projectsCount, subData.limits.projectsCount)}%` }}
                           ></div>
                         </div>
                       </div>
@@ -617,7 +651,7 @@ export default function ProfilePage() {
                         <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                           <div 
                             className="h-full rounded-full bg-accent-blue transition-all duration-300"
-                            style={{ width: `${Math.min(100, (subData.usage.aiQuestionsUsed / subData.limits.aiQuestionsPerMonth) * 100)}%` }}
+                            style={{ width: `${usagePercent(subData.usage.aiQuestionsUsed, subData.limits.aiQuestionsPerMonth)}%` }}
                           ></div>
                         </div>
                       </div>
@@ -633,7 +667,7 @@ export default function ProfilePage() {
                         <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                           <div 
                             className="h-full rounded-full bg-accent-blue transition-all duration-300"
-                            style={{ width: `${Math.min(100, (subData.usage.storageBytes / subData.limits.storageBytes) * 100)}%` }}
+                            style={{ width: `${usagePercent(subData.usage.storageBytes, subData.limits.storageBytes)}%` }}
                           ></div>
                         </div>
                       </div>

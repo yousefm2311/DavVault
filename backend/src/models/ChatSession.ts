@@ -1,9 +1,22 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
 export interface ICitation {
-  fileName: string;
-  path: string;
-  code?: string;
+  id?: string;
+  type?: string;
+  domainType?: string;
+  title?: string;
+  subtitle?: string;
+  path?: string;
+  relationshipType?: string;
+  confidence?: number;
+  source?: 'code' | 'search' | 'memory' | 'debugging_lesson' | 'architecture_blueprint' | 'knowledge_relationship';
+  navigation?: {
+    route?: string;
+    projectId?: string;
+    fileId?: string;
+    entityId?: string;
+  };
+  fileName?: string;
   score?: number;
 }
 
@@ -36,9 +49,22 @@ const ChatSessionSchema = new Schema<IChatSession>(
         text: { type: String, required: true },
         citations: [
           {
-            fileName: { type: String, required: true },
-            path: { type: String, required: true },
-            code: { type: String },
+            id: { type: String },
+            type: { type: String },
+            domainType: { type: String },
+            title: { type: String },
+            subtitle: { type: String },
+            path: { type: String },
+            relationshipType: { type: String },
+            confidence: { type: Number },
+            source: { type: String },
+            navigation: {
+              route: { type: String },
+              projectId: { type: String },
+              fileId: { type: String },
+              entityId: { type: String },
+            },
+            fileName: { type: String },
             score: { type: Number },
           },
         ],

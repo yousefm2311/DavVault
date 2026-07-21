@@ -27,4 +27,27 @@ const WorkspaceSchema = new Schema<IWorkspace>(
   { timestamps: true }
 );
 
+WorkspaceSchema.index({ ownerId: 1 });
+WorkspaceSchema.index({ 'members.userId': 1 });
+
+WorkspaceSchema.pre('validate', function dedupeMembers(next) {
+  const seen = new Set<string>();
+  const members: IWorkspaceMember[] = [];
+
+  for (const member of this.members || []) {
+    const memberId = member.userId?.toString();
+    if (!memberId || seen.has(memberId)) continue;
+    seen.add(memberId);
+    members.push(member);
+  }
+
+  const ownerId = this.ownerId?.toString();
+  if (ownerId && !seen.has(ownerId)) {
+    members.unshift({ userId: this.ownerId, role: 'owner' });
+  }
+
+  this.members = members;
+  next();
+});
+
 export const Workspace = model<IWorkspace>('Workspace', WorkspaceSchema);

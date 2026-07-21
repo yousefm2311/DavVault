@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Info,
   Loader2,
+  RefreshCw,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -36,7 +37,9 @@ const typeStyles: Record<Notification['type'], { icon: React.ReactNode; classNam
 };
 
 const formatTime = (value: string, language: 'ar' | 'en') => {
-  const diffMs = Date.now() - new Date(value).getTime();
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return language === 'ar' ? 'وقت غير معروف' : 'Unknown time';
+  const diffMs = Date.now() - timestamp;
   const minutes = Math.max(0, Math.floor(diffMs / 60000));
   if (minutes < 1) return language === 'ar' ? 'الآن' : 'Now';
   if (minutes < 60) return language === 'ar' ? `منذ ${minutes} دقيقة` : `${minutes}m ago`;
@@ -44,6 +47,26 @@ const formatTime = (value: string, language: 'ar' | 'en') => {
   if (hours < 24) return language === 'ar' ? `منذ ${hours} ساعة` : `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return language === 'ar' ? `منذ ${days} يوم` : `${days}d ago`;
+};
+
+const isValidObjectIdString = (value?: string) => (
+  typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value)
+);
+
+const isSafeNotificationRoute = (link?: string): link is string => {
+  if (!link || !link.startsWith('/') || link.startsWith('//') || /\s/.test(link)) return false;
+  const projectMatch = link.match(/^\/projects\/([a-fA-F0-9]{24})(?:$|[/?#])/);
+  if (projectMatch && !isValidObjectIdString(projectMatch[1])) return false;
+  return [
+    '/projects',
+    '/snippets',
+    '/errors',
+    '/systems',
+    '/billing',
+    '/profile',
+    '/dashboard',
+    '/chat',
+  ].some((prefix) => link === prefix || link.startsWith(`${prefix}/`) || link.startsWith(`${prefix}?`));
 };
 
 export const NotificationBell: React.FC = () => {
@@ -57,6 +80,8 @@ export const NotificationBell: React.FC = () => {
     markAllAsRead,
     deleteNotification,
     fetchNotifications,
+    error,
+    actionError,
   } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -131,9 +156,10 @@ export const NotificationBell: React.FC = () => {
       await markAsRead(notification._id);
     }
 
-    if (notification.link) {
+    const link = notification.link;
+    if (isSafeNotificationRoute(link)) {
       setIsOpen(false);
-      router.push(notification.link);
+      router.push(link);
     }
   };
 
@@ -181,6 +207,16 @@ export const NotificationBell: React.FC = () => {
 
             <div className="flex items-center gap-1.5">
               {loading && <Loader2 className="h-4 w-4 animate-spin text-accent-blue" />}
+              {error && (
+                <button
+                  type="button"
+                  onClick={fetchNotifications}
+                  className="rounded-lg p-1.5 text-text-secondary transition hover:bg-white/10 hover:text-white"
+                  title={language === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </button>
+              )}
               {unreadCount > 0 && (
                 <button
                   type="button"
@@ -195,19 +231,32 @@ export const NotificationBell: React.FC = () => {
           </div>
 
           <div className="max-h-[380px] overflow-y-auto p-2">
-            {notifications.length > 0 ? (
+            {(error || actionError) && (
+              <div className="mb-2 rounded-2xl border border-danger/20 bg-danger/10 px-3 py-2 text-[10px] text-danger">
+                {actionError || error}
+              </div>
+            )}
+            {loading && notifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center px-6 py-12 text-center text-xs text-text-secondary">
+                <Loader2 className="mb-3 h-5 w-5 animate-spin text-accent-blue" />
+                {language === 'ar' ? 'جار تحميل الإشعارات...' : 'Loading notifications...'}
+              </div>
+            ) : notifications.length > 0 ? (
               notifications.map((notification) => {
                 const style = typeStyles[notification.type];
+                const clickable = isSafeNotificationRoute(notification.link);
                 return (
                   <div
                     key={notification._id}
-                    role="button"
-                    tabIndex={0}
+                    role={clickable ? 'button' : undefined}
+                    tabIndex={clickable ? 0 : undefined}
                     onClick={() => handleNotificationClick(notification)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') handleNotificationClick(notification);
                     }}
-                    className={`group mb-2 flex cursor-pointer items-start gap-3 rounded-2xl border p-3 text-right transition hover:bg-white/[0.08] ${style.className}`}
+                    className={`group mb-2 flex items-start gap-3 rounded-2xl border p-3 text-right transition hover:bg-white/[0.08] ${
+                      clickable ? 'cursor-pointer' : 'cursor-default'
+                    } ${style.className}`}
                   >
                     <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-bg-primary/60">
                       {style.icon}
@@ -244,6 +293,15 @@ export const NotificationBell: React.FC = () => {
                   <Bell className="h-5 w-5 text-accent-blue" />
                 </div>
                 <p className="text-xs font-semibold text-white">{t('noNotifications')}</p>
+                {error && (
+                  <button
+                    type="button"
+                    onClick={fetchNotifications}
+                    className="mt-3 rounded-xl border border-card-border px-3 py-2 text-[10px] font-semibold text-text-secondary hover:bg-white/5 hover:text-white"
+                  >
+                    {language === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+                  </button>
+                )}
               </div>
             )}
           </div>

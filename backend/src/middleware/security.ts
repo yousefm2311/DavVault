@@ -21,10 +21,12 @@ export const authLimiter = rateLimit({
 
 // Sanitizes and validates directory paths to prevent Zip Slip (Directory Traversal)
 export const safePathResolve = (baseDir: string, relativePath: string): string => {
-  const resolvedPath = path.resolve(baseDir, relativePath);
+  const resolvedBase = path.resolve(baseDir);
+  const resolvedPath = path.resolve(resolvedBase, relativePath);
   
   // Verify that the resolved path is indeed inside the baseDir
-  if (!resolvedPath.startsWith(path.resolve(baseDir))) {
+  const relative = path.relative(resolvedBase, resolvedPath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new Error('Directory traversal attack detected!');
   }
   

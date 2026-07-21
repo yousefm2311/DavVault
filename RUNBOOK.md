@@ -49,3 +49,9 @@ Without OAuth/Stripe/AI keys the app still runs for local development, but:
 - OAuth buttons redirect back with a configuration error.
 - Billing falls back to local plan simulation.
 - AI answers use deterministic offline fallback summaries/vectors.
+
+## AI Context Trace Debugging
+
+For local backend debugging, see [docs/ai-context-trace.md](docs/ai-context-trace.md).
+
+The AI Context Trace endpoint is a local-only authenticated debug endpoint for inspecting selected AI context, developer memory, and Knowledge Graph relationships. It is disabled in production unless `AI_DEBUG_CONTEXT_TRACE=true` is explicitly set.

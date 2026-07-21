@@ -17,6 +17,10 @@ import {
   Info
 } from 'lucide-react';
 
+const isValidObjectIdString = (value?: string) => (
+  typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value)
+);
+
 function ErrorsPageContent() {
   const { user, loading, apiFetch } = useAuth();
   const { t, dir } = useLanguage();
@@ -26,6 +30,7 @@ function ErrorsPageContent() {
   const [errors, setErrors] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loadingErrors, setLoadingErrors] = useState(true);
+  const [errorsError, setErrorsError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Form State
@@ -39,6 +44,7 @@ function ErrorsPageContent() {
   const [projectId, setProjectId] = useState('');
   const [tagsStr, setTagsStr] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Selected error for details drawer
   const [selectedError, setSelectedError] = useState<any | null>(null);
@@ -52,6 +58,8 @@ function ErrorsPageContent() {
 
   const fetchData = async () => {
     try {
+      setLoadingErrors(true);
+      setErrorsError('');
       const [errorsData, projectsData] = await Promise.all([
         apiFetch('/errors'),
         apiFetch('/projects'),
@@ -63,11 +71,14 @@ function ErrorsPageContent() {
       // Auto-open error if referenced in URL query parameters
       const urlId = searchParams.get('id');
       if (urlId && errorsData.errors) {
-        const found = errorsData.errors.find((e: any) => e._id === urlId);
-        if (found) setSelectedError(found);
+        const found = isValidObjectIdString(urlId)
+          ? errorsData.errors.find((e: any) => e._id === urlId)
+          : null;
+        setSelectedError(found || null);
       }
     } catch (err) {
       console.error('[Errors]: Fetch failed:', err);
+      setErrorsError(err instanceof Error ? err.message : 'Unable to load error library.');
     } finally {
       setLoadingErrors(false);
     }
@@ -89,6 +100,7 @@ function ErrorsPageContent() {
       .filter(t => t !== '');
 
     try {
+      setErrorsError('');
       const data = await apiFetch('/errors', {
         method: 'POST',
         body: JSON.stringify({
@@ -115,19 +127,29 @@ function ErrorsPageContent() {
       setTagsStr('');
     } catch (err) {
       console.error('[Errors]: Save failed:', err);
+      setErrorsError(err instanceof Error ? err.message : 'Unable to save error lesson.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: string) => {
+    if (!isValidObjectIdString(id)) {
+      setErrorsError('Unable to delete error lesson: invalid id.');
+      return;
+    }
     if (!confirm(t('deleteErrorConfirm'))) return;
+    setDeletingId(id);
     try {
+      setErrorsError('');
       await apiFetch(`/errors/${id}`, { method: 'DELETE' });
       setErrors(prev => prev.filter(e => e._id !== id));
       if (selectedError?._id === id) setSelectedError(null);
     } catch (err) {
       console.error('[Errors]: Delete failed:', err);
+      setErrorsError(err instanceof Error ? err.message : 'Unable to delete error lesson.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -135,8 +157,8 @@ function ErrorsPageContent() {
 
   // Filter errors by keyword
   const filteredErrors = errors.filter(e =>
-    e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    e.errorMessage.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(e.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    String(e.errorMessage || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (e.tags || []).some((tItem: string) => tItem.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
@@ -307,6 +329,15 @@ function ErrorsPageContent() {
           />
         </div>
 
+        {errorsError && (
+          <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-xs text-danger">
+            <span>{errorsError}</span>
+            <button type="button" onClick={fetchData} className="rounded-xl border border-danger/20 px-3 py-1 text-[10px] font-semibold">
+              Retry
+            </button>
+          </div>
+        )}
+
         {/* Layout split */}
         <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
           {/* Left: list cards */}
@@ -370,10 +401,15 @@ function ErrorsPageContent() {
                           e.stopPropagation();
                           handleDelete(err._id);
                         }}
+                        disabled={deletingId === err._id}
                         className="p-1.5 bg-danger/5 hover:bg-danger/15 text-danger rounded-lg transition-colors"
                         title={t('cancel')}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        {deletingId === err._id ? (
+                          <div className="h-3.5 w-3.5 rounded-full border-2 border-white/20 border-t-danger animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
                       </button>
                       <ChevronRight className={`w-4 h-4 text-text-secondary ${isRtl ? 'rotate-180' : ''}`} />
                     </div>

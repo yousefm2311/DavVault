@@ -27,14 +27,53 @@ import {
   HardDrive,
   Shield,
   Zap,
-  Bot
+  Bot,
+  GitBranch
 } from 'lucide-react';
 
 interface Citation {
-  fileName: string;
-  path: string;
+  id?: string;
+  type?: string;
+  domainType?: string;
+  title?: string;
+  subtitle?: string;
+  path?: string;
+  relationshipType?: string;
+  confidence?: number;
+  source?: 'code' | 'search' | 'memory' | 'debugging_lesson' | 'architecture_blueprint' | 'knowledge_relationship';
+  navigation?: {
+    route?: string;
+    projectId?: string;
+    fileId?: string;
+    entityId?: string;
+  };
+  fileName?: string;
   code?: string;
   score?: number;
+}
+
+interface KnowledgeRelationship {
+  id?: string;
+  sourceType: string;
+  sourceId: string;
+  targetType: string;
+  targetId: string;
+  relationshipType?: string;
+  displayName?: string;
+  displayType?: string;
+  displaySubtitle?: string;
+  sourceDisplayName?: string;
+  targetDisplayName?: string;
+  sourcePath?: string;
+  targetPath?: string;
+  confidence?: number;
+  evidence?: {
+    filePath?: string;
+    sourceLine?: number;
+    targetLine?: number;
+    snippet?: string;
+    reason?: string;
+  };
 }
 
 interface Message {
@@ -42,9 +81,76 @@ interface Message {
   senderName?: string;
   text: string;
   citations?: Citation[];
+  relatedRelationships?: KnowledgeRelationship[];
   createdAt: Date;
   isLimit?: boolean;
 }
+
+const humanizeRelationshipType = (relationshipType?: string) => {
+  const labels: Record<string, string> = {
+    contains: 'Contains',
+    defines: 'Defines',
+    imports: 'Imports',
+    exports: 'Exports',
+    calls: 'Calls',
+    uses: 'Uses',
+    depends_on: 'Depends on',
+    extends: 'Extends',
+    implements: 'Implements',
+    similar_to: 'Similar to',
+    solves: 'Solves',
+    documents: 'Documents',
+    mentioned_in: 'Mentioned in',
+    generated_from: 'Generated from',
+    related_to: 'Related to',
+  };
+  if (!relationshipType) return 'Related to';
+  return labels[relationshipType] || relationshipType.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const humanizeCitationLabel = (value?: string) => {
+  if (!value) return 'Source';
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const citationTitle = (citation: Citation) => (
+  citation.title || citation.fileName || citation.path || 'Source'
+);
+
+const citationConfidence = (citation: Citation) => {
+  const value = typeof citation.confidence === 'number' ? citation.confidence : citation.score;
+  return typeof value === 'number' ? `${Math.round(value * 100)}%` : undefined;
+};
+
+const isValidObjectIdString = (value?: string) => (
+  typeof value === 'string' && /^[a-f\d]{24}$/i.test(value)
+);
+
+const isSafeCitationRoute = (route?: string): route is string => (
+  typeof route === 'string' &&
+  (
+    /^\/projects\/[a-f\d]{24}(\?fileId=[a-f\d]{24})?$/i.test(route) ||
+    /^\/(snippets|errors|systems)(\?id=[a-f\d]{24})?$/i.test(route)
+  )
+);
+
+// Temporary compatibility for legacy responses that serialized ObjectIds as buffers.
+const normalizeProjectId = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return '';
+
+  const candidate = value as { _id?: unknown; buffer?: Record<string, number> };
+  if (typeof candidate._id === 'string') return candidate._id;
+
+  if (candidate.buffer && typeof candidate.buffer === 'object') {
+    const bytes = Array.from({ length: 12 }, (_, index) => candidate.buffer?.[String(index)]);
+    if (bytes.every((byte): byte is number => typeof byte === 'number' && Number.isInteger(byte) && byte >= 0 && byte <= 255)) {
+      return bytes.map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    }
+  }
+
+  return '';
+};
 
 interface SourceFile {
   _id: string;
@@ -67,6 +173,9 @@ function AIChatPageContent() {
   const [projects, setProjects] = useState<any[]>([]);
   const [sourceFiles, setSourceFiles] = useState<SourceFile[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [loadingInitialData, setLoadingInitialData] = useState(true);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [sourceFilesError, setSourceFilesError] = useState<string | null>(null);
 
   // AI Coworkers states
   const [aiAgents, setAiAgents] = useState<any[]>([]);
@@ -100,6 +209,7 @@ function AIChatPageContent() {
 
   const loadInitialData = async () => {
     try {
+      setChatError(null);
       const [projectsData, sessionsData, agentsData] = await Promise.all([
         apiFetch('/projects'),
         apiFetch('/ai/sessions'),
@@ -111,6 +221,9 @@ function AIChatPageContent() {
       setAiAgents(agentsData.agents || []);
     } catch (err) {
       console.error('[Chat]: Initial loading failed:', err);
+      setChatError(isRtl ? 'تعذر تحميل مساحة المحادثة.' : 'Unable to load chat workspace.');
+    } finally {
+      setLoadingInitialData(false);
     }
   };
 
@@ -122,7 +235,13 @@ function AIChatPageContent() {
   useEffect(() => {
     if (!user) return;
     const urlProjectId = searchParams.get('projectId');
-    if (urlProjectId) setSelectedProjectId(urlProjectId);
+    if (urlProjectId) {
+      if (isValidObjectIdString(urlProjectId)) {
+        setSelectedProjectId(urlProjectId);
+      } else {
+        setChatError(isRtl ? 'معرّف المشروع غير صالح.' : 'Invalid project id.');
+      }
+    }
 
     const urlAsk = searchParams.get('ask');
     if (urlAsk) {
@@ -133,16 +252,25 @@ function AIChatPageContent() {
   useEffect(() => {
     if (!user || !selectedProjectId) {
       setSourceFiles([]);
+      setSourceFilesError(null);
+      return;
+    }
+
+    if (!isValidObjectIdString(selectedProjectId)) {
+      setSourceFiles([]);
+      setSourceFilesError(isRtl ? 'معرّف المشروع غير صالح.' : 'Invalid project id.');
       return;
     }
 
     const loadSourceFiles = async () => {
       try {
+        setSourceFilesError(null);
         const data = await apiFetch(`/projects/${selectedProjectId}/files`);
         setSourceFiles(data.files || []);
       } catch (err) {
         console.error('[Chat]: Failed to load source files:', err);
         setSourceFiles([]);
+        setSourceFilesError(isRtl ? 'تعذر تحميل ملفات المشروع أو ربما تم حذفه.' : 'Unable to load project files. The project may have been deleted.');
       }
     };
 
@@ -200,6 +328,13 @@ function AIChatPageContent() {
 
     setInputMsg('');
     setSending(true);
+    setChatError(null);
+
+    if (selectedProjectId && !isValidObjectIdString(selectedProjectId)) {
+      setSending(false);
+      setChatError(isRtl ? 'معرّف المشروع غير صالح.' : 'Invalid project id.');
+      return;
+    }
 
     const userMsg: Message = { sender: 'user', text: queryText, createdAt: new Date() };
     setMessages(prev => [...prev, userMsg]);
@@ -226,6 +361,7 @@ function AIChatPageContent() {
               senderName: reply.senderName,
               text: reply.text,
               citations: data.citations || [],
+              relatedRelationships: Array.isArray(data.relatedRelationships) ? data.relatedRelationships : [],
               createdAt: new Date(),
             };
             setMessages(prev => [...prev, botMsg]);
@@ -238,8 +374,9 @@ function AIChatPageContent() {
         const assistantMsg: Message = {
           sender: 'assistant',
           senderName: undefined,
-          text: data.answer,
+          text: data.answer || (isRtl ? 'لم يتم إرجاع إجابة من خدمة الذكاء الاصطناعي.' : 'The AI service did not return an answer.'),
           citations: data.citations || [],
+          relatedRelationships: Array.isArray(data.relatedRelationships) ? data.relatedRelationships : [],
           createdAt: new Date(),
         };
         setMessages(prev => [...prev, assistantMsg]);
@@ -253,11 +390,15 @@ function AIChatPageContent() {
     } catch (err: any) {
       console.error('[Chat]: Message dispatch failed:', err);
       const isLimitExceeded = err.message?.toLowerCase().includes('limit');
+      const safeMessage = err.message?.toLowerCase().includes('not configured')
+        ? (isRtl ? 'خدمة الذكاء الاصطناعي غير مهيأة حالياً.' : 'The AI provider is not configured right now.')
+        : t('chatErrorOccurred');
+      setChatError(isLimitExceeded ? null : safeMessage);
       const errorMsg: Message = {
         sender: 'assistant',
         text: isLimitExceeded
           ? t('reachedRagLimit')
-          : t('chatErrorOccurred'),
+          : safeMessage,
         createdAt: new Date(),
         isLimit: isLimitExceeded,
       };
@@ -268,13 +409,81 @@ function AIChatPageContent() {
   };
 
   const handleOpenCitation = (cit: Citation) => {
+    const route = cit.navigation?.route;
+    if (isSafeCitationRoute(route)) {
+      router.push(route);
+      return;
+    }
+
+    const matchedFile = cit.path
+      ? sourceFiles.find((file) => file.path === cit.path || file.fileName === cit.fileName)
+      : undefined;
+    if (selectedProjectId && matchedFile?._id) {
+      router.push(`/projects/${selectedProjectId}?fileId=${matchedFile._id}`);
+      return;
+    }
+
     if (cit.code) {
       setDrawerCode(cit.code);
-      setDrawerTitle(cit.fileName);
-      const ext = cit.path.split('.').pop() || 'js';
+      setDrawerTitle(citationTitle(cit));
+      const ext = (cit.path || cit.fileName || '').split('.').pop() || 'js';
       setDrawerLanguage(ext === 'dart' ? 'dart' : ext === 'py' ? 'python' : 'javascript');
       setRightPanelOpen(true); // Auto expand right panel
     }
+  };
+
+  const canOpenCitation = (cit: Citation) => (
+    isSafeCitationRoute(cit.navigation?.route) ||
+    Boolean(cit.code) ||
+    Boolean(
+      selectedProjectId &&
+      cit.path &&
+      sourceFiles.some((file) => file.path === cit.path || file.fileName === cit.fileName)
+    )
+  );
+
+  const renderRelatedKnowledge = (relationships?: KnowledgeRelationship[]) => {
+    if (!relationships || relationships.length === 0) return null;
+
+    return (
+      <div className="space-y-1.5 pt-1">
+        <span className="text-[9px] uppercase tracking-widest text-text-muted font-bold block px-1">
+          Related Knowledge
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {relationships.slice(0, 6).map((relationship, index) => {
+            const evidence = relationship.evidence || {};
+            return (
+              <div
+                key={relationship.id || `${relationship.sourceId}-${relationship.targetId}-${index}`}
+                className="inline-flex max-w-[280px] flex-col rounded-xl border border-card-border/60 bg-bg-secondary/40 px-3 py-2 text-[9px] text-text-secondary"
+              >
+                <div className="flex items-center gap-1.5 font-mono">
+                  <GitBranch className="h-3 w-3 text-emerald-400" />
+                  <span className="font-bold text-white">
+                    {relationship.displayType || humanizeRelationshipType(relationship.relationshipType)}
+                  </span>
+                  {typeof relationship.confidence === 'number' && (
+                    <span className="text-emerald-400">({Math.round(relationship.confidence * 100)}%)</span>
+                  )}
+                </div>
+                <span className="mt-1 truncate font-mono text-white/80">
+                  {relationship.targetDisplayName || relationship.sourceDisplayName || relationship.displayName || relationship.targetId.slice(-8)}
+                </span>
+                {evidence.reason && (
+                  <span className="mt-1 line-clamp-2 leading-relaxed">{evidence.reason}</span>
+                )}
+                {(evidence.filePath || relationship.targetPath || relationship.sourcePath) && (
+                  <span className="mt-1 truncate font-mono text-text-muted">
+                    {evidence.filePath || relationship.targetPath || relationship.sourcePath}{evidence.sourceLine ? `:${evidence.sourceLine}` : ''}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   const handleCopyCode = () => {
@@ -375,7 +584,7 @@ function AIChatPageContent() {
     }
   ];
 
-  if (loading || !user) return <AppPageSkeleton label={t('loadingChatSpace')} />;
+  if (loading || !user || loadingInitialData) return <AppPageSkeleton label={t('loadingChatSpace')} />;
 
   return (
     <div className="flex min-h-screen bg-bg-primary text-white select-none" dir={dir}>
@@ -410,6 +619,12 @@ function AIChatPageContent() {
               {t('newChat')}
             </button>
 
+            {chatError && (
+              <div className="rounded-2xl border border-danger/25 bg-danger/10 px-3 py-2 text-[10px] font-semibold leading-relaxed text-danger">
+                {chatError}
+              </div>
+            )}
+
             {/* Scope selection */}
             <div className="space-y-2">
               <label className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold px-1">
@@ -421,9 +636,12 @@ function AIChatPageContent() {
                 className="w-full bg-bg-primary/50 border border-card-border/80 focus:border-accent-blue/40 rounded-xl py-2.5 px-3 text-xs text-white outline-none transition-all"
               >
                 <option value="">{t('searchAllRepos')}</option>
-                {projects.map(p => (
-                  <option key={p._id} value={p._id}>{p.name}</option>
-                ))}
+                {projects.map((p) => {
+                  const projectId = normalizeProjectId(p._id);
+                  return projectId ? (
+                    <option key={projectId} value={projectId}>{p.name}</option>
+                  ) : null;
+                })}
               </select>
             </div>
 
@@ -502,7 +720,11 @@ function AIChatPageContent() {
               )}
 
               <div className="flex-1 overflow-y-auto rounded-2xl border border-card-border/60 bg-bg-primary/20 p-2 space-y-1 custom-scrollbar">
-                {sourceFiles.length > 0 ? (
+                {sourceFilesError ? (
+                  <div className="px-3 py-10 text-center text-[10px] leading-relaxed text-danger">
+                    {sourceFilesError}
+                  </div>
+                ) : sourceFiles.length > 0 ? (
                   filteredSourceFiles.length > 0 ? (
                     filteredSourceFiles.map((file) => (
                       <button
@@ -594,7 +816,7 @@ function AIChatPageContent() {
                 {selectedProjectId && (
                   <p className="text-[9px] text-accent-blue font-mono font-bold mt-0.5 uppercase tracking-wider flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-accent-blue animate-pulse"></span>
-                    {projects.find(p => p._id === selectedProjectId)?.name || 'Scope Locked'}
+                    {projects.find(p => normalizeProjectId(p._id) === selectedProjectId)?.name || 'Scope Locked'}
                   </p>
                 )}
               </div>
@@ -691,20 +913,51 @@ function AIChatPageContent() {
                               <div
                                 key={i}
                                 onClick={() => handleOpenCitation(c)}
-                                className="inline-flex items-center px-3 py-1.5 bg-bg-secondary/40 border border-card-border/60 hover:bg-white/5 hover:border-accent-blue/30 rounded-xl text-[9px] text-text-secondary hover:text-white transition-all cursor-pointer font-mono"
+                                onKeyDown={(event) => {
+                                  if (canOpenCitation(c) && (event.key === 'Enter' || event.key === ' ')) {
+                                    event.preventDefault();
+                                    handleOpenCitation(c);
+                                  }
+                                }}
+                                role={canOpenCitation(c) ? 'button' : undefined}
+                                tabIndex={canOpenCitation(c) ? 0 : undefined}
+                                title={canOpenCitation(c) ? `Open source: ${citationTitle(c)}` : citationTitle(c)}
+                                aria-label={canOpenCitation(c) ? `Open source ${citationTitle(c)}` : undefined}
+                                className={`max-w-[260px] rounded-xl border border-card-border/60 bg-bg-secondary/40 px-3 py-2 text-[9px] text-text-secondary transition-all ${
+                                  canOpenCitation(c) ? 'cursor-pointer hover:bg-white/5 hover:border-accent-blue/30 hover:text-white' : ''
+                                }`}
                               >
-                                <FileCode className={`w-3 h-3 ${isRtl ? 'ml-1.5' : 'mr-1.5'} text-accent-blue`} />
-                                {c.fileName}
-                                {c.score && (
-                                  <span className="text-[8px] text-emerald-400 font-bold ml-1">
-                                    ({(c.score * 100).toFixed(0)}%)
+                                <div className="flex items-center gap-1.5">
+                                  <FileCode className="h-3 w-3 shrink-0 text-accent-blue" />
+                                  <span className="truncate font-mono font-bold text-white">{citationTitle(c)}</span>
+                                </div>
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                  <span className="rounded-full bg-accent-blue/10 px-1.5 py-0.5 text-[8px] font-bold text-accent-blue">
+                                    {humanizeCitationLabel(c.domainType || c.type || c.source)}
                                   </span>
+                                  {c.relationshipType && (
+                                    <span className="rounded-full bg-success/10 px-1.5 py-0.5 text-[8px] font-bold text-success">
+                                      {humanizeRelationshipType(c.relationshipType)}
+                                    </span>
+                                  )}
+                                  {citationConfidence(c) && (
+                                    <span className="rounded-full bg-white/5 px-1.5 py-0.5 text-[8px] font-bold text-emerald-400">
+                                      {citationConfidence(c)}
+                                    </span>
+                                  )}
+                                </div>
+                                {c.path && (
+                                  <div className="mt-1 truncate font-mono text-[8px] text-text-muted">
+                                    {c.path}
+                                  </div>
                                 )}
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
+
+                      {m.sender === 'assistant' && renderRelatedKnowledge(m.relatedRelationships)}
                     </div>
                   </div>
                 ))
