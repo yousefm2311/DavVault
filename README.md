@@ -1,4 +1,4 @@
-[🇺🇸 Read in English](README.md) | [🇸🇦 إقرأ باللغة العربية](README_AR.md)
+[🇺🇸 Read in English](README.md) | [AR إقرأ باللغة العربية](README_AR.md)
 
 <div align="center">
   <!-- مسار لوجو المشروع -->
