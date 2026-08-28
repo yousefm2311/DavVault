@@ -1,12 +1,13 @@
+[🇺🇸 Read in English](README.md) | [🇸🇦 إقرأ باللغة العربية](README_AR.md)
+
 <div align="center">
   <!-- مسار لوجو المشروع -->
   <img src="frontend/public/globe.svg" alt="DevVault AI Logo" width="120" />
 
   # 🧠 DevVault AI
 
-  **المستودع الذكي والذاكرة المركزية للمطورين وفرق البرمجة المعتمد على الذكاء الاصطناعي.**
+  **The ultimate AI-powered Knowledge Repository, Intelligent Memory, and Productivity Hub for Engineering Teams.**
 
-  <!-- شارات التقنيات -->
   [![Next.js](https://img.shields.io/badge/Next.js-16.2.9-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
   [![Node.js](https://img.shields.io/badge/Node.js-Backend-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
   [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -17,109 +18,115 @@
 
 ---
 
-## 🚀 نظرة عامة (Overview)
+## 🚀 Overview
 
-**DevVault AI** هو أداة متقدمة لإنتاجية المطورين تعمل كمستودع معرفي متكامل (Knowledge Repository). يقوم النظام بتحليل وفهرسة قواعد البيانات البرمجية (Codebases)، وتخزين قوالب البنية التحتية (Architecture Blueprints)، ودروس تصحيح الأخطاء (Debugging Lessons). باستخدام الرسم البياني المعرفي (Knowledge Graph) ونماذج الذكاء الاصطناعي، يفهم المشروع العلاقات بين الأكواد ليعمل كذاكرة طويلة الأمد لك ولفريقك، مع تقديم سياق دقيق للذكاء الاصطناعي بناءً على أسلوبك البرمجي (Developer DNA).
+**DevVault AI** is a highly advanced, centralized intelligence platform designed specifically for software developers and engineering teams. It transcends traditional snippet managers by deeply analyzing your entire source code project to build an interconnected **Knowledge Graph**. 
 
----
-
-## ✨ الميزات الرئيسية (Key Features)
-
-*   🧠 **الرسم البياني المعرفي (Knowledge Graph):** تحليل وفهم العلاقات بين مختلف الكيانات البرمجية (Logical Entities) داخل المشروع للحصول على رؤى أعمق.
-*   🤖 **مساعد الذكاء الاصطناعي المتكامل (AI Context Builder):** تكامل مع (OpenAI / Google Gemini) لتقديم ردود ذكية، البحث المتقدم، وتتبع السياق (Context Trace) لفهم كودك.
-*   🧬 **البصمة البرمجية (Stylistic Profile / Developer DNA):** يتعلم النظام أسلوبك البرمجي، وطريقة تسميتك للمتغيرات ليقوم الذكاء الاصطناعي بتقديم حلول متوافقة مع نمط كتابتك.
-*   🛠️ **دروس تصحيح الأخطاء (Debugging Lessons):** حفظ الأخطاء السابقة وجذور المشكلة والحلول (Diffs) لتكون مرجعاً ذكياً يمنع تكرار نفس الأخطاء.
-*   📦 **أصول الأكواد والقوالب (Code Assets & Blueprints):** مكتبة مركزية لحفظ وتخزين الأكواد القابلة لإعادة الاستخدام والبنى التحتية للمشاريع بضغطة زر.
-*   ⚡ **تحديثات بالوقت الفعلي (Real-time Collaboration):** مزامنة فورية وأدوات تعاون للفِرق باستخدام `Socket.IO`.
-*   💳 **نظام اشتراكات متكامل:** دعم خطط Pro و Team مع تكامل كامل مع Stripe لمعالجة المدفوعات.
+It acts as an intelligent "second brain" that tracks your codebase evolution, remembers your debugging lessons, understands your team's architectural blueprints, and learns your unique stylistic profile (Developer DNA). By integrating deeply with Large Language Models (OpenAI / Google Gemini), DevVault AI provides context-aware code generation, deeply informed technical explanations, and advanced project-wide search capabilities.
 
 ---
 
-## 🏗️ البنية التحتية والتقنيات (Architecture & Tech Stack)
+## ✨ Core Features & Domain Model
 
-تم بناء المشروع باستخدام بنية حديثة قابلة للتوسع، مقسمة إلى واجهة مستخدم (Frontend) تفاعلية وخادم خلفي (Backend) قوي يعتمد على معالجة الطوابير (Queues) للأحمال الثقيلة.
+DevVault AI introduces a sophisticated domain-driven architecture to categorize and understand developer assets:
 
-### الواجهة الأمامية (Frontend)
-*   **إطار العمل:** [Next.js 16 (React 19)](https://nextjs.org/)
-*   **التصميم والتنسيق:** Tailwind CSS v4, Framer Motion (للحركات)
-*   **المحرر والأدوات:** Monaco Editor (لكتابة وتعديل الكود), ReactFlow (لرسم الخرائط المعرفية)
-*   **الاتصال اللحظي:** Socket.IO Client
-
-### الواجهة الخلفية (Backend)
-*   **بيئة التشغيل:** [Node.js](https://nodejs.org/) & [Express](https://expressjs.com/) (مع TypeScript)
-*   **قاعدة البيانات:** MongoDB (عبر Mongoose) للبيانات المهيكلة، و Redis للتخزين المؤقت والـ Sessions.
-*   **معالجة المهام (Background Jobs):** BullMQ لإدارة طوابير تحليل الأكواد وفهرستها.
-*   **الذكاء الاصطناعي:** `@google/generative-ai` و `openai` لبناء السياق وتحليل الأكواد.
-*   **المصادقة والدفع:** JWT, OAuth (Google/GitHub), و Stripe.
+*   🌐 **Knowledge Graph (Codebase Indexing):** Upload or link an entire project (Codebase). The backend parses files (Source Assets) and maps functional modules (Logical Entities), establishing a graph of relationships (e.g., imports, inheritances) that the AI traverses to understand the full context of your project.
+*   🤖 **AI Context Builder & Chat:** A highly context-aware AI assistant. When you ask a question, the `AI Context Builder` selectively injects code chunks, developer memory, and knowledge graph relationships into the prompt. Includes a dedicated `Context Trace` debugging endpoint to see exactly *why* the AI made its decisions.
+*   🧬 **Stylistic Profile (Developer DNA):** The system continuously learns your coding style, naming conventions, and architectural preferences, ensuring that any AI-generated code perfectly aligns with your personal or team standards.
+*   🛠️ **Debugging Lessons (Error Solutions):** Stop fixing the same bug twice. Track errors, root causes, and solution diffs. The AI uses this historical memory to instantly suggest solutions when it detects similar patterns in the future.
+*   📦 **Code Assets & Architecture Blueprints:** Store reusable snippets, boilerplate templates, and complex infrastructure setups (Docker, CI/CD, etc.) that can be queried and integrated by the AI instantly.
+*   ⏱️ **Time Machine & Auditing:** Track the chronological evolution of your workspace, view historical audit events, and rollback or replay codebase states.
+*   👥 **Workspaces & Real-time Collaboration:** Designed for enterprise teams. Create isolated Workspaces, assign Role-Based Access Control (RBAC), and collaborate in real-time via `Socket.IO`.
+*   💳 **Enterprise Billing:** Built-in Stripe integration enforcing Pro and Team license limits (team members, AI limits, storage boundaries).
 
 ---
 
-## 📂 هيكل المجلدات (Directory Structure)
+## 🏗️ Architecture & Tech Stack
+
+DevVault AI is built on a modern, decoupled client-server architecture capable of handling heavy code parsing workloads asynchronously.
+
+### Frontend (Client Application)
+*   **Framework:** [Next.js 16 (App Router)](https://nextjs.org/) & React 19.
+*   **Language:** TypeScript (Strict Mode).
+*   **Styling & Animation:** Tailwind CSS v4 and Framer Motion.
+*   **Specialized UI:** 
+    *   `@monaco-editor/react`: VSCode-like in-browser code editing.
+    *   `reactflow`: Interactive node-based visualization of the Knowledge Graph.
+*   **Realtime:** `socket.io-client` for live notifications and collaborative editing.
+
+### Backend (API Server & Workers)
+*   **Framework:** Node.js with Express & TypeScript.
+*   **Database (Persistent):** MongoDB via Mongoose (Schema validation & relationships).
+*   **Database (Cache & PubSub):** Redis (Session caching, Rate limiting, WebSockets PubSub).
+*   **Background Jobs:** `BullMQ` for asynchronous processing of heavy tasks (ZIP extraction, Codebase AST Parsing, Embedding Generation).
+*   **AI Integration:** `@google/generative-ai` & `openai` SDKs for embeddings, chat, and contextual reasoning.
+*   **Security & Identity:** JWT-based stateless auth, OAuth callbacks (GitHub/Google), and standard Express security middlewares (Helmet, CORS, Rate Limiter).
+
+---
+
+## 📂 Directory Structure
 
 ```text
 DevVault/
-├── backend/                  # خادم Node.js / Express
+├── backend/                  # Node.js API Service & Background Workers
 │   ├── src/                  
-│   │   ├── controllers/      # وحدات التحكم (API Endpoints)
-│   │   ├── models/           # مخططات قواعد البيانات (Mongoose Schemas)
-│   │   ├── routes/           # مسارات الـ API
-│   │   ├── services/         # منطق الأعمال (AI, Parsing, Queues, etc.)
-│   │   └── utils/            # أدوات مساعدة (Domain Mappers, Billing)
-├── frontend/                 # تطبيق Next.js
+│   │   ├── controllers/      # Route handlers (Auth, Projects, AI, Search, etc.)
+│   │   ├── models/           # Mongoose Data Models (Project, Snippet, CodeEntity...)
+│   │   ├── routes/           # Express Router definitions
+│   │   ├── services/         # Core business logic (AI Context, Parsers, Queue processors)
+│   │   ├── utils/            # Domain Mappers, Billing helpers, Access Control
+│   │   └── middleware/       # JWT Auth, Validation, Limits enforcement
+├── frontend/                 # Next.js Web Application
 │   ├── src/
-│   │   ├── app/              # صفحات التطبيق (Next.js App Router)
-│   │   ├── components/       # مكونات واجهة المستخدم (UI Components)
-│   │   └── context/          # إدارة الحالة (Auth, Notifications, etc.)
-├── docs/                     # وثائق المشروع (Domain Models, AI Context Trace)
-├── scripts/                  # سكربتات مساعدة لصيانة النظام
-└── docker-compose.yml        # إعدادات Docker لتشغيل البيئة المحلية
+│   │   ├── app/              # Next.js App Router Pages (Chat, Dashboard, DNA, etc.)
+│   │   ├── components/       # Reusable React UI Components (Sidebar, CodeEditor...)
+│   │   └── context/          # React Context Providers (Auth, CommandPalette, Language...)
+├── docs/                     # Architectural documentation (Domain Models, Runbooks)
+├── scripts/                  # Utility and database migration scripts
+└── docker-compose.yml        # Local development infrastructure (Mongo + Redis)
 ```
 
 ---
 
-## 🚀 البدء السريع (Getting Started)
+## 🚀 Getting Started (Runbook)
 
-### المتطلبات الأساسية (Prerequisites)
-*   Node.js >= 20.0.0
-*   Docker & Docker Compose (لتشغيل قواعد البيانات محلياً)
-*   مفاتيح API لـ (OpenAI أو Gemini) و Stripe (اختياري للإنتاج)
+### Prerequisites
+*   Node.js (v20+)
+*   Docker & Docker Compose (for local database services)
+*   *Optional (for full experience):* OpenAI / Gemini API Keys, Stripe Keys, OAuth Credentials.
 
-### خطوات التثبيت وتشغيل المشروع
+### 1. Start Infrastructure Services
+Boot up the MongoDB and Redis containers:
+```bash
+docker compose up -d mongo redis
+```
 
-1. **تشغيل الخدمات المحلية (Database & Redis):**
-   ```bash
-   docker compose up -d mongo redis
-   ```
+### 2. Environment Configuration
+Duplicate the `.env.example` files in both directories:
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
+```
+*(Note: DevVault AI can run in "Local Simulation" mode for billing and offline fallback for AI if external keys are not provided).*
 
-2. **تجهيز متغيرات البيئة:**
-   انسخ ملفات `.env.example` وقم بتعبئة البيانات اللازمة:
-   ```bash
-   cp backend/.env.example backend/.env
-   cp frontend/.env.example frontend/.env.local
-   ```
-   *ملاحظة: يمكنك تشغيل التطبيق بدون مفاتيح AI و Stripe، حيث سيعمل النظام على وضع "المحاكاة المحلية" (Local Simulation).*
+### 3. Start the Backend API
+```bash
+cd backend
+npm install
+npm run dev
+```
+*(Runs on `http://localhost:5001`. Verify via `curl http://localhost:5001/health`)*
 
-3. **تشغيل الخادم الخلفي (Backend):**
-   ```bash
-   cd backend
-   npm install
-   npm run dev
-   ```
-
-4. **تشغيل الواجهة الأمامية (Frontend):**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-
-5. **فحص حالة النظام (Health Check):**
-   تأكد من أن الخادم يعمل بشكل سليم عبر:
-   ```bash
-   curl http://localhost:5001/health
-   ```
+### 4. Start the Frontend App
+Open a new terminal tab:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*(Runs on `http://localhost:3000`)*
 
 ---
 
-## 🛡️ الترخيص (License)
-هذا المشروع خاص ومملوك بالكامل. جميع الحقوق محفوظة.
+## 🛡️ License & Copyright
+This software is proprietary. All rights reserved. Do not distribute or copy without explicit permission.
